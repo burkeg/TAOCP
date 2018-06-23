@@ -1,0 +1,47 @@
+% Solitaire
+t	   IS	$255	& Temp variable
+
+DOWN	   IS	0
+UP	   IS	1
+CLUBS	   IS	1
+DIAMONDS   IS	2
+HEARTS	   IS	3
+SPADES	   IS	4
+
+TAG	   IS 	0*8
+SUIT	   IS 	1*8
+RANK	   IS 	2*8
+NEXT	   IS 	3*8
+TITLE	   IS 	4*8
+
+	LOC	Data_Segment
+	GREG	@
+CARD0	OCTA	DOWN,CLUBS,3,0
+	BYTE	"     3 C"
+1H	OCTA	UP,DIAMONDS,6,CARD0
+	BYTE	"     6 D"
+1H	OCTA	UP,SPADES,10,1B
+	BYTE	"    10 S"
+1H	OCTA	UP,HEARTS,5,1B
+	BYTE	"     5 H"
+	LOC	1B+100*12
+	GREG	@
+NEWCARD	OCTA	DOWN,CLUBS,3,0
+	BYTE	"     3 C"
+
+N	IS	$0
+X	IS	$1
+TOP	IS	$2
+	LOC	#100
+Main	LDA	TOP,1B		1 &
+	SET	X,TOP		1 & B1.
+	SET	N,0		1 & 
+2H	BZ	X,Done		N\bg{1} & B2.
+	ADD	N,N,1		N & B3. N <- N + 1
+	LDO	X,X,NEXT	N &
+	JMP	2B		N &
+Done	ADD	N,N,0
+	ADD	N,N,0
+	ADD	N,N,0
+	ADD	N,N,0
+	TRAP	0,Halt,0

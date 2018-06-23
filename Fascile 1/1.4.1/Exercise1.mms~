@@ -1,0 +1,22 @@
+% GoMaxR
+t	IS	$255
+r	IS	4
+n	IS	100
+	LOC	#100
+Main	SET	$1,n
+	SET	$2,r
+	GO	$0,GoMax
+%	do stuff with $0
+	ADD	$0,$0,0
+	ADD	$0,$0,0
+	ADD	$0,$0,0
+
+j GREG ;m GREG ;kk GREG ;xk GREG ;a GREG
+        GREG    @
+GoMax	SL	kk,$1,3
+	SUB 	a,$1,1
+	DIV	a,a,$2
+	GET	a,rR
+	ADD	a,a,1
+
+6H	GO	0

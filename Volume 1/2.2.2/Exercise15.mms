@@ -1,23 +1,27 @@
 % Monte Carlo Algo G vs moving 1 at a time
 
 t 	    IS	   $255	       Temp var
-n	    IS	   10
+nConst	    IS	   6
+LinfConst   IS	   20
+L0Const	    IS	   0
+n	    GREG   nConst
 elemSize    IS	   8
-L0	    IS	   0
-Linf	    IS	   30
+L0	    IS	   L0Const
+Linf	    GREG   LinfConst
 
 	    LOC	   Data_Segment	    
 BASE	    GREG   @
 1H	    OCTA   0
-	    LOC	   1B+(n+1)*8
+	    LOC	   1B+(nConst+1)*8
 TOP	    GREG   @
 1H	    OCTA   0
-	    LOC	   1B+(n)*8
+	    LOC	   1B+(nConst)*8
 DATA	    GREG   @
 2H	    OCTA   0
-	    LOC	   2B+(Linf-L0)*8
+	    LOC	   2B+(LinfConst)*8
 SEQ	    GREG   @
-	    BYTE   "SSSSXXSSXXSXSSXXSXSSXXSXSSXXSXSXSSXSXXXX"
+	    BYTE   "SSSS"
+	    LOC	   @+(8-@%8)
 OUT	    GREG   @
 	    BYTE
 
@@ -55,13 +59,63 @@ Main	    SET	   t,Linf
 	    SL	   t,j,3
 	    SUB	   LinfR,LinfR,1
 	    STO	   LinfR,BASE,t
-	    
 
+
+;---------------------------------------;
 i	    IS	   $1
 Y	    IS	   $2
 j	    IS	   $3
 tmp2	    IS	   $4
 j2	    IS	   $5
+;---------------------------------------;
+;	Hardcoded stack operations
+
+	    SET	   Y,1
+	    SET	   i,(nConst-1)*8
+	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    	    
+;	    Push	    
+	    SET	   $7,i
+	    SET	   $8,Y
+	    PUSHJ  $6,:Push
+	    ADD	   Y,Y,1
+	    
+
+
+	    TRAP   0,Halt,0
+	    
+;---------------------------------------;
+;	Read a string of inputs and apply them from start to finish
+;	to stacks 1 <= i < n
 	    SET	   i,0
 	    SET	   j2,0
 5H	    SET	   Y,1
@@ -71,8 +125,10 @@ j2	    IS	   $5
 	    BZ	   tmp2,2F
 	    CMP	   tmp2,:t,#58      X
 	    BZ	   tmp2,3F
-	    CMP	   :t,i,8*n
-	    BZ	   t,5F
+	    SUB	   :t,n,2
+	    SL	   :t,:t,3
+	    CMP	   :t,i,:t
+	    BZ	   :t,5F
 	    ADD	   i,i,8
 	    ADD	   j2,j2,8
 	    JMP	   5B
@@ -93,24 +149,28 @@ j2	    IS	   $5
 
 4H	    ADD	   j,j,1
 	    JMP	   1B
+;---------------------------------------;
+
 
 	    PREFIX Dump:
 j	    IS	   $0
 lim	    IS	   $1
 :Dump	    SET	   j,0
-	    SET	   lim,(:n+1)*8
+	    ADD	   :t,:n,1
+	    SL	   lim,:t,3
 1H	    LDO	   :t,:BASE,j
 	    ADD	   j,j,8
 	    CMP	   :t,j,lim
 	    BNZ	   :t,1B
 	    SET	   j,0
-	    SET	   lim,:n*8
+	    SL	   lim,:n,3
 1H	    LDO	   :t,:TOP,j
 	    ADD	   j,j,8
 	    CMP	   :t,j,lim
 	    BNZ	   :t,1B
 	    SET	   j,0
-	    SET	   lim,(:Linf-:L0)*8
+	    SUB	   :t,:Linf,:L0
+	    SL	   lim,:t,3
 1H	    LDO	   :t,:DATA,j
 	    ADD	   j,j,8
 	    CMP	   :t,j,lim
@@ -135,6 +195,7 @@ retaddr	    IS	   $4
 	    PBNP   :t,1F	    Branch if no overflow
 	    SET	   $6,i
 	    PUSHJ  $5,:Overflow
+	    LDO	   TOPi,:TOP,i	    Reload TOP[i] in the case of overflow
 1H	    SL	   :t,TOPi,3   Convert TOP[i] from an index to a byte offset
 	    STO	   Y,:DATA,:t	    
 	    PUT	   :rJ,retaddr
@@ -165,7 +226,91 @@ Y	    IS	   $3
 
 	    PREFIX Overflow:
 i	    IS	   $0
-:Overflow   PUSHJ  $0,:Dump
-	    POP	   0,0
+k	    IS	   $1
+TOPk	    IS	   $2
+BASEk1	    IS	   $3
+L	    IS	   $4
+lim	    IS	   $5
+j	    IS	   $6
+:Overflow   ADD	   k,i,8
+4H	    SL	   :t,:n,3
+	    CMP	   :t,k,:t
+	    BZ	   :t,6F
+;---------------------------------------;
+;	Move things up a notch
+	    LDO	   TOPk,:TOP,k
+	    ADD	   :t,k,8
+	    LDO	   BASEk1,:BASE,:t
+	    CMP	   :t,TOPk,BASEk1
+	    BN	   :t,5F
+	    ADD	   k,k,8
+	    JMP	   4B
+5H	    SL	   lim,BASEk1,3
+	    LDA	   lim,:DATA,lim
+	    SL	   :t,TOPk,3
+	    LDA	   L,:DATA,:t	  Load L with pointer to data TOPk references
+	    ADD	   :t,i,8
+	    LDO	   :t,:BASE,:t
+	    CMP	   :t,:t,TOPk
+	    BZ	   :t,1F
+3H	    LDO	   :t,L,0
+	    STO	   :t,L,8
+	    SUB	   L,L,8
+	    CMP	   :t,L,lim
+	    PBNZ   :t,3B	  Shifts data right 1 index
+	    
+1H	    ADD	   j,i,8
+2H	    LDO	   :t,:BASE,j
+	    ADD	   :t,:t,1	
+	    STO	   :t,:BASE,j	  BASE[j] <- BASE[j]+1
+	    LDO	   :t,:TOP,j
+	    ADD	   :t,:t,1	
+	    STO	   :t,:TOP,j	  TOP[j] <- TOP[j]+1
+	    ADD	   j,j,8
+	    CMP	   :t,j,k
+	    PBNP   :t,2B
+	    JMP	   8F
+	    
+;---------------------------------------;
+;	Move things down a notch
+6H	    SUB	   k,i,8
+
+4H	    BN	   k,7F
+	    LDO    TOPk,:TOP,k
+	    ADD	   :t,k,8
+	    LDO	   BASEk1,:BASE,:t
+	    CMP	   :t,TOPk,BASEk1
+	    BN	   :t,5F
+	    SUB	   k,k,8
+	    JMP	   4B
+5H	    LDO	   :t,:TOP,i
+	    SL	   :t,:t,3
+	    LDA	   lim,:DATA,:t
+	    SUB	   lim,lim,8
+	    SL	   :t,BASEk1,3
+	    LDA	   L,:DATA,:t	  Load L with Loc(BASE[k+1])
+3H	    LDO	   :t,L,8
+	    STO	   :t,L,0
+	    ADD	   L,L,8
+	    CMP	   :t,L,lim
+	    PBN   :t,3B	  Shifts data left 1 index
+	    
+1H	    SET	   j,i
+2H	    LDO	   :t,:BASE,j
+	    SUB	   :t,:t,1	
+	    STO	   :t,:BASE,j	  BASE[j] <- BASE[j]+1
+	    LDO	   :t,:TOP,j
+	    SUB	   :t,:t,1	
+	    STO	   :t,:TOP,j	  TOP[j] <- TOP[j]+1
+	    SUB	   j,j,8
+	    CMP	   :t,j,k
+	    PBP    :t,2B
+	    JMP	   8F
+;---------------------------------------;
+
+
+
+7H	    TRAP   0,:Halt,0	(GIVEUP)
+8H	    POP	   0,0		(SUCCESS)
 	    PREFIX :
 

@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+float p_n_k(int n, int k);
+
+int main()
+{
+  int k,n;
+  n=5;
+  float* pnk = (float*)malloc(sizeof(float)*n);
+  n=1;
+  k=1;
+  pnk[1]=p_n_k(n,k);
+  print("p_%d_%d=%f", n,k,pnk[1]);
+  return 0;
+}
+
+
+
+float p_n_k(int n, int k) {
+  //base cases:
+  if (k<0) 
+    return 0; //pnk=0 if k<0
+  if (n==1)
+    return 0==k; //p1k=delta_0k
+  //inductive case
+  return (1.0f/(float)n)*p_n_k(n-1,k-1)+((float)(n-1)/(float)n)*p_n_k(n-1,k);
+}
