@@ -1,7 +1,7 @@
 % Monte Carlo Algo G vs moving 1 at a time
 
 t 	    IS	   $255	       Temp var
-nConst	    IS	   6
+nConst	    IS	   10
 LinfConst   IS	   20
 L0Const	    IS	   0
 n	    GREG   nConst
@@ -20,10 +20,17 @@ DATA	    GREG   @
 2H	    OCTA   0
 	    LOC	   2B+(LinfConst)*8
 SEQ	    GREG   @
-	    BYTE   "SSSS"
+	    BYTE   "S",0,"S",1,"S",0,"S",0,"S",0,"S",0,"S",0
+	    BYTE   "S",0,"S",0,"S",0,"S",0,"S",4,"S",4,"S",1
+	    BYTE   "S",1,"S",1,"S",1,"S",1,"S",1,"X",0,"X",0
+	    BYTE   "X",0,"X",0,"X",0,"X",0,"X",0,"X",0,"X",0
+	    BYTE   "S",1,"S",1,"S",1,"S",1
 	    LOC	   @+(8-@%8)
+	    OCTA   99999999
+PSHCNT	    GREG   @
+	    LOC	   @+nConst*8
 OUT	    GREG   @
-	    BYTE
+	    OCTA   99999999
 
 BASEj	    IS	   $0
 TOPj	    IS	   $1
@@ -59,6 +66,7 @@ Main	    SET	   t,Linf
 	    SL	   t,j,3
 	    SUB	   LinfR,LinfR,1
 	    STO	   LinfR,BASE,t
+	    JMP	   ReadDat
 
 
 ;---------------------------------------;
@@ -116,7 +124,7 @@ j2	    IS	   $5
 ;---------------------------------------;
 ;	Read a string of inputs and apply them from start to finish
 ;	to stacks 1 <= i < n
-	    SET	   i,0
+ReadDat	    SET	   i,0
 	    SET	   j2,0
 5H	    SET	   Y,1
 	    SET	   j,0
@@ -125,26 +133,34 @@ j2	    IS	   $5
 	    BZ	   tmp2,2F
 	    CMP	   tmp2,:t,#58      X
 	    BZ	   tmp2,3F
-	    SUB	   :t,n,2
-	    SL	   :t,:t,3
-	    CMP	   :t,i,:t
-	    BZ	   :t,5F
-	    ADD	   i,i,8
-	    ADD	   j2,j2,8
-	    JMP	   5B
+;	    SUB	   :t,n,2
+;	    SL	   :t,:t,3
+;	    CMP	   :t,i,:t
+;	    BZ	   :t,5F
+;	    ADD	   i,i,8
+;	    ADD	   j2,j2,8
+;	    JMP	   5B
 5H	    TRAP   0,Halt,0
 	    
-2H	    SET	   $7,i
+2H	    ADD    j,j,1
+	    LDB	   :t,SEQ,j
+	    SL	   i,:t,3
+	    SET	   $7,i
+	    LDO	   Y,PSHCNT,i
+	    ADD	   Y,Y,1
+	    STO	   Y,PSHCNT,i
 	    SET	   $8,Y
 	    PUSHJ  $6,:Push
-	    ADD	   i,i,0
 	    ADD	   Y,Y,1
 	    JMP	   4F
 	    
 	    
-3H	    SET	   $7,i
+3H	    ADD    j,j,1
+	    LDB	   :t,SEQ,j
+	    SL	   i,:t,3
+	    SET	   $7,i
 	    PUSHJ  $6,:Pop
-	    STO	   $6,OUT,j2
+;	    STO	   $6,OUT,j2
 	    ADD	   j2,j2,8
 
 4H	    ADD	   j,j,1
@@ -216,7 +232,11 @@ Y	    IS	   $3
 	    PBNZ   :t,1F
 	    TRAP   0,:Halt,0	    Underflow occurred.
 1H	    SL	   :t,TOPi,3   Convert TOP[i] from an index to a byte offset
-	    LDO	   Y,:DATA,:t	    
+	    LDO	   Y,:DATA,:t
+	    
+	    SET	   $0,0		Sets DATA[TOP[i]] to 0
+	    STO	   $0,:DATA,:t  (Unnecessary)
+	    
 	    SUB	   :t,TOPi,1
 	    STO	   :t,:TOP,i
 	    SET	   $0,Y
@@ -232,6 +252,7 @@ BASEk1	    IS	   $3
 L	    IS	   $4
 lim	    IS	   $5
 j	    IS	   $6
+BASEi1	    IS	   $7
 :Overflow   ADD	   k,i,8
 4H	    SL	   :t,:n,3
 	    CMP	   :t,k,:t
@@ -245,13 +266,13 @@ j	    IS	   $6
 	    BN	   :t,5F
 	    ADD	   k,k,8
 	    JMP	   4B
-5H	    SL	   lim,BASEk1,3
-	    LDA	   lim,:DATA,lim
+5H	    ADD	   :t,i,8
+	    LDO	   BASEi1,:BASE,:t
+	    SL	   :t,BASEi1,3
+	    LDA	   lim,:DATA,:t
 	    SL	   :t,TOPk,3
 	    LDA	   L,:DATA,:t	  Load L with pointer to data TOPk references
-	    ADD	   :t,i,8
-	    LDO	   :t,:BASE,:t
-	    CMP	   :t,:t,TOPk
+	    CMP	   :t,BASEi1,TOPk
 	    BZ	   :t,1F
 3H	    LDO	   :t,L,0
 	    STO	   :t,L,8
