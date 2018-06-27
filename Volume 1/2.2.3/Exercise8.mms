@@ -1,42 +1,74 @@
-; Basic implementation of a memory pool of links
-; Assumes fixed size nodes without garbage collection
-; Flexible capacity
-; Each node is 2 consecutive octabytes, 1 for a pointer, 1 for data
-; Following Method 2 described on page 257
-
-AVAIL	  GREG	    
-POOLMAX	  GREG
-SEQMIN	  GREG
+;	  Reverse a linked linear list
 
 t 	  IS	    $255
 c	  IS	    16		Nodesize, (max 256)
 LINK	  IS 	    0
 INFO	  IS	    8
-
           LOC       Data_Segment
-	  GREG	    @
-L0	  OCTA      0
+AVAIL	  GREG	    0
+POOLMAX	  GREG	    @
 	  LOC	    @+16*10
 	  GREG	    @
 T	  OCTA	    0,0
+SEQMIN	  IS	    T
 
 
 Top	  IS	    $0
 
 	  LOC	    #100
 Main	  LDA	    Top,T
-	  LDA	    POOLMAX,L0
-	  LDA	    SEQMIN,T
 
+;	  PUSH
+	  SET	    $3,3
+	  SET	    $4,Top
+	  PUSHJ	    $2,:Push
+
+;	  PUSH
+	  SET	    $3,2
+	  SET	    $4,Top
+	  PUSHJ	    $2,:Push
+
+;	  PUSH
 	  SET	    $3,1
 	  SET	    $4,Top
 	  PUSHJ	    $2,:Push
-	  
-	  SET	    $3,Top
-	  PUSHJ	    $2,:Pop
-	  SET	    $2,$2
-	  
+
+;	  REVERSE
+;	  SET	    $3,Top
+;	  PUSHJ	    $2,:Reverse
+
+;	  SET	    $3,Top
+;	  PUSHJ	    $2,:Pop
+;	  SET	    $2,$2
+
 	  TRAP	    0,Halt,0
+
+	  PREFIX    Reverse:
+;	  Reverses a linked linear list
+; 	  Calling Sequence:
+;	  SET	    $(X+1),T
+;	  PUSHJ	    $(X),:Reverse	
+T	  IS	    $0
+retaddr	  IS	    $1
+Y	  IS	    $2
+	  LOC	    @+(16-@%16)
+tmp	  GREG	    @
+	  OCTA	    0,0
+:Reverse  GET	    retaddr,:rJ
+2H	  LDO	    :t,T,:LINK
+	  BZ	    :t,1F
+	  SET	    $3,T
+	  PUSHJ	    Y,:Pop
+	  SET	    $3,Y
+	  SET	    $4,tmp
+	  PUSHJ	    $2,:Push
+	  JMP	    2B
+1H	  LDO	    :t,tmp,:LINK
+	  STO	    :t,T,:LINK
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
 
 	  PREFIX    Push:
 ; 	  Calling Sequence:
@@ -85,7 +117,8 @@ X	  IS	    $0
 :Alloc	  PBNZ	    :AVAIL,1F
 	  SET	    X,:POOLMAX
 	  ADD	    :POOLMAX,X,:c
-	  CMP	    :t,:POOLMAX,:SEQMIN
+	  LDA	    :t,:SEQMIN
+	  CMP	    :t,:POOLMAX,:t
 	  PBNP	    :t,2F
 	  TRAP	    0,:Halt,0        Overflow (no nodes left)
 1H	  SET	    X,:AVAIL
