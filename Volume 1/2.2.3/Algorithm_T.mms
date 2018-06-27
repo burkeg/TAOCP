@@ -17,7 +17,8 @@ MaxNodes  IS	    10
 
           LOC       Data_Segment
 	  GREG	    @
-Arg	  OCTA	    1F,BinaryRead
+Arg1	  OCTA	    1F,BinaryRead
+Arg2	  OCTA	    2F,0
 1H	  BYTE	    "input.dat",0
 L0	  OCTA      0
 	  LOC	    @+(16-@%16)+16*MaxNodes*MaxNodes
@@ -47,7 +48,9 @@ Input	  OCTA	    0,9          2 objects
 	  OCTA	    2,8		 2≺8
 	  OCTA	    0,0		 Terminating sequence
 	  GREG	    @
-OutputLoc OCTA	    0
+2H	  OCTA	    0
+OutputLoc IS	    2B
+
 
 Top	  IS	    $0
 
@@ -150,6 +153,12 @@ k	  IS	    $4
 jj	  IS	    $5
 kk	  IS	    $6
 :LoadInput GET	    retaddr,:rJ
+	  LDA	    $255,:Arg1;	TRAP  0,:Fopen,5
+	  SET	    :t,0
+	  SUB	    :t,:t,1
+	  TRAP	    0,:Fseek,5
+	  TRAP	    0,:Ftell,5
+	  SET	    :t,:t
 	  LDA	    InPtr,:Input
 	  LDO	    N,InPtr,:INFO
 3H	  ADD	    InPtr,InPtr,16
