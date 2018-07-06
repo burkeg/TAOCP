@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#define AMOUNT 13*2
+#define AMOUNT 25*2
 void writeByte(__uint64_t num, FILE * fptr);
   
 int main()
@@ -19,6 +19,10 @@ int main()
     7,4,
     9,5,
     2,8,
+/*  9,1,
+    9,3,
+    3,2,
+    4,8,*/
     0,0
   };
   int i = 0;

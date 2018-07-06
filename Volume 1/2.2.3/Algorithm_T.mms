@@ -14,12 +14,15 @@ c	  IS	    16		Nodesize, (max 256)
 LINK	  IS 	    0
 INFO	  IS	    8
 MaxNodes  IS	    10
+Handle	  IS	    5
 
           LOC       Data_Segment
 	  GREG	    @
 Arg1	  OCTA	    1F,BinaryRead
-Arg2	  OCTA	    2F,0
+Arg2	  OCTA	    2F,16
 1H	  BYTE	    "input.dat",0
+	  LOC	    @+(16-@%16)
+2H	  OCTA	    0,0
 L0	  OCTA      0
 	  LOC	    @+(16-@%16)+16*MaxNodes*MaxNodes
 	  GREG	    @
@@ -29,24 +32,27 @@ COUNTLoc  OCTA	    0
 TOPLoc	  OCTA	    0
 QLINK	  IS	    COUNT
 
+	  LOC	    @+(16-@%16)+16*(MaxNodes+1)
 ; 	  I'm lazy and putting the data directly into memory
 ;	  I could insted load a binary file with the same data
 ;	  and read it with fread using "Input" as a buffer
 ; 	  but again, I'm lazy...
-	  LOC	    @+(16-@%16)+16*(MaxNodes+1)
-	  GREG	    @
-Input	  OCTA	    0,9          2 objects
-	  OCTA	    9,2		 9≺2
-	  OCTA	    3,7		 3≺7
-	  OCTA	    7,5		 7≺5
-	  OCTA	    5,8		 5≺8
-	  OCTA	    8,6		 8≺6
-	  OCTA	    4,6		 4≺6
-	  OCTA	    1,3		 1≺3
-	  OCTA	    7,4		 7≺4
-	  OCTA	    9,5		 9≺5
-	  OCTA	    2,8		 2≺8
-	  OCTA	    0,0		 Terminating sequence
+;	  /\
+;	  ||
+;  I got un-lazy and actually implemented it.
+;	  GREG	    @
+;Input	  OCTA	    0,9          2 objects
+;	  OCTA	    9,2		 9≺2
+;	  OCTA	    3,7		 3≺7
+;	  OCTA	    7,5		 7≺5
+;	  OCTA	    5,8		 5≺8
+;	  OCTA	    8,6		 8≺6
+;	  OCTA	    4,6		 4≺6
+;	  OCTA	    1,3		 1≺3
+;	  OCTA	    7,4		 7≺4
+;	  OCTA	    9,5		 9≺5
+;	  OCTA	    2,8		 2≺8
+;	  OCTA	    0,0		 Terminating sequence
 	  GREG	    @
 2H	  OCTA	    0
 OutputLoc IS	    2B
@@ -152,18 +158,24 @@ j	  IS	    $3
 k	  IS	    $4
 jj	  IS	    $5
 kk	  IS	    $6
+last	  IS	    $10
 :LoadInput GET	    retaddr,:rJ
-	  LDA	    $255,:Arg1;	TRAP  0,:Fopen,5
+	  LDA	    $255,:Arg1;	TRAP  0,:Fopen,:Handle
 	  SET	    :t,0
 	  SUB	    :t,:t,1
-	  TRAP	    0,:Fseek,5
-	  TRAP	    0,:Ftell,5
+	  ;TRAP	    0,:Fseek,:Handle
+	  ;TRAP	    0,:Ftell,:Handle
 	  SET	    :t,:t
-	  LDA	    InPtr,:Input
-	  LDO	    N,InPtr,:INFO
-3H	  ADD	    InPtr,InPtr,16
-	  LDO	    j,InPtr,:LINK
-	  LDO	    k,InPtr,:INFO
+	  PUSHJ	    last,:ReadPair
+	  SET	    N,last
+;	  LDA	    InPtr,:Input
+;	  LDO	    N,InPtr,:INFO
+3H	  PUSHJ	    last,:ReadPair
+	  SET	    j,(last+1)
+	  SET	    k,last
+;	  ADD	    InPtr,InPtr,16
+;	  LDO	    j,InPtr,:LINK
+;	  LDO	    k,InPtr,:INFO
 	  CMP	    :t,j,k
 	  PBNZ	    :t,1F
 	  PBZ	    j,2F
@@ -179,6 +191,18 @@ kk	  IS	    $6
 	  JMP	    3B
 2H	  PUT	    :rJ,retaddr
 	  POP	    1,0
+	  PREFIX    :
+
+	  PREFIX    ReadPair:
+retaddr	  IS	    $0
+:ReadPair GET	    retaddr,:rJ
+	  LDA	    :t,:Arg2;	TRAP 0,:Fread,:Handle
+	  LDA	    :t,:Arg2
+	  PUT	    :rJ,retaddr
+	  LDO	    :t,:t
+	  LDO	    $0,:t,0
+	  LDO	    $1,:t,8
+	  POP	    2,0
 	  PREFIX    :
 
 	  PREFIX    Push:
