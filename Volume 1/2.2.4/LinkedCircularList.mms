@@ -7,6 +7,7 @@
 AVAIL	  GREG	    
 POOLMAX	  GREG
 SEQMIN	  GREG
+ZERO	  GREG
 
 t 	  IS	    $255
 c	  IS	    8*2		Nodesize, (max 256)
@@ -28,20 +29,60 @@ result	  IS	    $2
 Main	  LDA	    Ptr,PTR
 	  LDA	    POOLMAX,L0
 	  LDA	    SEQMIN,PTR
-
 	  SET	    (result+1),Ptr
 	  SET	    (result+2),1
 	  PUSHJ	    result,:InsertLeft
-	  
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),2
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),3
+	  PUSHJ	    result,:InsertRight
 	  SET	    (result+1),Ptr
 	  SET	    (result+2),4
 	  PUSHJ	    result,:InsertRight
-	  
 	  SET	    (result+1),Ptr
-	  PUSHJ	    result,:DeleteLeft
+	  SET	    (result+2),5
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr
+	  PUSHJ	    result,:Erase
+	  SET	    (result+1),Ptr
+;	  PUSHJ	    result,:DeleteLeft
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),6
+	  PUSHJ	    result,:InsertLeft
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),7
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),8
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),9
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr
+	  SET	    (result+2),10
+	  PUSHJ	    result,:InsertRight
 	  SET	    result,result
 	  TRAP	    0,Halt,0
 
+	  PREFIX    Erase:
+; 	  Calling Sequence:
+;	  SET	    $(X+1),PTR    Pointer to address that contains the PTR pointer
+;	  PUSHJ	    $(X),:Erase	
+PTR	  IS	    $0
+PTRval	  IS	    $1
+P	  IS	    $2
+retaddr	  IS	    $3
+result 	  IS	    $4
+:Erase    LDO	    PTRval,PTR,:LINK
+	  SET	    :t,:AVAIL
+	  LDO	    :AVAIL,PTRval,:LINK
+	  STO	    P,PTRval,:LINK
+	  STO	    :ZERO,PTR,:LINK	    
+	  POP	    0,0
+	  PREFIX    :
+	  
 	  PREFIX    InsertLeft:
 ; 	  Calling Sequence:
 ;	  SET	    $(X+1),PTR    Pointer to address that contains the PTR pointer
