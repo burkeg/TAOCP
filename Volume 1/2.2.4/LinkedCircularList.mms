@@ -11,60 +11,110 @@ ZERO	  GREG
 
 t 	  IS	    $255
 c	  IS	    8*2		Nodesize, (max 256)
+capacity  IS	    10		max number of c-Byte nodes 
 LINK	  IS 	    0
 INFO	  IS	    8
 
           LOC       Data_Segment
 	  GREG	    @
 L0	  OCTA      0
-	  LOC	    @+(16-(@%16))+c*10
+	  LOC	    @+((@%16)-16)+c*capacity
 	  GREG	    @
 PTR	  OCTA	    0,0
 
 
-Ptr	  IS	    $0
+Ptr1	  IS	    $0
+Ptr2	  IS	    $1
 result	  IS	    $2
 
 	  LOC	    #100
-Main	  LDA	    Ptr,PTR
+Main	  LDA	    Ptr1,PTR
+	  ADD	    Ptr2,Ptr1,8
 	  LDA	    POOLMAX,L0
 	  LDA	    SEQMIN,PTR
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr1
 	  SET	    (result+2),1
 	  PUSHJ	    result,:InsertLeft
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr1
 	  SET	    (result+2),2
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr1
 	  SET	    (result+2),3
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr1
 	  SET	    (result+2),4
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr1
 	  SET	    (result+2),5
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
-	  PUSHJ	    result,:Erase
-	  SET	    (result+1),Ptr
-;	  PUSHJ	    result,:DeleteLeft
-	  SET	    (result+1),Ptr
+	  
+	  SET	    (result+1),Ptr2
 	  SET	    (result+2),6
 	  PUSHJ	    result,:InsertLeft
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr2
 	  SET	    (result+2),7
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr2
 	  SET	    (result+2),8
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr2
 	  SET	    (result+2),9
 	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr
+	  SET	    (result+1),Ptr2
 	  SET	    (result+2),10
 	  PUSHJ	    result,:InsertRight
-	  SET	    result,result
+	  
+	  SET	    (result+1),Ptr1
+	  PUSHJ	    result,:Erase
+	  
+	 ; TRAP	    0,Halt,0
+
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),11
+	  PUSHJ	    result,:InsertLeft
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),12
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),13
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),14
+	  PUSHJ	    result,:InsertRight
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),15
+	  PUSHJ	    result,:InsertRight
+
+	  SET	    (result+1),Ptr1
+	  SET	    (result+2),Ptr2
+	  PUSHJ	    result,:Append
+	 
 	  TRAP	    0,Halt,0
+
+	  PREFIX    Append:
+; 	  Calling Sequence:
+;	  SET	    $(X+1),PTR1    Pointer to address that contains the PTR pointer
+;	  SET	    $(X+2),PTR2    Pointer to address that contains the PTR pointer
+;	  PUSHJ	    $(X),:Append	
+PTR1	  IS	    $0
+PTR2	  IS	    $1
+PTR1val	  IS	    $2
+PTR2val	  IS	    $3
+P	  IS	    $4
+retaddr	  IS	    $5
+result 	  IS	    $6
+:Append	  LDO	    PTR1val,PTR1,:LINK
+	  LDO	    PTR2val,PTR2,:LINK
+	  BZ	    PTR2val,1F		PTR2 ≠ Λ
+	  BZ	    PTR1val,2F		PTR1 ≠ Λ
+	  LDO	    P,PTR1val,:LINK	P ← PTR1
+	  LDO	    :t,PTR2val,:LINK	get PTR2
+	  STO	    :t,PTR1val,:LINK	PTR1 ← PTR2
+	  STO	    P,PTR2val,:LINK	PTR1 ← P
+2H	  STO	    PTR2val,PTR1,:LINK
+	  STO	    :ZERO,PTR2,:LINK
+1H	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    Erase:
 ; 	  Calling Sequence:
@@ -76,11 +126,12 @@ P	  IS	    $2
 retaddr	  IS	    $3
 result 	  IS	    $4
 :Erase    LDO	    PTRval,PTR,:LINK
-	  SET	    :t,:AVAIL
+	  BZ	    PTRval,1F
+	  SET	    P,:AVAIL
 	  LDO	    :AVAIL,PTRval,:LINK
 	  STO	    P,PTRval,:LINK
 	  STO	    :ZERO,PTR,:LINK	    
-	  POP	    0,0
+1H	  POP	    0,0
 	  PREFIX    :
 	  
 	  PREFIX    InsertLeft:
