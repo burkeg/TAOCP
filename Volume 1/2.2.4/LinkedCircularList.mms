@@ -47,49 +47,30 @@ Main	  LDA	    Ptr1,PTR
 	  SET	    (result+1),Ptr1
 	  SET	    (result+2),5
 	  PUSHJ	    result,:InsertRight
-	  
-	  SET	    (result+1),Ptr2
-	  SET	    (result+2),6
-	  PUSHJ	    result,:InsertLeft
-	  SET	    (result+1),Ptr2
-	  SET	    (result+2),7
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr2
-	  SET	    (result+2),8
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr2
-	  SET	    (result+2),9
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr2
-	  SET	    (result+2),10
-	  PUSHJ	    result,:InsertRight
-	  
-	  SET	    (result+1),Ptr1
-	  PUSHJ	    result,:Erase
-	  
-	 ; TRAP	    0,Halt,0
-
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),11
-	  PUSHJ	    result,:InsertLeft
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),12
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),13
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),14
-	  PUSHJ	    result,:InsertRight
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),15
-	  PUSHJ	    result,:InsertRight
-
-	  SET	    (result+1),Ptr1
-	  SET	    (result+2),Ptr2
-	  PUSHJ	    result,:Append
-	 
 	  TRAP	    0,Halt,0
+
+	  PREFIX    Copy:
+; 	  Calling Sequence:
+;	  SET	    $(X+1),PTR    Pointer to address that contains the PTR pointer
+;	  PUSHJ	    $(X),:Append	
+PTR	  IS	    $0
+PTRval	  IS	    $1
+P	  IS	    $2
+retaddr	  IS	    $3
+result 	  IS	    $4
+:Copy	  GET       retaddr,:rJ
+	  LDO	    PTRval,PTR,:LINK
+	  BZ	    PTRval,1F
+	  SET	    P,PTRval
+2H	  PUSHJ	    result,:Alloc
+	  LDO	    :t,P,0
+	  STO	    :t,result,0
+	  LDO	    :t,P,8
+	  STO	    :t,result,8
+	  LDO	    :,P,0
+1H	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    Append:
 ; 	  Calling Sequence:
