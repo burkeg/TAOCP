@@ -41,7 +41,7 @@ QLINK	  IS	    COUNT
 	  LOC	    1B+(1+NUM_GATES+MAX_INPUTS)*16
 TopOutput GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+NUM_GATES*8+100*8
+	  LOC	    1B+NUM_GATES*8
 	  GREG	    @
 L0_pool	  OCTA      0
 	  LOC	    @+c*capacity-8
@@ -55,6 +55,7 @@ Main	  LDA	    POOLMAX,L0_pool
 	  PUSHJ	    $0,:Init
 	  PUSHJ	    $0,:TopSort
 	  PUSHJ	    $0,:ForwardProp
+	  PUSHJ	    $0,:BackProp
 	  TRAP	    0,Halt,0
 
 	  PREFIX    Init:
@@ -309,6 +310,19 @@ retval	  IS	    $13
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
+;
+;---------
+;	  Assign gradient of output
+;
+1H	  IS   	    9	Unit
+2H	  IS   	    1	Value
+	  SET	    unitI,1B-1
+	  SET	    :t,2B
+	  MUL	    unitAddr,unitI,:UNIT_SIZE
+	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
+	  STO	    :t,retval,:GRAD
+;
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
@@ -342,6 +356,37 @@ retval	  IS	    $7
 	  POP	    0,0
 	  PREFIX    :
 
+	  PREFIX    BackProp:
+;	  Calling Sequence:
+;	  PUSHJ	    $(X),:BackProp
+retaddr	  IS	    $0
+gateIndex IS	    $1
+gatePtr	  IS	    $3
+fptr	  IS	    $4
+outputPtr IS	    $5
+count 	  IS	    $6
+retval	  IS	    $7
+:BackProp GET	    retaddr,:rJ
+	  SET	    gateIndex,0
+	  SET	    count,0
+	  SET	    :t,:NUM_GATES-1
+	  MUL	    :t,:t,8
+	  ADD	    outputPtr,:t,:TopOutput	initialize outputPtr to the last gate in topological order
+1H	  LDO	    :t,outputPtr	load the next gate in topological ordering
+	  SUB	    :t,:t,1
+	  MUL	    gateIndex,:t,:GATE_SIZE
+	  LDA	    gatePtr,:Gate_arr,gateIndex    get address of gate
+	  LDO	    fptr,gatePtr,:BACK_PTR
+	  SET	    (retval+1),gatePtr
+	  PUSHGO    retval,fptr
+	  SUB	    outputPtr,outputPtr,8
+	  ADD	    count,count,1
+	  CMP	    :t,count,:NUM_GATES
+	  PBN	    :t,1B
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+	  
 	  PREFIX    TopSort:
 ;	  Calling Sequence:
 ;	  PUSHJ	    $(X),:TopSort
@@ -556,8 +601,34 @@ tmp	  IS	    $3
 	  PREFIX    :
 
 	  PREFIX    Gate_Addition_2_back:
-:Gate_Addition_2_back FADD    $2,$0,$1
-	  POP	    3,0
+	  ; f(x)=a+b
+	  ; da=1*dx
+	  ; db=1*dx
+Gate	  IS	    $0
+unit_a	  IS	    $1
+unit_b	  IS	    $2
+dx	  IS	    $3
+floatOne  IS	    $4
+da	  IS	    $5
+db	  IS	    $6
+tmp	  IS	    $7
+:Gate_Addition_2_back SET floatOne,1
+	  FLOT	    floatOne,floatOne
+	  LDO	    tmp,Gate,:OUT_UNIT
+	  LDO	    dx,tmp,:GRAD		load dx
+	  LDO       tmp,Gate,:IN_UNITS  	loads head of in_units
+          LDO	    unit_a,tmp,:INFO
+	  LDO	    tmp,tmp,:LINK
+          LDO	    unit_b,tmp,:INFO
+	  LDO	    tmp,unit_a,:GRAD
+	  FMUL	    da,floatOne,dx
+	  FADD	    tmp,tmp,da
+	  STO	    tmp,unit_a,:GRAD
+	  LDO	    tmp,unit_b,:GRAD
+	  FMUL	    db,floatOne,dx
+	  FADD	    tmp,tmp,db
+	  STO	    tmp,unit_b,:GRAD
+	  POP	    0,0
 	  PREFIX    :
 	  
 	  PREFIX    Gate_Multiplication_2_fwd:
@@ -578,9 +649,37 @@ tmp	  IS	    $3
 	  PREFIX    :
 
 	  PREFIX    Gate_Multiplication_2_back:
-:Gate_Multiplication_2_back FADD    $2,$0,$1
-	  POP	    3,0
-	  PREFIX    :
+	  ; f(x)=a*b
+	  ; da=b*dx
+	  ; db=a*dx
+Gate	  IS	    $0
+unit_a	  IS	    $1
+unit_b	  IS	    $2
+a	  IS	    $3
+b	  IS	    $4
+dx	  IS	    $5
+floatOne  IS	    $6
+da	  IS	    $7
+db	  IS	    $8
+tmp	  IS	    $9
+:Gate_Multiplication_2_back LDO	    tmp,Gate,:OUT_UNIT
+          LDO	    dx,tmp,:GRAD		load dx
+          LDO       tmp,Gate,:IN_UNITS  	loads head of in_units
+          LDO	    unit_a,tmp,:INFO
+          LDO	    a,unit_a,:VALUE
+          LDO	    tmp,tmp,:LINK
+          LDO	    unit_b,tmp,:INFO
+          LDO	    b,unit_b,:VALUE
+          LDO	    tmp,unit_a,:GRAD
+          FMUL	    da,b,dx
+          FADD	    tmp,tmp,da
+          STO	    tmp,unit_a,:GRAD
+          LDO	    tmp,unit_b,:GRAD
+          FMUL	    db,a,dx
+          FADD	    tmp,tmp,db
+          STO	    tmp,unit_b,:GRAD
+          POP	    0,0
+          PREFIX    :
 
 	  PREFIX    AttachAsInput:
 Unit	  IS	    $0
@@ -588,15 +687,15 @@ Gate	  IS	    $1
 retaddr	  IS	    $2
 retval	  IS	    $3
 :AttachAsInput GET  retaddr,:rJ
-	  SET  	    (retval+1),Gate
-	  ADD	    (retval+2),Unit,:IN_GATES
-	  PUSHJ	    retval,:Push
-	  SET  	    (retval+1),Unit
-	  ADD	    (retval+2),Gate,:IN_UNITS
-	  PUSHJ	    retval,:Push
-	  PUT	    :rJ,retaddr
-	  POP	    0,0
-	  PREFIX    :
+          SET  	    (retval+1),Gate
+          ADD	    (retval+2),Unit,:IN_GATES
+          PUSHJ	    retval,:Push
+          SET  	    (retval+1),Unit
+          ADD	    (retval+2),Gate,:IN_UNITS
+          PUSHJ	    retval,:Push
+          PUT	    :rJ,retaddr
+          POP	    0,0
+          PREFIX    :
 
 	  PREFIX    AttachAsOutput:
 Unit	  IS	    $0
@@ -604,9 +703,9 @@ Gate	  IS	    $1
 retaddr	  IS	    $2
 retval	  IS	    $3
 :AttachAsOutput     STO	    Unit,Gate,:OUT_UNIT
-	  STO	    Gate,Unit,:OUT_GATE
-	  POP	    0,0
-	  PREFIX    :
+          STO	    Gate,Unit,:OUT_GATE
+          POP	    0,0
+          PREFIX    :
 
 	  PREFIX    Push:
 ; 	  Calling Sequence:
@@ -618,16 +717,16 @@ T	  IS	    $1
 retaddr	  IS	    $2
 P	  IS	    $3
 :Push	  GET	    retaddr,:rJ
-	  PUSHJ	    P,:Alloc    P ⇐ AVAIL
-	  STO	    Y,P,:INFO    INFO(P) ← Y (offset of 8 is specific data format)
-	  LDO	    :t,T,:LINK	
-	  STO	    :t,P,:LINK	LINK(P) ← T
-	  STO	    P,T,:LINK	T ← P
-	  PUT	    :rJ,retaddr
-	  POP	    0,0
-	  PREFIX    :
+          PUSHJ	    P,:Alloc    P ⇐ AVAIL
+          STO	    Y,P,:INFO    INFO(P) ← Y (offset of 8 is specific data format)
+          LDO	    :t,T,:LINK	
+          STO	    :t,P,:LINK	LINK(P) ← T
+          STO	    P,T,:LINK	T ← P
+          PUT	    :rJ,retaddr
+          POP	    0,0
+          PREFIX    :
 
-	  PREFIX    Pop:
+          PREFIX    Pop:
 ; 	  Calling Sequence:
 ;	  SET	    $(X+1),T    Pointer to address that contains the TOP pointer
 ;	  PUSHJ	    $(X),:Pop
@@ -636,37 +735,37 @@ retaddr	  IS	    $1
 Y	  IS	    $2
 P	  IS	    $3
 :Pop	  GET	    retaddr,:rJ
-	  LDO	    :t,T,:LINK
-	  PBNZ	    :t,1F	If T = Λ
-	  TRAP	    0,:Halt,0	Error: Underflow!
+          LDO	    :t,T,:LINK
+          PBNZ	    :t,1F	If T = Λ
+          TRAP	    0,:Halt,0	Error: Underflow!
 1H	  LDO	    P,T,:LINK	P ← T
-	  LDO	    :t,P,:LINK
-	  STO	    :t,T,:LINK	T ← LINK(P)
-	  LDO	    Y,P,:INFO	Y ← INFO(P)
-	  SET	    $5,P
-	  PUSHJ	    $4,:Dealloc
-	  SET	    $0,Y
-	  PUT	    :rJ,retaddr
-	  POP	    1,0
-	  PREFIX    :
+          LDO	    :t,P,:LINK
+          STO	    :t,T,:LINK	T ← LINK(P)
+          LDO	    Y,P,:INFO	Y ← INFO(P)
+          SET	    $5,P
+          PUSHJ	    $4,:Dealloc
+          SET	    $0,Y
+          PUT	    :rJ,retaddr
+          POP	    1,0
+          PREFIX    :
 
-	  PREFIX    Alloc:
+          PREFIX    Alloc:
 X	  IS	    $0
 :Alloc	  PBNZ	    :AVAIL,1F
-	  SET	    X,:POOLMAX
-	  ADD	    :POOLMAX,X,:c
-	  CMP	    :t,:POOLMAX,:SEQMIN
-	  PBNP	    :t,2F
-	  TRAP	    0,:Halt,0        Overflow (no nodes left)
+          SET	    X,:POOLMAX
+          ADD	    :POOLMAX,X,:c
+          CMP	    :t,:POOLMAX,:SEQMIN
+          PBNP	    :t,2F
+          TRAP	    0,:Halt,0        Overflow (no nodes left)
 1H	  SET	    X,:AVAIL
-	  LDO	    :AVAIL,:AVAIL,:LINK
+          LDO	    :AVAIL,:AVAIL,:LINK
 2H	  POP	    1,0
-	  PREFIX    :
+          PREFIX    :
 
 	  PREFIX    Dealloc:
 ;	  Doesn't check if trying to dealloc a node that was never alloc'd	  
 X	  IS	    $0
 :Dealloc  STO	    :AVAIL,X,:LINK
 1H	  SET	    :AVAIL,X
-	  POP	    0,0
-	  PREFIX    :
+          POP	    0,0
+          PREFIX    :
