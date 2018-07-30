@@ -54,6 +54,7 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
 	  PUSHJ	    $0,:Init
 	  PUSHJ	    $0,:TopSort
+	  PUSHJ	    $0,:ForwardProp
 	  TRAP	    0,Halt,0
 
 	  PREFIX    Init:
@@ -204,6 +205,16 @@ retval	  IS	    $13
 	  ADD	    (retval+1),unitAddr,UnitBase
 	  ADD	    (retval+2),gateAddr,GateBase
 	  PUSHJ	    retval,:AttachAsInput
+;	  
+;1H	  IS   	    8	Unit	Test to see if breaks, should because it creates a cycle!
+;2H	  IS   	    2	Gate
+;	  SET	    unitI,1B-1
+;	  SET	    gateI,2B-1
+;	  MUL	    gateAddr,gateI,:GATE_SIZE
+;	  MUL	    unitAddr,unitI,:UNIT_SIZE
+;	  ADD	    (retval+1),unitAddr,UnitBase
+;	  ADD	    (retval+2),gateAddr,GateBase
+;	  PUSHJ	    retval,:AttachAsInput
 ;
 ;
 ;---------
@@ -259,6 +270,7 @@ retval	  IS	    $13
 	  SET	    :t,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    2	Unit
@@ -267,6 +279,7 @@ retval	  IS	    $13
 	  SUB	    :t,:ZERO,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    3	Unit
@@ -275,6 +288,7 @@ retval	  IS	    $13
 	  SET	    :t,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    4	Unit
@@ -283,6 +297,7 @@ retval	  IS	    $13
 	  SET	    :t,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    7	Unit
@@ -291,8 +306,38 @@ retval	  IS	    $13
 	  SUB	    :t,:ZERO,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    ForwardProp:
+;	  Calling Sequence:
+;	  PUSHJ	    $(X),:ForwardProp
+retaddr	  IS	    $0
+gateIndex IS	    $1
+gatePtr	  IS	    $3
+fptr	  IS	    $4
+outputPtr IS	    $5
+count 	  IS	    $6
+retval	  IS	    $7
+:ForwardProp GET    retaddr,:rJ
+	  SET	    gateIndex,0
+	  SET	    count,0
+	  SET	    outputPtr,:TopOutput
+1H	  LDO	    :t,outputPtr	load the next gate in topological ordering
+	  SUB	    :t,:t,1
+	  MUL	    gateIndex,:t,:GATE_SIZE
+	  LDA	    gatePtr,:Gate_arr,gateIndex    get address of gate
+	  LDO	    fptr,gatePtr,:FWD_PTR
+	  SET	    (retval+1),gatePtr
+	  PUSHGO    retval,fptr
+	  ADD	    outputPtr,outputPtr,8
+	  ADD	    count,count,1
+	  CMP	    :t,count,:NUM_GATES
+	  PBN	    :t,1B
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
@@ -307,8 +352,10 @@ NN	  IS	    $3
 P	  IS	    $4
 F	  IS	    $5
 R	  IS	    $6
+TopOutput IS	    $7
 last	  IS	    $10
 :TopSort  GET	    retaddr,:rJ
+	  SET	    TopOutput,:TopOutput
 	  PUSHJ	    (last+1),:LoadInput
 	  ADD	    N,(last+1),0	Assign N
 ;	  T4.	    [Scan for Zeros.]
@@ -332,8 +379,8 @@ last	  IS	    $10
 ;	  T5.	    [Output front of queue.]
 9H	  CMP	    :t,F,:NUM_GATES
 	  BP	    :t,Ignored	  
-	  STO	    F,:TopOutput
-	  ADD	    :TopOutput,:TopOutput,8
+	  STO	    F,TopOutput
+	  ADD	    TopOutput,TopOutput,8
 Ignored	  BZ	    F,8F
 	  SUB	    N,N,1
 	  SL	    :t,F,4		Convert F to a byte offset
@@ -358,7 +405,7 @@ Ignored	  BZ	    F,8F
 	  JMP	    9B
 ;	  T8.	    [End of process.]
 8H	  BZ	    N,1F
-	  TRAP	    0,:Halt,0	Error Topological Ordering not achieved.
+	  TRAP	    0,:Halt,0	Error Topological Ordering not achieved. 
 1H	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
@@ -496,7 +543,7 @@ Gate	  IS	    $0
 a	  IS	    $1
 b	  IS	    $2
 tmp	  IS	    $3
-:Gate_Addition_2_fwd  LDO	tmp,Gate,:IN_UNITS  loads head of in_units
+:Gate_Addition_2_fwd	LDO   tmp,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    :t,tmp,:INFO     loads ptr to in unit
 	  LDO	    a,:t,:VALUE	     loads value of in unit
 	  LDO	    tmp,tmp,:LINK    loads next of in_units
@@ -505,17 +552,29 @@ tmp	  IS	    $3
 	  FADD	    tmp,a,b	     calculates out unit value
 	  LDO	    :t,Gate,:OUT_UNIT   loads ptr to out unit
 	  STO	    tmp,:t,:VALUE    stores a+b to out unit value 
-	  POP	    1,0
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_Addition_2_back:
 :Gate_Addition_2_back FADD    $2,$0,$1
 	  POP	    3,0
 	  PREFIX    :
-
+	  
 	  PREFIX    Gate_Multiplication_2_fwd:
-:Gate_Multiplication_2_fwd  FMUL    $2,$0,$1
-	  POP	    3,0
+Gate	  IS	    $0
+a	  IS	    $1
+b	  IS	    $2
+tmp	  IS	    $3
+:Gate_Multiplication_2_fwd	LDO   tmp,Gate,:IN_UNITS  loads head of in_units
+	  LDO	    :t,tmp,:INFO     loads ptr to in unit
+	  LDO	    a,:t,:VALUE	     loads value of in unit
+	  LDO	    tmp,tmp,:LINK    loads next of in_units
+	  LDO	    :t,tmp,:INFO     loads ptr to in unit
+	  LDO	    b,:t,:VALUE	     loads value of in unit
+	  FMUL	    tmp,a,b	     calculates out unit value
+	  LDO	    :t,Gate,:OUT_UNIT   loads ptr to out unit
+	  STO	    tmp,:t,:VALUE    stores a+b to out unit value 
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_Multiplication_2_back:
