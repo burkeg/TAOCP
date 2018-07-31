@@ -5,14 +5,14 @@ POOLMAX	  GREG
 SEQMIN	  GREG
 ZERO	  GREG
 NEGONE	  GREG      -1
-
+STEP_SIZE GREG	    #3F847AE147AE147B    0.01 in 64-bit floating point
 
 
 t 	  IS	    $255
 NUM_GATES IS 	    4
 NUM_UNITS IS 	    9
 GATE_SIZE IS	    4*8
-UNIT_SIZE IS	    4*8
+UNIT_SIZE IS	    5*8
 c	  IS	    2*8		Nodesize(bytes), (max 256)
 capacity  IS	    100		max number of c-Byte nodes 
 LINK	  IS 	    0
@@ -23,9 +23,15 @@ FWD_PTR	  IS	    16
 BACK_PTR  IS 	    24
 VALUE	  IS	    0
 GRAD	  IS	    8
-IN_GATES  IS	    16
-OUT_GATE  IS	    24
+IS_PARAM  IS	    16
+IN_GATES  IS	    24
+OUT_GATE  IS	    32
 MAX_INPUTS IS	    5
+PARAM_UNIT IS	    8
+PARAM_VALUE IS	    16
+Y_1	  IS	    8
+Y_2	  IS	    16
+
 
           LOC       Data_Segment
 Gate_arr  GREG	    @
@@ -47,7 +53,9 @@ L0_pool	  OCTA      0
 	  LOC	    @+c*capacity-8
 	  GREG	    @
 endOfPool OCTA	    0
-
+springParams OCTA   0
+outputUnits OCTA    0
+trainingSet OCTA    0
 
 	  LOC	    #100
 Main	  LDA	    POOLMAX,L0_pool
@@ -56,6 +64,8 @@ Main	  LDA	    POOLMAX,L0_pool
 	  PUSHJ	    $0,:TopSort
 	  PUSHJ	    $0,:ForwardProp
 	  PUSHJ	    $0,:BackProp
+	  PUSHJ	    $0,:Train
+	  PUSHJ	    $0,:InitTraining
 	  TRAP	    0,Halt,0
 
 	  PREFIX    Init:
@@ -273,6 +283,8 @@ retval	  IS	    $13
 	  ADD	    retval,unitAddr,UnitBase
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
+	  SET	    :t,1
+	  STO	    :t,retval,:IS_PARAM
 ;
 1H	  IS   	    2	Unit
 2H	  IS   	    1	Value
@@ -291,6 +303,8 @@ retval	  IS	    $13
 	  ADD	    retval,unitAddr,UnitBase
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
+	  SET	    :t,1
+	  STO	    :t,retval,:IS_PARAM
 ;
 1H	  IS   	    4	Unit
 2H	  IS   	    3	Value
@@ -309,6 +323,8 @@ retval	  IS	    $13
 	  ADD	    retval,unitAddr,UnitBase
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
+	  SET	    :t,1
+	  STO	    :t,retval,:IS_PARAM
 ;
 ;
 ;---------
@@ -324,6 +340,229 @@ retval	  IS	    $13
 	  STO	    :t,retval,:GRAD
 ;
 	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    InitTraining:
+retaddr	  IS	    $0
+springs	  IS        $1
+outputs	  IS        $2
+trainingSet IS	    $3
+tmp1 	  IS	    $4
+tmp2 	  IS	    $5
+setPtr 	  IS	    $6
+subPtr 	  IS	    $7
+last	  IS	    $8
+:InitTraining GET  retaddr,:rJ
+	  LDA   springs,:springParams
+	  LDA       outputs,:outputUnits
+	  LDA	    trainingSet,:trainingSet
+;
+;
+;---------
+;	  Assign "spring" parameters
+;
+1H	  IS   	    1	Unit
+	  SET	    tmp1,1B-1
+	  MUL	    tmp2,tmp1,:UNIT_SIZE
+	  ADD	    (last+1),tmp2,:Unit_arr
+	  SET	    (last+2),springs
+	  PUSHJ	    last,:Push
+;
+1H	  IS   	    3	Unit
+	  SET	    tmp1,1B-1
+	  MUL	    tmp2,tmp1,:UNIT_SIZE
+	  ADD	    (last+1),tmp2,:Unit_arr
+	  SET	    (last+2),springs
+	  PUSHJ	    last,:Push
+;
+;
+;---------
+;	  Assign output units
+;
+1H	  IS   	    9	Unit
+	  SET	    tmp1,1B-1
+	  MUL	    tmp2,tmp1,:UNIT_SIZE
+	  ADD	    (last+1),tmp2,:Unit_arr
+	  SET	    (last+2),outputs
+	  PUSHJ	    last,:Push
+;
+;
+;---------
+;	  Assign training set
+;
+1H	  IS   	    5	InputUnit1
+2H	  IS   	    1	InputValue1
+3H	  IS   	    4	InputUnit2
+4H	  IS   	    6	InputValue2
+5H	  IS   	    9	OutputUnit
+6H	  IS   	    3	OutputValue
+	  SET	    (last+1),2
+	  SET	    (last+2),trainingSet
+	  PUSHJ	    last,:PushArbi
+	  SET	    setPtr,last
+	  SET	    (last+1),2
+	  ADD	    subPtr,setPtr,:Y_1
+	  SET	    (last+2),subPtr
+	  PUSHJ	    last,:PushArbi
+	  SET	    :t,1B-1
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    :t,:t,:Unit_arr
+	  STO	    :t,last,:Y_1
+	  SET	    :t,2B
+	  SL	    :t,:t,56	sign extends an 8-bit constant to a 64-bit value
+	  SR	    :t,:t,56
+	  FLOT	    :t,:t
+	  STO	    :t,last,:Y_2
+	  SET	    (last+1),2
+	  SET	    (last+2),subPtr
+	  PUSHJ	    last,:PushArbi
+	  SET	    :t,3B-1
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    :t,:t,:Unit_arr
+	  STO	    :t,last,:Y_1
+	  SET	    :t,4B
+	  SL	    :t,:t,56	sign extends an 8-bit constant to a 64-bit value
+	  SR	    :t,:t,56
+	  FLOT	    :t,:t
+	  STO	    :t,last,:Y_2
+	  ADD	    subPtr,setPtr,:Y_2
+	  SET	    (last+1),2
+	  SET	    (last+2),subPtr
+	  PUSHJ	    last,:PushArbi
+	  SET	    :t,5B-1
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    :t,:t,:Unit_arr
+	  STO	    :t,last,:Y_1
+	  SET	    :t,6B
+	  SL	    :t,:t,56	sign extends an 8-bit constant to a 64-bit value
+	  SR	    :t,:t,56
+	  FLOT	    :t,:t
+	  STO	    :t,last,:Y_2
+;
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+	  
+;data.push([1.2, 0.7]); labels.push(1);
+;data.push([-0.3, -0.5]); labels.push(-1);
+;data.push([3.0, 0.1]); labels.push(1);
+;data.push([-0.1, -1.0]); labels.push(-1);
+;data.push([-1.0, 1.1]); labels.push(-1);
+;data.push([2.1, -3]); labels.push(1);
+
+	  PREFIX    Train:
+:Train	  SWYM
+	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    TrainSingle:
+;	  Calling Sequence:
+;	  SET	    $(X+1),expected
+;	  SET	    $(X+2),inputs
+;	  SET	    $(X+3),springParams
+;	  PUSHJ	    $(X),:TrainSingle
+expected  IS	    $0
+inputs	  IS	    $1
+retaddr	  IS	    $2
+outputs   IS	    $3
+limit	  IS   	    $4
+current	  IS	    $5
+unitVal	  IS	    $6
+unitGrad  IS	    $7
+guessedCorrect	IS  $8
+outputUnit IS	    $9
+outputVal IS	    $10
+last 	  IS	    $11
+tmp	  IS	    last
+:TrainSingle   GET  retaddr,:rJ
+	  SET       :t,1
+;	  FLOT	    floatOne,:t
+	  SUB	    :t,:ZERO,1
+;	  FLOT	    floatNegOne,:t
+;	  Step 1)   clear all units values and gradients (except parameters)
+	  PUSHJ	    last,:ResetUnits
+;	  Step 2)   initialize inpust
+	  SET  	    current,inputs
+2H	  BZ	    current,3F
+	  LDO  	    :t,current,:PARAM_UNIT
+	  LDO  	    tmp,current,:PARAM_VALUE
+	  STO	    tmp,:t,:VALUE
+	  LDO	    current,current,:LINK
+	  JMP	    2B
+;	  Step 3)   Do forward propagation
+3H	  PUSHJ	    last,:ForwardProp
+;	  Requires redo of logic \/
+;	  Step 4)   If data aligns with training set, GRAD = 1, else GRAD = -1
+	  LDA  	    outputs,:outputUnits
+	  LDO	    outputs,outputs
+	  LDO  	    outputUnit,outputs,:INFO
+	  LDO  	    expected,expected,:PARAM_VALUE
+	  LDO  	    outputVal,outputUnit,:VALUE
+	  FCMP	    :t,outputVal,expected
+	  FCMP	    tmp,expected,:ZERO
+	  CMP	    :t,:t,tmp
+	  BZ	    :t,5F	If :t and tmp are equal then move on and don't do anything
+	  FLOT	    :t,tmp
+	  STO	    :t,outputUnit,:GRAD	   Set gradient appropriately
+;	  Step 5)   Add addition "spring" pulls
+5H	  LDO	    (last+1),:springParams
+	  PUSHJ	    last,:SpringPull
+;	  Step 6)   Parameter update based off of STEP_SIZE
+	  SET	    limit,:NUM_UNITS
+	  MUL	    limit,limit,:UNIT_SIZE
+	  ADD	    limit,limit,:Unit_arr
+	  SET  	    current,:Unit_arr
+6H	  LDO	    unitVal,current,:IS_PARAM
+	  PBZ	    unitVal,1F
+	  LDO	    unitGrad,current,:GRAD
+	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
+	  LDO	    unitVal,current,:VALUE
+	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
+1H	  ADD	    current,current,:UNIT_SIZE
+	  CMP	    :t,current,limit
+	  PBN	    :t,6B
+	  SET	    $3,guessedCorrect
+	  PUT	    :rJ,retaddr
+	  POP	    4,0
+	  PREFIX    :
+
+	  PREFIX    SpringPull:
+;	  Calling Sequence:
+;	  PUSHJ	    $(X),:SpringPull
+current   IS	    $0
+unitPtr	  IS	    $1
+flotNegOne IS	    $1
+tmp	  IS	    $2
+:SpringPull  LDA    :t,:springParams
+	  LDO	    current,:t
+	  FLOT	    flotNegOne,:NEGONE
+1H	  BZ	    current,2F
+	  LDO	    unitPtr,current,:INFO
+	  LDO	    tmp,unitPtr,:GRAD
+	  LDO	    :t,unitPtr,:VALUE
+	  FMUL	    :t,:t,flotNegOne	t <- Unit_Value*-1
+	  FADD	    :t,tmp,:t
+	  STO	    :t,unitPtr,:GRAD	GRAD -= VALUE
+	  LDO	    current,current,:LINK
+2H	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    ResetUnits:
+unitPtr	  IS	    $0
+maxUnit	  IS	    $1
+isParam	  IS	    $2
+:ResetUnits SET	    unitPtr,:Unit_arr
+	  SET	    :t,:UNIT_SIZE
+	  MUL	    :t,:t,:NUM_UNITS
+	  ADD	    maxUnit,:t,:Unit_arr
+1H	  LDO	    isParam,unitPtr,:IS_PARAM
+	  BNZ	    isParam,2F
+;	  STO	    :ZERO,unitPtr,:VALUE (not needed, they are overwritten during forward prop)
+	  STO	    :ZERO,unitPtr,:GRAD
+2H	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  CMP	    :t,unitPtr,maxUnit
+	  PBN	    :t,1B
 	  POP	    0,0
 	  PREFIX    :
 
@@ -386,7 +625,7 @@ retval	  IS	    $7
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
-	  
+
 	  PREFIX    TopSort:
 ;	  Calling Sequence:
 ;	  PUSHJ	    $(X),:TopSort
@@ -582,7 +821,7 @@ IN_RANGE  LDA	    :t,:Unit_arr,unitIndex
 	  LDO	    in_gates,:t,:IN_GATES   load the ptr to the first of in_gates
 	  JMP	    :ReadPairUnit
 	  PREFIX    :
-	  
+
 	  PREFIX    Gate_Addition_2_fwd:
 Gate	  IS	    $0
 a	  IS	    $1
@@ -630,7 +869,7 @@ tmp	  IS	    $7
 	  STO	    tmp,unit_b,:GRAD
 	  POP	    0,0
 	  PREFIX    :
-	  
+
 	  PREFIX    Gate_Multiplication_2_fwd:
 Gate	  IS	    $0
 a	  IS	    $1
@@ -726,6 +965,26 @@ P	  IS	    $3
           POP	    0,0
           PREFIX    :
 
+	  PREFIX    PushArbi:
+; 	  Calling Sequence:
+;	  SET	    $(X+1),NumBytes	number of octabytes being pushed
+;	  SET	    $(X+2),T    Pointer to address that contains the TOP pointer
+;	  PUSHJ	    $(X),:PushArbi		
+NumBytes  IS	    $0
+T	  IS	    $1
+retaddr	  IS	    $2
+P	  IS	    $3
+:PushArbi GET	    retaddr,:rJ
+	  SET	    (P+1),NumBytes
+          PUSHJ	    P,:AllocArbi    P ⇐ AVAIL
+          LDO	    :t,T,:LINK	
+          STO	    :t,P,:LINK	LINK(P) ← T
+          STO	    P,T,:LINK	T ← P
+	  SET	    $0,P
+          PUT	    :rJ,retaddr
+          POP	    1,0
+          PREFIX    :
+
           PREFIX    Pop:
 ; 	  Calling Sequence:
 ;	  SET	    $(X+1),T    Pointer to address that contains the TOP pointer
@@ -760,6 +1019,23 @@ X	  IS	    $0
 1H	  SET	    X,:AVAIL
           LDO	    :AVAIL,:AVAIL,:LINK
 2H	  POP	    1,0
+          PREFIX    :
+
+          PREFIX    AllocArbi:
+size	  IS	    $0	size of data in octabytes
+X	  IS	    $1
+:AllocArbi PBNZ	    :AVAIL,1F
+          SET	    X,:POOLMAX
+	  ADD	    size,size,1
+	  SL	    :t,size,3
+          ADD	    :POOLMAX,X,:t
+          CMP	    :t,:POOLMAX,:SEQMIN
+          PBNP	    :t,2F
+          TRAP	    0,:Halt,0        Overflow (no nodes left)
+1H	  SET	    X,:AVAIL
+          LDO	    :AVAIL,:AVAIL,:LINK
+2H	  SET	    $0,X
+	  POP	    1,0
           PREFIX    :
 
 	  PREFIX    Dealloc:
