@@ -3,19 +3,19 @@
 #define __NL__
 #define ADD_TRAINING(InputUnit1,InputValue1,InputUnit2,InputValue2,OutputUnit,OutputValue) ;__NL__\
 1H	  IS   	    InputUnit1 __NL__\
-2H	  IS   	    InputValue2 __NL__\
+2H	  IS   	    InputValue1 __NL__\
 3H	  IS   	    InputUnit2 __NL__\
 4H	  IS   	    InputValue2 __NL__\
 5H	  IS   	    OutputUnit __NL__\
 6H	  IS   	    OutputValue __NL__\
 	  SET	    (last+1),2__NL__\
 	  SET	    (last+2),trainingSet__NL__\
-	  PUSHJ	    last,:PushArbi__NL__\
+	  PUSHJ	    last,:Push_2__NL__\
 	  SET	    setPtr,last__NL__\
 	  SET	    (last+1),2__NL__\
 	  ADD	    subPtr,setPtr,:Y_1__NL__\
 	  SET	    (last+2),subPtr__NL__\
-	  PUSHJ	    last,:PushArbi__NL__\
+	  PUSHJ	    last,:Push_2__NL__\
 	  SET	    :t,1B-1__NL__\
 	  MUL	    :t,:t,:UNIT_SIZE__NL__\
 	  ADD	    :t,:t,:Unit_arr__NL__\
@@ -27,7 +27,7 @@
 	  STO	    :t,last,:Y_2__NL__\
 	  SET	    (last+1),2__NL__\
 	  SET	    (last+2),subPtr__NL__\
-	  PUSHJ	    last,:PushArbi__NL__\
+	  PUSHJ	    last,:Push_2__NL__\
 	  SET	    :t,3B-1__NL__\
 	  MUL	    :t,:t,:UNIT_SIZE__NL__\
 	  ADD	    :t,:t,:Unit_arr__NL__\
@@ -40,7 +40,7 @@
 	  ADD	    subPtr,setPtr,:Y_2__NL__\
 	  SET	    (last+1),2__NL__\
 	  SET	    (last+2),subPtr__NL__\
-	  PUSHJ	    last,:PushArbi__NL__\
+	  PUSHJ	    last,:Push_2__NL__\
 	  SET	    :t,5B-1__NL__\
 	  MUL	    :t,:t,:UNIT_SIZE__NL__\
 	  ADD	    :t,:t,:Unit_arr__NL__\
@@ -127,8 +127,8 @@ Main	  LDA	    POOLMAX,L0_pool
 	  PUSHJ	    $0,:TopSort
 	  PUSHJ	    $0,:ForwardProp
 	  PUSHJ	    $0,:BackProp
-	  PUSHJ	    $0,:Train
 	  PUSHJ	    $0,:InitTraining
+	  PUSHJ	    $0,:Train
 	  TRAP	    0,Halt,0
 
 	  PREFIX    Init:
@@ -444,7 +444,7 @@ last	  IS	    $8
 ;	  Assign output units
 ;
 1H	  IS   	    9	Unit
-	  SET	    tmp1,1B-1
+assignOutUnits	  SET	    tmp1,1B-1
 	  MUL	    tmp2,tmp1,:UNIT_SIZE
 	  ADD	    (last+1),tmp2,:Unit_arr
 	  SET	    (last+2),outputs
@@ -453,267 +453,39 @@ last	  IS	    $8
 ;
 ;---------
 ;	  Assign training set
-; set 1	  
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #3FF3333333333333 InputValue1: 1.2
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #3FE6666666666666 InputValue2: 0.7
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #3FF0000000000000 OutputValue: 1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
-; set 2
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #BFD3333333333333 InputValue1: -0.3
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #BFE0000000000000 InputValue2: -0.5
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #BFF0000000000000 OutputValue: -1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
-; set 3
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #4008000000000000 InputValue1: 3.0
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #3FB999999999999A InputValue2: 0.1
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #3FF0000000000000 OutputValue: 1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
-; set 4
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #BFB999999999999A InputValue1: -0.1
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #BFF0000000000000 InputValue2: -1
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #BFF0000000000000 OutputValue: -1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
-; set 5
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #BFF0000000000000 InputValue1: -1
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #3FF199999999999A InputValue2: 1.1
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #BFF0000000000000 OutputValue: -1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
-; set 6
+; set 6	  2.1,-3 [-1]
 	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
+; set 5	  -1.0,1.1 [-1]
+	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
+; set 4	  -0.1,-1.0 [-1]
+	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
+; set 3	  3.0,0.1 [1]
+	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
+; set 2	  -0.3,-0.5 [-1]
+	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
+; set 1	  1.2,0.7 [1]
+	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
 ;
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
-	  
-;data.push([1.2, 0.7]); labels.push(1);
-;data.push([-0.3, -0.5]); labels.push(-1);
-;data.push([3.0, 0.1]); labels.push(1);
-;data.push([-0.1, -1.0]); labels.push(-1);
-;data.push([-1.0, 1.1]); labels.push(-1);
-;data.push([2.1, -3]); labels.push(1);
 
 	  PREFIX    Train:
-:Train	  SWYM
+retaddr	  IS	    $0
+currSet	  IS	    $1
+currInput IS	    $2
+currExpected IS	    $3
+last	     IS	    $10
+:Train	  GET  	    retaddr,:rJ
+	  LDA	    currSet,:trainingSet	gets address of trainingSet ptr
+	  LDO	    currSet,currSet		gets address of trainingSet
+	  LDO	    currSet,currSet,:LINK	loads the first element of the training set
+	  LDO	    currInput,currSet,:Y_1
+	  LDO	    currExpected,currSet,:Y_2
+	  SET	    (last+1),currExpected
+	  SET	    (last+2),currInput
+	  PUSHJ	    last,:TrainSingle
+	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
 
@@ -736,8 +508,7 @@ outputUnit IS	    $9
 outputVal IS	    $10
 last 	  IS	    $11
 tmp	  IS	    last
-:TrainSingle   GET  retaddr,:rJ
-	  SET       :t,1
+:TrainSingle  SET       :t,1
 ;	  FLOT	    floatOne,:t
 	  SUB	    :t,:ZERO,1
 ;	  FLOT	    floatNegOne,:t
@@ -1255,7 +1026,7 @@ NumBytes  IS	    $0
 T	  IS	    $1
 retaddr	  IS	    $2
 P	  IS	    $3
-:PushArbi GET	    retaddr,:rJ
+:Push_2 GET	    retaddr,:rJ
           PUSHJ	    P,:Alloc_2    P ⇐ AVAIL
           LDO	    :t,T,:LINK	
           STO	    :t,P,:LINK	LINK(P) ← T
