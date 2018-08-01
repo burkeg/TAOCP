@@ -1,0 +1,13 @@
+if [ "$2" != "-p" ]; then
+   mmixal "${1%.*}.mms"
+else
+   mv "${1%.*}.mms" "${1%.*}.c"				#rename the .mms file to a .c
+   gcc -E "${1%.*}.c" -o "${1%.*}.i"			#use gcc's to translate the preprocessor directives
+   sed -i 's/__NL__/\n/g' "${1%.*}.i"    			#replace __NL__ with newlines in the .i file
+   sed -i '/^#/ d' "${1%.*}.i"    				#deletes all lines starting with #
+   mv "${1%.*}.c" "${1%.*}.mms"				#rename the .c file to a .mms
+   mmixal "${1%.*}.i"					#compile the preprocessed mmix source
+fi
+if [ $? -eq 0 ]; then
+	mmix -i -v "${1%.*}.mmo"
+fi

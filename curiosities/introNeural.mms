@@ -1,8 +1,63 @@
 ; Basic, super inefficient neural net example
 
-AVAIL	  GREG	    
+#define __NL__
+#define ADD_TRAINING(InputUnit1,InputValue1,InputUnit2,InputValue2,OutputUnit,OutputValue) ;__NL__\
+1H	  IS   	    InputUnit1 __NL__\
+2H	  IS   	    InputValue2 __NL__\
+3H	  IS   	    InputUnit2 __NL__\
+4H	  IS   	    InputValue2 __NL__\
+5H	  IS   	    OutputUnit __NL__\
+6H	  IS   	    OutputValue __NL__\
+	  SET	    (last+1),2__NL__\
+	  SET	    (last+2),trainingSet__NL__\
+	  PUSHJ	    last,:PushArbi__NL__\
+	  SET	    setPtr,last__NL__\
+	  SET	    (last+1),2__NL__\
+	  ADD	    subPtr,setPtr,:Y_1__NL__\
+	  SET	    (last+2),subPtr__NL__\
+	  PUSHJ	    last,:PushArbi__NL__\
+	  SET	    :t,1B-1__NL__\
+	  MUL	    :t,:t,:UNIT_SIZE__NL__\
+	  ADD	    :t,:t,:Unit_arr__NL__\
+	  STO	    :t,last,:Y_1__NL__\
+	  SETL	    :t,2B%(1<<16) 0-15__NL__\
+	  INCML	    :t,(2B>>16)%(1<<32) 16-31__NL__\
+	  INCMH	    :t,(2B>>32)%(1<<48) 32-47__NL__\
+	  INCH	    :t,(2B>>48) 48-63__NL__\
+	  STO	    :t,last,:Y_2__NL__\
+	  SET	    (last+1),2__NL__\
+	  SET	    (last+2),subPtr__NL__\
+	  PUSHJ	    last,:PushArbi__NL__\
+	  SET	    :t,3B-1__NL__\
+	  MUL	    :t,:t,:UNIT_SIZE__NL__\
+	  ADD	    :t,:t,:Unit_arr__NL__\
+	  STO	    :t,last,:Y_1__NL__\
+	  SETL	    :t,4B%(1<<16) 0-15__NL__\
+	  INCML	    :t,(4B>>16)%(1<<32) 16-31__NL__\
+	  INCMH	    :t,(4B>>32)%(1<<48) 32-47__NL__\
+	  INCH	    :t,(4B>>48) 48-63__NL__\
+	  STO	    :t,last,:Y_2__NL__\
+	  ADD	    subPtr,setPtr,:Y_2__NL__\
+	  SET	    (last+1),2__NL__\
+	  SET	    (last+2),subPtr__NL__\
+	  PUSHJ	    last,:PushArbi__NL__\
+	  SET	    :t,5B-1__NL__\
+	  MUL	    :t,:t,:UNIT_SIZE__NL__\
+	  ADD	    :t,:t,:Unit_arr__NL__\
+	  STO	    :t,last,:Y_1__NL__\
+	  SETL	    :t,6B%(1<<16) 0-15__NL__\
+	  INCML	    :t,(6B>>16)%(1<<32) 16-31__NL__\
+	  INCMH	    :t,(6B>>32)%(1<<48) 32-47__NL__\
+	  INCH	    :t,(6B>>48) 48-63__NL__\
+	  STO	    :t,last,:Y_2
+
+
+AVAIL	  GREG
 POOLMAX	  GREG
 SEQMIN	  GREG
+AVAIL_2	  GREG
+POOLMAX_2 GREG
+SEQMIN_2  GREG
 ZERO	  GREG
 NEGONE	  GREG      -1
 STEP_SIZE GREG	    #3F847AE147AE147B    0.01 in 64-bit floating point
@@ -15,6 +70,8 @@ GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
 c	  IS	    2*8		Nodesize(bytes), (max 256)
 capacity  IS	    100		max number of c-Byte nodes 
+c_2	  IS	    3*8		Nodesize(bytes), (max 256)
+capacity_2 IS	    20		max number of c-Byte nodes 
 LINK	  IS 	    0
 INFO	  IS	    8
 IN_UNITS  IS	    0
@@ -53,6 +110,10 @@ L0_pool	  OCTA      0
 	  LOC	    @+c*capacity-8
 	  GREG	    @
 endOfPool OCTA	    0
+L0_pool_2 IS	    endOfPool
+	  LOC	    @+c*capacity_2-8
+	  GREG	    @
+endOfPool_2 OCTA    0
 springParams OCTA   0
 outputUnits OCTA    0
 trainingSet OCTA    0
@@ -60,6 +121,8 @@ trainingSet OCTA    0
 	  LOC	    #100
 Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
+	  LDA	    POOLMAX_2,L0_pool_2
+	  LDA	    SEQMIN_2,endOfPool_2
 	  PUSHJ	    $0,:Init
 	  PUSHJ	    $0,:TopSort
 	  PUSHJ	    $0,:ForwardProp
@@ -636,54 +699,7 @@ last	  IS	    $8
 	  INCH	    :t,(6B>>48)
 	  STO	    :t,last,:Y_2
 ; set 6
-1H	  IS   	    2	InputUnit1
-2H	  IS   	    #4000CCCCCCCCCCCD InputValue1: 2.1
-3H	  IS   	    4	InputUnit2
-4H	  IS   	    #C008000000000000 InputValue2: -3
-5H	  IS   	    9	OutputUnit
-6H	  IS   	    #3FF0000000000000 OutputValue: 1
-	  SET	    (last+1),2
-	  SET	    (last+2),trainingSet
-	  PUSHJ	    last,:PushArbi
-	  SET	    setPtr,last
-	  SET	    (last+1),2
-	  ADD	    subPtr,setPtr,:Y_1
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,1B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,2B%(1<<16)
-	  INCML	    :t,(2B>>16)%(1<<32)
-	  INCMH	    :t,(2B>>32)%(1<<48)
-	  INCH	    :t,(2B>>48)
-	  STO	    :t,last,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,3B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,4B%(1<<16)
-	  INCML	    :t,(4B>>16)%(1<<32)
-	  INCMH	    :t,(4B>>32)%(1<<48)
-	  INCH	    :t,(4B>>48)
-	  STO	    :t,last,:Y_2
-	  ADD	    subPtr,setPtr,:Y_2
-	  SET	    (last+1),2
-	  SET	    (last+2),subPtr
-	  PUSHJ	    last,:PushArbi
-	  SET	    :t,5B-1
-	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    :t,:t,:Unit_arr
-	  STO	    :t,last,:Y_1
-	  SETL	    :t,6B%(1<<16)
-	  INCML	    :t,(6B>>16)%(1<<32)
-	  INCMH	    :t,(6B>>32)%(1<<48)
-	  INCH	    :t,(6B>>48)
-	  STO	    :t,last,:Y_2
+	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
 ;
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
@@ -1230,6 +1246,25 @@ P	  IS	    $3
           POP	    1,0
           PREFIX    :
 
+	  PREFIX    Push_2:
+; 	  Calling Sequence:
+;	  SET	    $(X+1),nothing
+;	  SET	    $(X+2),T    Pointer to address that contains the TOP pointer
+;	  PUSHJ	    $(X),:PushArbi		
+NumBytes  IS	    $0
+T	  IS	    $1
+retaddr	  IS	    $2
+P	  IS	    $3
+:PushArbi GET	    retaddr,:rJ
+          PUSHJ	    P,:Alloc_2    P ⇐ AVAIL
+          LDO	    :t,T,:LINK	
+          STO	    :t,P,:LINK	LINK(P) ← T
+          STO	    P,T,:LINK	T ← P
+	  SET	    $0,P
+          PUT	    :rJ,retaddr
+          POP	    1,0
+          PREFIX    :
+
           PREFIX    Pop:
 ; 	  Calling Sequence:
 ;	  SET	    $(X+1),T    Pointer to address that contains the TOP pointer
@@ -1263,6 +1298,19 @@ X	  IS	    $0
           TRAP	    0,:Halt,0        Overflow (no nodes left)
 1H	  SET	    X,:AVAIL
           LDO	    :AVAIL,:AVAIL,:LINK
+2H	  POP	    1,0
+          PREFIX    :
+
+          PREFIX    Alloc_2:
+X	  IS	    $0
+:Alloc_2  PBNZ	    :AVAIL_2,1F
+          SET	    X,:POOLMAX_2
+          ADD	    :POOLMAX_2,X,:c_2
+          CMP	    :t,:POOLMAX_2,:SEQMIN_2
+          PBNP	    :t,2F
+          TRAP	    0,:Halt,0        Overflow (no nodes left)
+1H	  SET	    X,:AVAIL_2
+          LDO	    :AVAIL_2,:AVAIL_2,:LINK
 2H	  POP	    1,0
           PREFIX    :
 
