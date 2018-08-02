@@ -61,6 +61,7 @@ SEQMIN_2  GREG
 ZERO	  GREG
 NEGONE	  GREG      -1
 STEP_SIZE GREG	    #3F847AE147AE147B    0.01 in 64-bit floating point
+;STEP_SIZE GREG	    #3FC999999999999A    0.2  in 64-bit floating point
 
 
 t 	  IS	    $255
@@ -71,23 +72,24 @@ UNIT_SIZE IS	    5*8
 c	  IS	    2*8		Nodesize(bytes), (max 256)
 capacity  IS	    100		max number of c-Byte nodes 
 c_2	  IS	    3*8		Nodesize(bytes), (max 256)
-capacity_2 IS	    20		max number of c-Byte nodes 
-LINK	  IS 	    0
-INFO	  IS	    8
-IN_UNITS  IS	    0
-OUT_UNIT  IS	    8
-FWD_PTR	  IS	    16
-BACK_PTR  IS 	    24
-VALUE	  IS	    0
-GRAD	  IS	    8
-IS_PARAM  IS	    16
-IN_GATES  IS	    24
-OUT_GATE  IS	    32
-MAX_INPUTS IS	    5
-PARAM_UNIT IS	    8
-PARAM_VALUE IS	    16
-Y_1	  IS	    8
-Y_2	  IS	    16
+capacity_2 IS	    50		max number of c-Byte nodes 
+LINK	  IS 	    0		location of NEXT pointer in a node
+INFO	  IS	    8		octabyte of data in a 16-byte node
+IN_UNITS  IS	    0		gate byte-offset: linked list containing all units going into a gate
+OUT_UNIT  IS	    8		gate byte-offset: pointer to the unit going out of a gate
+FWD_PTR	  IS	    16		gate byte-offset: forward propagation function pointer
+BACK_PTR  IS 	    24		gate byte-offset: back propagation function pointer
+VALUE	  IS	    0		unit byte-offset: value used during forward propagation
+GRAD	  IS	    8		unit byte-offset: gradient used during back propagation
+IS_PARAM  IS	    16		unit byte-offset: field specifying whether a unit is a parameter
+IN_GATES  IS	    24		unit byte-offset: linked list containing all gates a unit is going into
+OUT_GATE  IS	    32		unit byte-offset: pointer to the gate this unit is going out of
+MAX_INPUTS IS	    5		number of units that are initialized before forward propagation
+PARAM_UNIT IS	    8		1st octabyte of data in a 24-byte node
+PARAM_VALUE IS	    16		2nd octabyte of data in a 24-byte node
+Y_1	  IS	    8		1st octabyte of data in a 24-byte node
+Y_2	  IS	    16		2nd octabyte of data in a 24-byte node
+NUM_ITER  IS        #FF		number of times to redo the training data
 
 
           LOC       Data_Segment
@@ -111,25 +113,68 @@ L0_pool	  OCTA      0
 	  GREG	    @
 endOfPool OCTA	    0
 L0_pool_2 IS	    endOfPool
-	  LOC	    @+c*capacity_2-8
+	  LOC	    @+c_2*capacity_2-8
 	  GREG	    @
 endOfPool_2 OCTA    0
 springParams OCTA   0
 outputUnits OCTA    0
 trainingSet OCTA    0
+trainingStats OCTA  0
+	  LOC 	    @+NUM_ITER*5*8-8
 
 	  LOC	    #100
 Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
 	  LDA	    POOLMAX_2,L0_pool_2
 	  LDA	    SEQMIN_2,endOfPool_2
-	  PUSHJ	    $0,:Init
-	  PUSHJ	    $0,:TopSort
-	  PUSHJ	    $0,:ForwardProp
-	  PUSHJ	    $0,:BackProp
-	  PUSHJ	    $0,:InitTraining
-	  PUSHJ	    $0,:Train
+	  PUSHJ	    $0,:Init		Initialized the network data structure
+	  PUSHJ	    $0,:TopSort		Determines a topoligical ordering of the nodes
+;	  	    			in the network in order to know order to compute
+;					forward prop and backprop.
+	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
+;	  	    			initial values for parameters
+	  PUSHJ	    $0,:GatherStatistics
 	  TRAP	    0,Halt,0
+
+	  PREFIX    GatherStatistics:
+statPtr	  IS	    $0
+retaddr	  IS	    $1
+numCorrect IS	    $2
+numTotal  IS	    $3
+ratio	  IS	    $4
+iteration IS	    $5
+allCorrect IS	    $6
+last	  IS	    $10
+a	  GREG	    #2000000000000080
+b	  GREG	    #20000000000000d0
+c	  GREG	    #2000000000000170
+:GatherStatistics   GET	    retaddr,:rJ
+          LDA	    statPtr,:trainingStats
+	  SET	    iteration,:NUM_ITER
+	  SET	    allCorrect,1
+1H	  BZ	    allCorrect,2F
+	  PUSHJ	    last,:Train
+	  SET	    numCorrect,(last+1)
+	  SET	    numTotal,last
+	  FLOT	    ratio,numCorrect
+	  FLOT	    :t,numTotal
+	  FDIV	    ratio,numCorrect,numTotal
+	  STO	    numCorrect,statPtr,0
+	  STO	    numTotal,statPtr,8
+	  STO	    ratio,statPtr,16
+	  LDO	    :t,a
+	  STO	    :t,statPtr,24
+	  LDO	    :t,b
+	  STO	    :t,statPtr,32
+	  LDO	    :t,c
+	  STO	    :t,statPtr,40
+	  ADD	    statPtr,statPtr,48
+	  SUB	    iteration,iteration,1
+	  CMP	    allCorrect,numCorrect,numTotal
+	  JMP	    1B
+2H	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    Init:
 retaddr	  IS	    $0
@@ -359,9 +404,11 @@ retval	  IS	    $13
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    3	Unit
-2H	  IS   	    2	Value
+2H	  IS   	    -2	Value
 	  SET	    unitI,1B-1
 	  SET	    :t,2B
+	  SL	    :t,:t,56
+	  SR	    :t,:t,56
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
 	  FLOT	    :t,:t
@@ -379,9 +426,11 @@ retval	  IS	    $13
 	  STO	    :t,retval,:VALUE
 ;
 1H	  IS   	    7	Unit
-2H	  IS   	    3	Value
+2H	  IS   	    -1	Value
 	  SET	    unitI,1B-1
-	  SUB	    :t,:ZERO,2B
+	  SET	    :t,2B
+	  SL	    :t,:t,56
+	  SR	    :t,:t,56
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
 	  FLOT	    :t,:t
@@ -475,25 +524,34 @@ retaddr	  IS	    $0
 currSet	  IS	    $1
 currInput IS	    $2
 currExpected IS	    $3
+numAttempted IS	    $4
+numCorrect   IS	    $5
 last	     IS	    $10
 :Train	  GET  	    retaddr,:rJ
 	  LDA	    currSet,:trainingSet	gets address of trainingSet ptr
 	  LDO	    currSet,currSet		gets address of trainingSet
-	  LDO	    currSet,currSet,:LINK	loads the first element of the training set
+	  SET	    numCorrect,0
+	  SET	    numAttempted,0
+1H	  BZ	    currSet,2F		training complete!
 	  LDO	    currInput,currSet,:Y_1
 	  LDO	    currExpected,currSet,:Y_2
 	  SET	    (last+1),currExpected
 	  SET	    (last+2),currInput
 	  PUSHJ	    last,:TrainSingle
-	  PUT	    :rJ,retaddr
-	  POP	    0,0
+	  ADD	    numCorrect,numCorrect,last
+	  ADD	    numAttempted,numAttempted,1
+	  LDO	    currSet,currSet,:LINK
+	  JMP	    1B
+2H	  PUT	    :rJ,retaddr
+	  SET	    $0,numCorrect
+	  SET	    $1,numAttempted
+	  POP	    2,0
 	  PREFIX    :
 
 	  PREFIX    TrainSingle:
 ;	  Calling Sequence:
 ;	  SET	    $(X+1),expected
 ;	  SET	    $(X+2),inputs
-;	  SET	    $(X+3),springParams
 ;	  PUSHJ	    $(X),:TrainSingle
 expected  IS	    $0
 inputs	  IS	    $1
@@ -503,18 +561,19 @@ limit	  IS   	    $4
 current	  IS	    $5
 unitVal	  IS	    $6
 unitGrad  IS	    $7
-guessedCorrect	IS  $8
+guessedCorrect IS   $8
 outputUnit IS	    $9
 outputVal IS	    $10
 last 	  IS	    $11
 tmp	  IS	    last
-:TrainSingle  SET       :t,1
+:TrainSingle  GET    retaddr,:rJ
+	  SET       :t,1
 ;	  FLOT	    floatOne,:t
 	  SUB	    :t,:ZERO,1
 ;	  FLOT	    floatNegOne,:t
 ;	  Step 1)   clear all units values and gradients (except parameters)
 	  PUSHJ	    last,:ResetUnits
-;	  Step 2)   initialize inpust
+;	  Step 2)   initialize inputs
 	  SET  	    current,inputs
 2H	  BZ	    current,3F
 	  LDO  	    :t,current,:PARAM_UNIT
@@ -534,29 +593,36 @@ tmp	  IS	    last
 	  FCMP	    :t,outputVal,expected
 	  FCMP	    tmp,expected,:ZERO
 	  CMP	    :t,:t,tmp
-	  BZ	    :t,5F	If :t and tmp are equal then move on and don't do anything
+	  BZ	    :t,6F	If :t and tmp are equal then move on and don't do anything
+	  SET	    guessedCorrect,:t 	  
 	  FLOT	    :t,tmp
 	  STO	    :t,outputUnit,:GRAD	   Set gradient appropriately
-;	  Step 5)   Add addition "spring" pulls
-5H	  LDO	    (last+1),:springParams
+;	  Step 5)   Do Backprop
+	  PUSHJ	    last,:BackProp
+;	  Step 6)   Add addition "spring" pulls
+6H	  LDO	    (last+1),:springParams
 	  PUSHJ	    last,:SpringPull
-;	  Step 6)   Parameter update based off of STEP_SIZE
+;	  Step 7)   Parameter update based off of STEP_SIZE
 	  SET	    limit,:NUM_UNITS
 	  MUL	    limit,limit,:UNIT_SIZE
 	  ADD	    limit,limit,:Unit_arr
 	  SET  	    current,:Unit_arr
-6H	  LDO	    unitVal,current,:IS_PARAM
+7H	  LDO	    unitVal,current,:IS_PARAM
 	  PBZ	    unitVal,1F
 	  LDO	    unitGrad,current,:GRAD
 	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
 	  LDO	    unitVal,current,:VALUE
 	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
+	  STO	    unitVal,current,:VALUE	store the new calculated parameter back into VALUE
 1H	  ADD	    current,current,:UNIT_SIZE
 	  CMP	    :t,current,limit
-	  PBN	    :t,6B
-	  SET	    $3,guessedCorrect
-	  PUT	    :rJ,retaddr
-	  POP	    4,0
+	  PBN	    :t,7B
+	  BNZ	    guessedCorrect,1F
+	  SET	    $0,1	if guessedCorrect was 0, that means no correction was applied!
+	  JMP	    2F
+1H	  SET	    $0,0
+2H	  PUT	    :rJ,retaddr
+	  POP	    1,0
 	  PREFIX    :
 
 	  PREFIX    SpringPull:
@@ -564,8 +630,8 @@ tmp	  IS	    last
 ;	  PUSHJ	    $(X),:SpringPull
 current   IS	    $0
 unitPtr	  IS	    $1
-flotNegOne IS	    $1
-tmp	  IS	    $2
+flotNegOne IS	    $2
+tmp	  IS	    $3
 :SpringPull  LDA    :t,:springParams
 	  LDO	    current,:t
 	  FLOT	    flotNegOne,:NEGONE
@@ -577,6 +643,7 @@ tmp	  IS	    $2
 	  FADD	    :t,tmp,:t
 	  STO	    :t,unitPtr,:GRAD	GRAD -= VALUE
 	  LDO	    current,current,:LINK
+	  JMP	    1B
 2H	  POP	    0,0
 	  PREFIX    :
 
@@ -588,11 +655,8 @@ isParam	  IS	    $2
 	  SET	    :t,:UNIT_SIZE
 	  MUL	    :t,:t,:NUM_UNITS
 	  ADD	    maxUnit,:t,:Unit_arr
-1H	  LDO	    isParam,unitPtr,:IS_PARAM
-	  BNZ	    isParam,2F
-;	  STO	    :ZERO,unitPtr,:VALUE (not needed, they are overwritten during forward prop)
-	  STO	    :ZERO,unitPtr,:GRAD
-2H	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+1H	  STO	    :ZERO,unitPtr,:GRAD
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
 	  CMP	    :t,unitPtr,maxUnit
 	  PBN	    :t,1B
 	  POP	    0,0
@@ -1079,7 +1143,7 @@ X	  IS	    $0
           ADD	    :POOLMAX_2,X,:c_2
           CMP	    :t,:POOLMAX_2,:SEQMIN_2
           PBNP	    :t,2F
-          TRAP	    0,:Halt,0        Overflow (no nodes left)
+          TRAP	    0,:Halt,0        Overflow (no nodes left)_2
 1H	  SET	    X,:AVAIL_2
           LDO	    :AVAIL_2,:AVAIL_2,:LINK
 2H	  POP	    1,0

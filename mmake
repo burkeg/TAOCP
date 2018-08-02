@@ -8,5 +8,5 @@ else
    mmixal "${1%.*}"					#compile the preprocessed mmix source
 fi
 if [ $? -eq 0 ]; then
-	mmix -i -v "${1%.*}.mmo"
+	mmix -i "${1%.*}.mmo"
 fi
