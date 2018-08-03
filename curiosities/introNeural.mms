@@ -60,8 +60,10 @@ POOLMAX_2 GREG
 SEQMIN_2  GREG
 ZERO	  GREG
 NEGONE	  GREG      -1
-STEP_SIZE GREG	    #3F847AE147AE147B    0.01 in 64-bit floating point
-;STEP_SIZE GREG	    #3FC999999999999A    0.2  in 64-bit floating point
+;STEP_SIZE GREG	    #3F847AE147AE147B    0.01  in 64-bit floating point
+;STEP_SIZE GREG	    #3FC999999999999A    0.2   in 64-bit floating point
+;STEP_SIZE GREG	    #3FF0000000000000    1     in 64-bit floating point
+STEP_SIZE GREG	    #3FF0000000000000    0.001 in 64-bit floating point
 
 
 t 	  IS	    $255
@@ -508,10 +510,10 @@ assignOutUnits	  SET	    tmp1,1B-1
 	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
 ; set 4	  -0.1,-1.0 [-1]
 	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
-; set 3	  3.0,0.1 [1]
-	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
 ; set 2	  -0.3,-0.5 [-1]
 	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
+; set 3	  3.0,0.1 [1]
+	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
 ; set 1	  1.2,0.7 [1]
 	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
 ;
@@ -564,9 +566,25 @@ unitGrad  IS	    $7
 guessedCorrect IS   $8
 outputUnit IS	    $9
 outputVal IS	    $10
-last 	  IS	    $11
+beforeA	  IS	    $11
+beforeB	  IS	    $12
+beforeC	  IS	    $13
+afterA	  IS	    $14
+afterB	  IS	    $15
+afterC	  IS	    $16
+last 	  IS	    $17
 tmp	  IS	    last
 :TrainSingle  GET    retaddr,:rJ
+	  LDA 	    :t,:Data_Segment
+	  SETL 	    beforeA,#80
+	  SETL 	    beforeB,#d0
+	  SETL 	    beforeC,#170
+	  ADD 	    beforeA,beforeA,:t
+	  ADD 	    beforeB,beforeB,:t
+	  ADD 	    beforeC,beforeC,:t
+	  LDO	    beforeA,beforeA
+	  LDO	    beforeB,beforeB
+	  LDO	    beforeC,beforeC
 	  SET       :t,1
 ;	  FLOT	    floatOne,:t
 	  SUB	    :t,:ZERO,1
@@ -593,12 +611,12 @@ tmp	  IS	    last
 	  FCMP	    :t,outputVal,expected
 	  FCMP	    tmp,expected,:ZERO
 	  CMP	    :t,:t,tmp
-	  BZ	    :t,6F	If :t and tmp are equal then move on and don't do anything
+	  BZ	    :t,1F	If :t and tmp are equal then move on and don't do anything
 	  SET	    guessedCorrect,:t 	  
 	  FLOT	    :t,tmp
 	  STO	    :t,outputUnit,:GRAD	   Set gradient appropriately
 ;	  Step 5)   Do Backprop
-	  PUSHJ	    last,:BackProp
+Backprop  PUSHJ	    last,:BackProp
 ;	  Step 6)   Add addition "spring" pulls
 6H	  LDO	    (last+1),:springParams
 	  PUSHJ	    last,:SpringPull
@@ -608,20 +626,37 @@ tmp	  IS	    last
 	  ADD	    limit,limit,:Unit_arr
 	  SET  	    current,:Unit_arr
 7H	  LDO	    unitVal,current,:IS_PARAM
-	  PBZ	    unitVal,1F
+	  PBZ	    unitVal,8F
 	  LDO	    unitGrad,current,:GRAD
 	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
 	  LDO	    unitVal,current,:VALUE
 	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
 	  STO	    unitVal,current,:VALUE	store the new calculated parameter back into VALUE
-1H	  ADD	    current,current,:UNIT_SIZE
+8H	  ADD	    current,current,:UNIT_SIZE
 	  CMP	    :t,current,limit
 	  PBN	    :t,7B
-	  BNZ	    guessedCorrect,1F
+1H	  BNZ	    guessedCorrect,1F
 	  SET	    $0,1	if guessedCorrect was 0, that means no correction was applied!
 	  JMP	    2F
 1H	  SET	    $0,0
 2H	  PUT	    :rJ,retaddr
+	  LDA 	    :t,:Data_Segment
+	  SETL 	    afterA,#80
+	  SETL 	    afterB,#d0
+	  SETL 	    afterC,#170
+	  SETL	    last,#1c0
+	  ADD 	    afterA,afterA,:t
+	  ADD 	    afterB,afterB,:t
+	  ADD 	    afterC,afterC,:t
+	  ADD 	    last,last,:t
+	  LDO	    afterA,afterA
+	  LDO	    afterB,afterB
+	  LDO	    afterC,afterC
+	  LDO	    last,last
+	  FCMP	    :t,beforeA,afterA
+	  FCMP	    :t,beforeB,afterB
+	  FCMP	    :t,beforeC,afterC
+	  FCMP	    :t,last,last
 	  POP	    1,0
 	  PREFIX    :
 
