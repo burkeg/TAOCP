@@ -144,7 +144,7 @@ Main	  LDA	    POOLMAX,L0_pool
 	  PUSHJ	    $0,:runTillAllCorrect
 	  TRAP	    0,Halt,0
 
-	  PREFIX    σ:
+	  PREFIX    σ:	sigmoid
 X	  IS	    $0
 retaddr	  IS	    $1
 last	  IS	    $2
@@ -973,6 +973,89 @@ FIX	  ADD	    unitIndex,unitIndex,:UNIT_SIZE
 IN_RANGE  LDA	    :t,:Unit_arr,unitIndex
 	  LDO	    in_gates,:t,:IN_GATES   load the ptr to the first of in_gates
 	  JMP	    :ReadPairUnit
+	  PREFIX    :
+
+	  PREFIX    Gate_arbi_1_fwd:
+;	  Input format: ax+by+cz+...+offset in reverse order. Always assumes an odd number of inputs
+;	  Reads offset, adds to accumulator
+;	  Reads both c and z, multiplies and adds to accumulator
+;	  Repeates on all remaining elements 2 at a time until none left
+;	  Computes sigmoid on the accumulator
+Gate	  IS	    $0
+retaddr	  IS	    $1
+acc	  IS	    $2	accumulates the expression
+currUnit  IS	    $3
+param	  IS	    $4
+var	  IS	    $5
+last	  IS	    $10
+:Gate_arbi_fwd	GET retaddr,:rJ
+	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
+	  LDO	    :t,currUnit,:INFO
+	  LDO	    acc,:t,:VALUE
+	  LDO	    currUnit,currUnit,:LINK
+nextPair  BZ	    currUnit,sumDone
+	  LDO	    :t,currUnit,:INFO
+	  LDO	    var,:t,:VALUE
+	  LDO	    currUnit,currUnit,:LINK
+	  LDO	    :t,currUnit,:INFO
+	  LDO	    param,:t,:VALUE
+	  LDO	    currUnit,currUnit,:LINK
+	  FMUL	    :t,param,var
+	  FADD	    acc,acc,:t		acc+=a*x where a is a parameter and x is a variable
+	  JMP	    nextPair
+sumDone	  SET	    (last+1),acc
+	  PUSHJ	    last,:σ
+	  LDO	    :t,Gate,:OUT_UNIT
+	  STO	    last,:t,:VALUE
+	  PUT  	    :rJ,retaddr
+	  PREFIX    :
+
+	  PREFIX    Gate_arbi_1_back:
+;	  Input format: ax+by+cz+...+offset in reverse order. Always assumes an odd number of inputs
+;	  Reads offset, adds σ(...)*(1-σ(...)) to gradient
+;	  Reads both c and z, adds σ(...)*(1-σ(...))*z to gradient of c and σ(...)*(1-σ(...))*c to gradient of z
+;	  Repeates on all remaining elements 2 at a time until none left
+Gate	  IS	    $0
+retaddr	  IS	    $1
+currUnit  IS	    $2
+currUnitPtr IS	    $3
+s	  IS	    $4  output of sigmoid function
+ds	  IS	    $5
+param	  IS	    $6	parameter such as a,b,c
+var	  IS	    $7  variable such as x,y,z
+dparam	  IS	    $8	parameter such as a,b,c
+dvar	  IS	    $9  variable such as x,y,z
+paramPtr  IS	    $10
+varPtr	  IS	    $11
+last	  IS	    $12
+:Gate_arbi_back	GET retaddr,:rJ
+	  LDO	    :t,Gate,:OUT_UNIT
+	  LDO	    s,:t,:VALUE		computes σ(ax+by+cz+...+offset)
+	  FSUB	    :t,:FONE,s
+	  FMUL	    ds,:t,s	        computes σ(...)*(1-σ(...))
+	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
+	  LDO	    currUnitPtr,currUnit,:INFO
+	  LDO	    :t,currUnitPtr,:GRAD	load current gradient
+	  FADD	    :t,:t,ds
+	  STO	    :t,currUnitPtr,:GRAD	offset.grad+=ds
+	  LDO	    currUnit,currUnit,:LINK
+nextPair  BZ	    currUnit,sumDone
+	  LDO	    varPtr,currUnit,:INFO
+	  LDO	    var,varPtr,:VALUE
+	  LDO	    currUnit,currUnit,:LINK
+	  LDO	    paramPtr,currUnit,:INFO
+	  LDO	    param,paramPtr,:VALUE
+	  LDO	    currUnit,currUnit,:LINK
+	  LDO	    :t,varPtr,:GRAD
+	  FMUL	    dvar,param,ds
+	  FADD	    :t,dvar,:t		var.grad+=param.value*ds
+	  STO	    :t,varPtr,:GRAD
+	  LDO	    :t,paramPtr,:GRAD
+	  FMUL	    dparam,var,ds
+	  FADD	    :t,dparam,:t		param.grad+=var.value*ds
+	  STO	    :t,varPtr,:GRAD
+	  JMP	    nextPair
+sumDone	  PUT  	    :rJ,retaddr
 	  PREFIX    :
 
 	  PREFIX    Gate_Addition_2_fwd:
