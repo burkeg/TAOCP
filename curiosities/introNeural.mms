@@ -141,7 +141,7 @@ Main	  LDA	    POOLMAX,L0_pool
 ;					forward prop and backprop.
 	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
 ;	  	    			initial values for parameters
-	  PUSHJ	    $0,:GatherStatistics
+	  PUSHJ	    $0,:runTillAllCorrect
 	  TRAP	    0,Halt,0
 
 	  PREFIX    σ:
@@ -212,41 +212,18 @@ Done	  SET	    $0,acc
 	  POP	    1,0
 	  PREFIX    :
 
-	  PREFIX    GatherStatistics:
-statPtr	  IS	    $0
-retaddr	  IS	    $1
-numCorrect IS	    $2
-numTotal  IS	    $3
-ratio	  IS	    $4
-iteration IS	    $5
-allCorrect IS	    $6
-last	  IS	    $10
-a	  GREG	    #2000000000000080
-b	  GREG	    #20000000000000d0
-c	  GREG	    #2000000000000170
-:GatherStatistics   GET	    retaddr,:rJ
-          LDA	    statPtr,:trainingStats
-	  SET	    iteration,:NUM_ITER
-	  SET	    allCorrect,1
-1H	  BZ	    allCorrect,2F
+	  PREFIX    runTillAllCorrect:
+retaddr	  IS	    $0
+numCorrect IS	    $1
+numTotal  IS	    $2
+last	  IS	    $3
+:runTillAllCorrect   GET	    retaddr,:rJ
+	  SET	    :t,1    initialize to non-zero value
+1H	  BZ	    :t,2F   
 	  PUSHJ	    last,:Train
 	  SET	    numCorrect,(last+1)
 	  SET	    numTotal,last
-	  FLOT	    ratio,numCorrect
-	  FLOT	    :t,numTotal
-	  FDIV	    ratio,numCorrect,numTotal
-	  STO	    numCorrect,statPtr,0
-	  STO	    numTotal,statPtr,8
-	  STO	    ratio,statPtr,16
-	  LDO	    :t,a
-	  STO	    :t,statPtr,24
-	  LDO	    :t,b
-	  STO	    :t,statPtr,32
-	  LDO	    :t,c
-	  STO	    :t,statPtr,40
-	  ADD	    statPtr,statPtr,48
-	  SUB	    iteration,iteration,1
-	  CMP	    allCorrect,numCorrect,numTotal
+	  CMP	    :t,numCorrect,numTotal
 	  JMP	    1B
 2H	  PUT	    :rJ,retaddr
 	  POP	    0,0
@@ -582,17 +559,17 @@ assignOutUnits	  SET	    tmp1,1B-1
 ;---------
 ;	  Assign training set
 ; set 6	  2.1,-3 [-1]
-	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
 ; set 5	  -1.0,1.1 [-1]
-	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
 ; set 4	  -0.1,-1.0 [-1]
-	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
 ; set 3	  3.0,0.1 [1]
-	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
 ; set 2	  -0.3,-0.5 [-1]
-	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
 ; set 1	  1.2,0.7 [1]
-	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
 ;
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
