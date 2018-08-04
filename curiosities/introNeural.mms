@@ -51,7 +51,6 @@
 	  INCH	    :t,(6B>>48) 48-63__NL__\
 	  STO	    :t,last,:Y_2
 
-
 AVAIL	  GREG
 POOLMAX	  GREG
 SEQMIN	  GREG
@@ -60,6 +59,9 @@ POOLMAX_2 GREG
 SEQMIN_2  GREG
 ZERO	  GREG
 NEGONE	  GREG      -1
+FONE	  GREG	    #3FF0000000000000
+FTWO	  GREG	    #4000000000000000
+e	  GREG	    #4005BF0A8B145769
 STEP_SIZE GREG	    #3F847AE147AE147B    0.01  in 64-bit floating point
 ;STEP_SIZE GREG	    #3FC999999999999A    0.2   in 64-bit floating point
 ;STEP_SIZE GREG	    #3FF0000000000000    1     in 64-bit floating point
@@ -139,6 +141,74 @@ Main	  LDA	    POOLMAX,L0_pool
 ;	  	    			initial values for parameters
 	  PUSHJ	    $0,:GatherStatistics
 	  TRAP	    0,Halt,0
+
+	  PREFIX    σ:
+X	  IS	    $0
+retaddr	  IS	    $1
+last	  IS	    $2
+:σ	  GET	    retaddr,:rJ
+	  SET	    (last+1),:e
+	  FSUB	    (last+2),:ZERO,X
+	  PUSHJ	    last,:pow
+	  FADD	    :t,:FONE,last
+	  FDIV	    $0,:FONE,:t
+	  PUT	    :rJ,retaddr
+	  POP	    1,0
+	  PREFIX    :
+
+	  PREFIX    pow:
+base	  IS	    $0
+exp	  IS	    $1
+retaddr	  IS	    $2
+sqr	  IS	    $3
+acc	  IS	    $4
+low	  IS	    $5
+mid	  IS	    $6
+high	  IS	    $7
+last	  IS	    $8
+:pow	  GET	    retaddr,:rJ
+	  BNZ	    exp,1F
+	  SET	    $0,:FONE
+	  POP	    1,0		PUT instruction not necessary since no subroutine is called.
+1H	  FCMP	    :t,exp,:ZERO
+	  BNN	    :t,1F		If exp is negative, return 1/(base^-exp) instead
+	  SET	    (last+1),base
+	  FSUB	    (last+2),:ZERO,exp
+	  PUSHJ	    last,:pow
+	  FDIV	    $0,:FONE,last
+	  PUT	    :rJ,retaddr
+	  POP	    1,0
+1H	  FCMP	    :t,exp,:FONE
+	  BN	    :t,1F
+	  SET	    (last+1),base
+	  FDIV	    (last+2),exp,:FTWO
+	  PUSHJ	    last,:pow
+	  FMUL	    $0,last,last
+	  PUT	    :rJ,retaddr
+	  POP	    1,0
+1H	  SET	    low,0
+	  SET	    high,:FONE
+	  FSQRT	    sqr,base
+	  SET	    acc,sqr
+	  FDIV	    mid,high,:FTWO
+3H	  FEQLE	    :t,mid,exp
+	  BNZ	    :t,Done
+	  FSQRT	    sqr,sqr
+	  FCMP	    :t,mid,exp
+	  BNN	    :t,lower
+higher	  SET	    low,mid
+	  FMUL	    acc,acc,sqr
+	  JMP	    2F
+lower	  SET	    high,mid
+	  FDIV	    :t,:FONE,sqr
+	  FMUL	    acc,acc,:t
+2H	  FADD	    :t,low,high
+	  FDIV	    mid,:t,:FTWO
+	  JMP	    3B
+Done	  SET	    $0,acc
+	  PUT	    :rJ,retaddr
+	  POP	    1,0
+	  PREFIX    :
 
 	  PREFIX    GatherStatistics:
 statPtr	  IS	    $0
@@ -571,25 +641,9 @@ unitGrad  IS	    $7
 guessedCorrect IS   $8
 outputUnit IS	    $9
 outputVal IS	    $10
-beforeA	  IS	    $11
-beforeB	  IS	    $12
-beforeC	  IS	    $13
-afterA	  IS	    $14
-afterB	  IS	    $15
-afterC	  IS	    $16
-last 	  IS	    $17
+last 	  IS	    $11
 tmp	  IS	    last
 :TrainSingle  GET    retaddr,:rJ
-	  LDA 	    :t,:Data_Segment
-	  SETL 	    beforeA,#80
-	  SETL 	    beforeB,#d0
-	  SETL 	    beforeC,#170
-	  ADD 	    beforeA,beforeA,:t
-	  ADD 	    beforeB,beforeB,:t
-	  ADD 	    beforeC,beforeC,:t
-	  LDO	    beforeA,beforeA
-	  LDO	    beforeB,beforeB
-	  LDO	    beforeC,beforeC
 	  SET       :t,1
 	  SUB	    :t,:ZERO,1
 ;	  Step 1)   clear all units values and gradients (except parameters)
@@ -646,23 +700,6 @@ Backprop  PUSHJ	    last,:BackProp
 	  JMP	    2F
 1H	  SET	    $0,0
 2H	  PUT	    :rJ,retaddr
-	  LDA 	    :t,:Data_Segment
-	  SETL 	    afterA,#80
-	  SETL 	    afterB,#d0
-	  SETL 	    afterC,#170
-	  SETL	    last,#1c0
-	  ADD 	    afterA,afterA,:t
-	  ADD 	    afterB,afterB,:t
-	  ADD 	    afterC,afterC,:t
-	  ADD 	    last,last,:t
-	  LDO	    afterA,afterA
-	  LDO	    afterB,afterB
-	  LDO	    afterC,afterC
-	  LDO	    last,last
-	  FCMP	    :t,beforeA,afterA
-	  FCMP	    :t,beforeB,afterB
-	  FCMP	    :t,beforeC,afterC
-Break	  FCMP	    :t,last,last
 	  POP	    1,0
 	  PREFIX    :
 
