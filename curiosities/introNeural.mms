@@ -443,14 +443,14 @@ last	  IS	    $8
 	  MUL	    tmp2,tmp1,:UNIT_SIZE
 	  ADD	    (last+1),tmp2,:Unit_arr
 	  SET	    (last+2),springs
-	  PUSHJ	    last,:Push
+;	  PUSHJ	    last,:Push
 ;
 1H	  IS   	    3	Unit
 	  SET	    tmp1,1B-1
 	  MUL	    tmp2,tmp1,:UNIT_SIZE
 	  ADD	    (last+1),tmp2,:Unit_arr
 	  SET	    (last+2),springs
-	  PUSHJ	    last,:Push
+;	  PUSHJ	    last,:Push
 ;
 ;
 ;---------
