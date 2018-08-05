@@ -65,14 +65,14 @@ e	  GREG	    #4005BF0A8B145769
 STEP_SIZE GREG	    #3F847AE147AE147B    0.01  in 64-bit floating point
 ;STEP_SIZE GREG	    #3FC999999999999A    0.2   in 64-bit floating point
 ;STEP_SIZE GREG	    #3FF0000000000000    1     in 64-bit floating point
-;STEP_SIZE GREG	    #3FF0000000000000    0.001 in 64-bit floating point
+;STEP_SIZE GREG	    #3F50624DD2F1A9FC    0.001 in 64-bit floating point
 a_init	  GREG	    #3FEAE3C24D02DEC2
 b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-NUM_GATES IS 	    4
-NUM_UNITS IS 	    9
+NUM_GATES IS 	    1
+NUM_UNITS IS 	    6
 GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
 c	  IS	    2*8		Nodesize(bytes), (max 256)
@@ -221,12 +221,14 @@ last	  IS	    $3
 	  SET	    :t,1    initialize to non-zero value
 1H	  BZ	    :t,2F   
 	  PUSHJ	    last,:Train
-	  SET	    numCorrect,(last+1)
-	  SET	    numTotal,last
-	  CMP	    :t,numCorrect,numTotal
+	  ADD	    numCorrect,numCorrect,(last+1)
+	  ADD	    numTotal,numTotal,last
+	  CMP	    :t,(last+1),last
 	  JMP	    1B
 2H	  PUT	    :rJ,retaddr
-	  POP	    0,0
+finished  SET	    $0,numCorrect
+	  SET	    $1,numTotal
+	  POP	    2,0
 	  PREFIX    :
 
 	  PREFIX    Init:
@@ -258,41 +260,15 @@ retval	  IS	    $13
 ;---------
 ;	  Create gates
 ;
-;	  Multiply Gate 1 init
-	  GETA	    fptrFw,:Gate_Multiplication_2_fwd
-	  GETA	    fptrBw,:Gate_Multiplication_2_back
+;	  Arbitrary Gate 1 init
+	  GETA	    fptrFw,:Gate_arbi_1_fwd
+	  GETA	    fptrBw,:Gate_arbi_1_back
 	  STO	    fptrFw,gateAddr,:FWD_PTR
 	  STO	    fptrBw,gateAddr,:BACK_PTR
 ;
 	  ADD	    gateI,gateI,1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
 	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Multiply Gate 2 init
-	  GETA	    fptrFw,:Gate_Multiplication_2_fwd
-	  GETA	    fptrBw,:Gate_Multiplication_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Add Gate 3 init
-	  GETA	    fptrFw,:Gate_Addition_2_fwd
-	  GETA	    fptrBw,:Gate_Addition_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Add Gate 4 init
-	  GETA	    fptrFw,:Gate_Addition_2_fwd
-	  GETA	    fptrBw,:Gate_Addition_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
 ;
 ;
 ;---------
@@ -319,7 +295,7 @@ retval	  IS	    $13
 	  PUSHJ	    retval,:AttachAsInput
 ;
 1H	  IS   	    3	Unit
-2H	  IS   	    2	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -329,7 +305,7 @@ retval	  IS	    $13
 	  PUSHJ	    retval,:AttachAsInput
 ;
 1H	  IS   	    4	Unit
-2H	  IS   	    2	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -337,60 +313,6 @@ retval	  IS	    $13
 	  ADD	    (retval+1),unitAddr,UnitBase
 	  ADD	    (retval+2),gateAddr,GateBase
 	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    5	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    6	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    7	Unit
-2H	  IS   	    4	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    8	Unit
-2H	  IS   	    4	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;	  
-;1H	  IS   	    8	Unit	Test to see if breaks, should because it creates a cycle!
-;2H	  IS   	    2	Gate
-;	  SET	    unitI,1B-1
-;	  SET	    gateI,2B-1
-;	  MUL	    gateAddr,gateI,:GATE_SIZE
-;	  MUL	    unitAddr,unitI,:UNIT_SIZE
-;	  ADD	    (retval+1),unitAddr,UnitBase
-;	  ADD	    (retval+2),gateAddr,GateBase
-;	  PUSHJ	    retval,:AttachAsInput
-;
-;
-;---------
-;	  Attach outputs
 ;
 1H	  IS   	    5	Unit
 2H	  IS   	    1	Gate
@@ -400,30 +322,16 @@ retval	  IS	    $13
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    (retval+1),unitAddr,UnitBase
 	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
+	  PUSHJ	    retval,:AttachAsInput
+;
+;
+;
+;
+;---------
+;	  Attach outputs
 ;
 1H	  IS   	    6	Unit
-2H	  IS   	    2	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
-;
-1H	  IS   	    8	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
-;
-1H	  IS   	    9	Unit
-2H	  IS   	    4	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -442,9 +350,9 @@ retval	  IS	    $13
 	  SET	    :t,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
-;	  FLOT	    :t,:t
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
-	  STO	    :a_init,retval,:VALUE
+;	  STO	    :a_init,retval,:VALUE
 	  SET	    :t,1
 	  STO	    :t,retval,:IS_PARAM
 ;
@@ -480,7 +388,7 @@ retval	  IS	    $13
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
-1H	  IS   	    7	Unit
+1H	  IS   	    5	Unit
 2H	  IS   	    -1	Value
 	  SET	    unitI,1B-1
 	  SET	    :t,2B
@@ -498,7 +406,7 @@ retval	  IS	    $13
 ;---------
 ;	  Assign gradient of output
 ;
-1H	  IS   	    9	Unit
+1H	  IS   	    6	Unit
 2H	  IS   	    1	Value
 	  SET	    unitI,1B-1
 	  SET	    :t,2B
@@ -548,7 +456,7 @@ last	  IS	    $8
 ;---------
 ;	  Assign output units
 ;
-1H	  IS   	    9	Unit
+1H	  IS   	    6	Unit
 assignOutUnits	  SET	    tmp1,1B-1
 	  MUL	    tmp2,tmp1,:UNIT_SIZE
 	  ADD	    (last+1),tmp2,:Unit_arr
@@ -559,17 +467,17 @@ assignOutUnits	  SET	    tmp1,1B-1
 ;---------
 ;	  Assign training set
 ; set 6	  2.1,-3 [-1]
-;	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,6,#3FF0000000000000)
 ; set 5	  -1.0,1.1 [-1]
-;	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,6,#0000000000000000)
 ; set 4	  -0.1,-1.0 [-1]
-;	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,6,#0000000000000000)
 ; set 3	  3.0,0.1 [1]
-;	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,6,#3FF0000000000000)
 ; set 2	  -0.3,-0.5 [-1]
-;	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
+;	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,6,#0000000000000000)
 ; set 1	  1.2,0.7 [1]
-;	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
+;	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,6,#3FF0000000000000)
 ;
 	  PUT	    :rJ,retaddr
 	  POP	    0,0
@@ -620,9 +528,12 @@ unitGrad  IS	    $7
 guessedCorrect IS   $8
 outputUnit IS	    $9
 outputVal IS	    $10
-last 	  IS	    $11
+half	  IS	    $11
+expectedVal IS	    $12
+last 	  IS	    $13
 tmp	  IS	    last
 :TrainSingle  GET    retaddr,:rJ
+	  FDIV	    half,:FONE,:FTWO
 	  SET       :t,1
 	  SUB	    :t,:ZERO,1
 ;	  Step 1)   clear all units values and gradients (except parameters)
@@ -639,20 +550,21 @@ tmp	  IS	    last
 3H	  PUSHJ	    last,:ForwardProp
 ;	  Requires redo of logic \/
 ;	  Step 4)   If data aligns with training set, GRAD = 1, else GRAD = -1
-	  LDA  	    outputs,:outputUnits
+applyGrad LDA  	    outputs,:outputUnits
 	  LDO	    outputs,outputs
 	  LDO  	    outputUnit,outputs,:INFO
 	  LDO  	    expected,expected,:PARAM_VALUE
+	  SET	    expectedVal,expected
 	  LDO  	    outputVal,outputUnit,:VALUE
 	  FCMP	    :t,outputVal,expected
-	  FCMP	    tmp,expected,:ZERO
+	  FCMP	    tmp,expected,half
 	  CMP	    :t,:t,tmp
 	  BZ	    :t,1F	If :t and tmp are equal then move on and don't do anything
 	  FLOT	    :t,tmp
 	  STO	    :t,outputUnit,:GRAD	   Set gradient appropriately
 ;	  Step 4a)  Determine if the guess was accurate
-	  FCMP 	    :t,outputVal,:ZERO
-	  FCMP	    tmp,expected,:ZERO
+	  FCMP 	    :t,outputVal,half
+	  FCMP	    tmp,expected,half
 	  CMP	    guessedCorrect,:t,tmp	0 means correct
 ;	  Step 5)   Do Backprop
 Backprop  PUSHJ	    last,:BackProp
@@ -678,7 +590,13 @@ Backprop  PUSHJ	    last,:BackProp
 	  SET	    $0,1	if guessedCorrect was 0, that means the guess was correct!
 	  JMP	    2F
 1H	  SET	    $0,0
-2H	  PUT	    :rJ,retaddr
+2H	  PUSHJ	    last,:ForwardProp
+	  LDO	    :t,outputUnit,:VALUE
+before 	  IS	    outputVal
+after	  IS	    :t
+	  FCMP	    :t,after,outputVal
+improved  FCMP	    :t,expectedVal,outputVal
+	  PUT	    :rJ,retaddr
 	  POP	    1,0
 	  PREFIX    :
 
@@ -771,7 +689,6 @@ retval	  IS	    $7
 	  LDO	    fptr,gatePtr,:BACK_PTR
 	  SET	    (retval+1),gatePtr
 	  PUSHGO    retval,fptr
-	  SUB	    outputPtr,outputPtr,8
 	  ADD	    count,count,1
 	  CMP	    :t,count,:NUM_GATES
 	  PBN	    :t,1B
@@ -988,7 +905,7 @@ currUnit  IS	    $3
 param	  IS	    $4
 var	  IS	    $5
 last	  IS	    $10
-:Gate_arbi_fwd	GET retaddr,:rJ
+:Gate_arbi_1_fwd	GET retaddr,:rJ
 	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    :t,currUnit,:INFO
 	  LDO	    acc,:t,:VALUE
@@ -1008,6 +925,7 @@ sumDone	  SET	    (last+1),acc
 	  LDO	    :t,Gate,:OUT_UNIT
 	  STO	    last,:t,:VALUE
 	  PUT  	    :rJ,retaddr
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_arbi_1_back:
@@ -1027,15 +945,18 @@ dparam	  IS	    $8	parameter such as a,b,c
 dvar	  IS	    $9  variable such as x,y,z
 paramPtr  IS	    $10
 varPtr	  IS	    $11
-last	  IS	    $12
-:Gate_arbi_back	GET retaddr,:rJ
+inGrad	  IS	    $12
+last	  IS	    $13
+:Gate_arbi_1_back	GET retaddr,:rJ
 	  LDO	    :t,Gate,:OUT_UNIT
 	  LDO	    s,:t,:VALUE		computes σ(ax+by+cz+...+offset)
+	  LDO	    inGrad,:t,:GRAD		incoming gradient
 	  FSUB	    :t,:FONE,s
-	  FMUL	    ds,:t,s	        computes σ(...)*(1-σ(...))
+	  FMUL	    ds,:t,s
+	  FMUL	    ds,ds,inGrad	        computes σ(...)*(1-σ(...))*incoming gradient
 	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    currUnitPtr,currUnit,:INFO
-	  LDO	    :t,currUnitPtr,:GRAD	load current gradient
+	  LDO	    :t,currUnitPtr,:GRAD		load current gradient
 	  FADD	    :t,:t,ds
 	  STO	    :t,currUnitPtr,:GRAD	offset.grad+=ds
 	  LDO	    currUnit,currUnit,:LINK
@@ -1053,9 +974,10 @@ nextPair  BZ	    currUnit,sumDone
 	  LDO	    :t,paramPtr,:GRAD
 	  FMUL	    dparam,var,ds
 	  FADD	    :t,dparam,:t		param.grad+=var.value*ds
-	  STO	    :t,varPtr,:GRAD
+	  STO	    :t,paramPtr,:GRAD
 	  JMP	    nextPair
 sumDone	  PUT  	    :rJ,retaddr
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_Addition_2_fwd:
