@@ -1,6 +1,5 @@
 ; Basic, super inefficient neural net example
 
-#define __NL__
 #define ADD_TRAINING(InputUnit1,InputValue1,InputUnit2,InputValue2,OutputUnit,OutputValue) ;__NL__\
 1H	  IS   	    InputUnit1 __NL__\
 2H	  IS   	    InputValue1 __NL__\
@@ -51,6 +50,16 @@
 	  INCH	    :t,(6B>>48) 48-63__NL__\
 	  STO	    :t,last,:Y_2
 
+#define CREATE_GATE(gatePtr,forwardFunction,backFunction) ;__NL__\
+	  GETA	    :t,:forwardFunction __NL__\
+	  STO	    :t,gatePtr,:FWD_PTR __NL__\
+	  GETA	    :t,:backFunction __NL__\
+	  STO	    :t,gatePtr,:BACK_PTR	 
+
+#define CREATE_PARAMETER(unitPtr) ;__NL__\
+	  SET	    :t,1 __NL__\
+	  STO	    :t,unitPtr,:IS_PARAM
+	  
 AVAIL	  GREG
 POOLMAX	  GREG
 SEQMIN	  GREG
@@ -71,8 +80,14 @@ b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-NUM_GATES IS 	    1
-NUM_UNITS IS 	    6
+inputLayer IS	    8
+Hidden1	  IS	    4
+Hidden2	  IS	    6
+outputLayer IS	    10
+NUM_GATES IS 	    inputLayer+Hidden1+Hidden2+outputLayer
+1H	  IS	    1B+inputLayer+(inputLayer+1)*Hidden1+(Hidden1+1)*Hidden2
+1H	  IS	    1B+(Hidden2+1)*outputLayer+outputLayer
+NUM_UNITS IS 	    1B
 GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
 c	  IS	    2*8		Nodesize(bytes), (max 256)
@@ -98,8 +113,6 @@ PARAM_VALUE IS	    16		2nd octabyte of data in a 24-byte node
 Y_1	  IS	    8		1st octabyte of data in a 24-byte node
 Y_2	  IS	    16		2nd octabyte of data in a 24-byte node
 NUM_ITER  IS        #FF		number of times to redo the training data
-
-
           LOC       Data_Segment
 Gate_arr  GREG	    @
 1H	  OCTA	    0
@@ -127,8 +140,11 @@ endOfPool_2 OCTA    0
 springParams OCTA   0
 outputUnits OCTA    0
 trainingSet OCTA    0
-trainingStats OCTA  0
-	  LOC 	    @+NUM_ITER*5*8-8
+networkShape OCTA   inputLayer
+	  OCTA	    Hidden1
+	  OCTA	    Hidden2
+	  OCTA	    outputLayer
+	  OCTA	    0
 
 	  LOC	    #100
 Main	  LDA	    POOLMAX,L0_pool
@@ -143,6 +159,58 @@ Main	  LDA	    POOLMAX,L0_pool
 ;	  	    			initial values for parameters
 	  PUSHJ	    $0,:runTillAllCorrect
 	  TRAP	    0,Halt,0
+
+	  PREFIX    CreateNetwork:
+;	  Creates the structure of a network based off of networkShape
+;	  Step 1)   Create all gates
+retaddr	  IS   	    $
+networkShape IS	    $1
+currLayer IS 	    $2
+lastLayer IS 	    $2
+unitPtr	  IS	    $3
+gatePtr	  IS	    $4
+prevOutUnit IS	    $5
+prevOutUnitIter IS  $6
+inputPtr  IS	    $4
+paramPtr  IS	    $5
+numLeftInner IS	    $6
+numLeftOuter IS	    $6
+last	  IS	    $9
+CreateNetwork PUT   :rJ,retaddr
+	  LDA	    networkShape,:networkShape
+	  LDO	    lastLayer,networkShape
+	  LDO	    currLayer,networkShape,8
+	  ADD	    networkShape,networkShape,8
+	  LDA	    prevOutUnit,:Unit_arr
+	  LDA	    gatePtr,:Gate_arr
+	  SET	    :t,inputLayer
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    unitPtr,prevOutUnit,:t
+	  SET	    numLeftOuter,lastLayer
+evalLayer BZ	    numLeftOuter,layerComplete
+	  CREATE_GATE(gatePtr,Gate_arbi_1_fwd,Gate_arbi_1_back)
+	  SET	    numLeftInner,lastLayer
+	  SET	    prevOutUnitIter,prevOutUnit
+evalGate  BZ	    numLeftInner,gateComplete
+	  SET	    (last+1),prevOutUnitIter
+	  ADD	    prevOutUnitIter,prevOutUnitIter,:UNIT_SIZE
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsInput
+	  CREATE_PARAMETER(unitPtr)
+	  SET	    (last+1),unitPtr
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsInput
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  SUB	    numLeftInner,numLeftInner,1
+	  JMP	    evalGate
+gateComplete 
+layerComplete
+	  
+	  
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    σ:	sigmoid
 X	  IS	    $0
@@ -261,14 +329,7 @@ retval	  IS	    $13
 ;	  Create gates
 ;
 ;	  Arbitrary Gate 1 init
-	  GETA	    fptrFw,:Gate_arbi_1_fwd
-	  GETA	    fptrBw,:Gate_arbi_1_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
+	  CREATE_GATE(gateAddr,Gate_arbi_1_fwd,Gate_arbi_1_back)
 ;
 ;
 ;---------
