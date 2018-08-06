@@ -82,10 +82,10 @@ b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-inputLayer IS	    2
-Hidden1	  IS	    3
-Hidden2	  IS	    3
-outputLayer IS	    2
+inputLayer IS	    28*28
+Hidden1	  IS	    16
+Hidden2	  IS	    16
+outputLayer IS	    10
 NUM_GATES_ IS 	    Hidden1+Hidden2+outputLayer
 1H	  IS	    inputLayer+inputLayer*Hidden1+Hidden1
 1H	  IS	    1B+Hidden1+Hidden1*Hidden2+Hidden2
@@ -958,7 +958,10 @@ in_gates  IS	    $2
 unitNum	  IS	    $3
 j	  IS	    $4
 k	  IS	    $5
-:ReadPairUnit LDA   :t,:Unit_arr,unitIndex
+:ReadPairUnit SET   j,0
+	  SET	    k,0
+	  POP	    6,0		No more input units
+	  LDA   :t,:Unit_arr,unitIndex
 	  LDO 	    :t,:t,:OUT_GATE
 	  BNZ  	    :t,FIX		check if out_gate is null
 	  BZ	    in_gates,FIX	check if in_gates is null
