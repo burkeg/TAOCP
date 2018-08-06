@@ -56,9 +56,11 @@
 	  GETA	    :t,:backFunction __NL__\
 	  STO	    :t,gatePtr,:BACK_PTR	 
 
-#define CREATE_PARAMETER(unitPtr) ;__NL__\
+#define CREATE_PARAMETER(unitPtr,last) ;__NL__\
 	  SET	    :t,1 __NL__\
-	  STO	    :t,unitPtr,:IS_PARAM
+	  STO	    :t,unitPtr,:IS_PARAM __NL__\
+	  PUSHJ	    last,:rand __NL__\
+	  STO	    last,unitPtr,:VALUE
 	  
 AVAIL	  GREG
 POOLMAX	  GREG
@@ -80,20 +82,22 @@ b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-inputLayer IS	    100
-Hidden1	  IS	    1000
-Hidden2	  IS	    1000
-outputLayer IS	    10
-NUM_GATES IS 	    Hidden1+Hidden2+outputLayer
+inputLayer IS	    2
+Hidden1	  IS	    3
+Hidden2	  IS	    3
+outputLayer IS	    2
+NUM_GATES_ IS 	    Hidden1+Hidden2+outputLayer
 1H	  IS	    inputLayer+inputLayer*Hidden1+Hidden1
 1H	  IS	    1B+Hidden1+Hidden1*Hidden2+Hidden2
 1H	  IS	    1B+Hidden2+Hidden2*outputLayer+outputLayer
 1H	  IS	    1B+outputLayer
-NUM_UNITS IS 	    1B
+NUM_UNITS_ IS 	    1B
+NUM_GATES GREG	    NUM_GATES_
+NUM_UNITS GREG	    NUM_UNITS_
 GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
 c	  IS	    28		Nodesize(bytes), (max 256)
-capacity  IS	    NUM_UNITS*10 max number of c-Byte nodes 
+capacity  IS	    NUM_UNITS_*10 max number of c-Byte nodes 
 c_2	  IS	    3*8		Nodesize(bytes), (max 256)
 capacity_2 IS	    50		max number of c_2-Byte nodes 
 LINK	  IS 	    0		location of NEXT pointer in a node
@@ -115,21 +119,23 @@ PARAM_VALUE IS	    16		2nd octabyte of data in a 24-byte node
 Y_1	  IS	    8		1st octabyte of data in a 24-byte node
 Y_2	  IS	    16		2nd octabyte of data in a 24-byte node
 NUM_ITER  IS        #FF		number of times to redo the training data
+seed	  IS	    1
+
           LOC       Data_Segment
 Gate_arr  GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+GATE_SIZE*NUM_GATES
+	  LOC	    1B+GATE_SIZE*NUM_GATES_
 Unit_arr  GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+UNIT_SIZE*NUM_UNITS
+	  LOC	    1B+UNIT_SIZE*NUM_UNITS_
 COUNT	  GREG	    @
 1H	  OCTA	    0
 TOP	  GREG	    @
 QLINK	  IS	    COUNT
-	  LOC	    1B+(1+NUM_GATES+MAX_INPUTS)*16
+	  LOC	    1B+(1+NUM_GATES_+MAX_INPUTS)*16
 TopOutput GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+NUM_GATES*8
+	  LOC	    1B+NUM_GATES_*8
 	  GREG	    @
 L0_pool	  OCTA      0
 	  LOC	    @+c*capacity-8
@@ -154,9 +160,9 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    POOLMAX_2,L0_pool_2
 	  LDA	    SEQMIN_2,endOfPool_2
 	  PUSHJ	    $0,:CreateNetwork
+	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
 	  TRAP	    0,Halt,0
 	  PUSHJ	    $0,:Init		Initialized the network data structure
-	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
 ;	  	    			in the network in order to know order to compute
 ;					forward prop and backprop.
 	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
@@ -203,7 +209,7 @@ evalGate  BZ	    numLeftInner,gateComplete	loops through every output unit from 
 	  ADD	    prevOutUnitIter,prevOutUnitIter,:UNIT_SIZE  moves to the next output unit from the previous layer
 	  SET	    (last+2),gatePtr
 	  PUSHJ	    last,:AttachAsInput		attaches an output unit from the previous layer to the current gate
-	  CREATE_PARAMETER(unitPtr)
+	  CREATE_PARAMETER(unitPtr,last)
 	  SET	    (last+1),unitPtr
 	  SET	    (last+2),gatePtr
 	  PUSHJ	    last,:AttachAsInput		create a new parameter and attach to the current gate 
@@ -212,7 +218,7 @@ evalGate  BZ	    numLeftInner,gateComplete	loops through every output unit from 
 	  JMP	    evalGate
 gateComplete SET    (last+1),unitPtr
 	  SET	    (last+2),gatePtr
-	  CREATE_PARAMETER(unitPtr)
+	  CREATE_PARAMETER(unitPtr,last)
 	  PUSHJ	    last,:AttachAsInput
 	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
 	  ADD	    gatePtr,gatePtr,:GATE_SIZE
@@ -765,7 +771,7 @@ retval	  IS	    $7
 :BackProp GET	    retaddr,:rJ
 	  SET	    gateIndex,0
 	  SET	    count,0
-	  SET	    :t,:NUM_GATES-1
+	  SUB	    :t,:NUM_GATES,1
 	  MUL	    :t,:t,8
 	  ADD	    outputPtr,:t,:TopOutput	initialize outputPtr to the last gate in topological order
 1H	  LDO	    :t,outputPtr	load the next gate in topological ordering
@@ -1321,3 +1327,28 @@ X	  IS	    $0
 1H	  SET	    :AVAIL,X
           POP	    0,0
           PREFIX    :
+
+	  PREFIX    rand:
+X	  IS	    $0
+a	  IS	    $1
+c	  IS	    $2
+last	  IS	    $3
+:rand	  GETA	    last,X_
+	  LDO	    X,last
+	  GETA	    :t,a_
+	  LDO	    a,:t
+	  GETA	    :t,c_
+	  LDO	    c,:t
+	  MUL	    :t,a,X
+	  ADD	    X,:t,c
+	  STO	    X,last
+	  FLOT	    X,X
+	  SET	    :t,:NEGONE
+	  ANDNH	    :t,#8000
+	  FLOT	    :t,:t
+	  FDIV	    X,X,:t
+	  POP	    1,0
+a_	  OCTA	    #5851F42D4C957F2D
+c_	  OCTA	    #14057B7EF767814F
+X_	  OCTA	    :seed
+	  PREFIX    :
