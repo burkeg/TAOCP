@@ -80,20 +80,22 @@ b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-inputLayer IS	    8
-Hidden1	  IS	    4
-Hidden2	  IS	    6
+inputLayer IS	    100
+Hidden1	  IS	    1000
+Hidden2	  IS	    1000
 outputLayer IS	    10
-NUM_GATES IS 	    inputLayer+Hidden1+Hidden2+outputLayer
-1H	  IS	    1B+inputLayer+(inputLayer+1)*Hidden1+(Hidden1+1)*Hidden2
-1H	  IS	    1B+(Hidden2+1)*outputLayer+outputLayer
+NUM_GATES IS 	    Hidden1+Hidden2+outputLayer
+1H	  IS	    inputLayer+inputLayer*Hidden1+Hidden1
+1H	  IS	    1B+Hidden1+Hidden1*Hidden2+Hidden2
+1H	  IS	    1B+Hidden2+Hidden2*outputLayer+outputLayer
+1H	  IS	    1B+outputLayer
 NUM_UNITS IS 	    1B
 GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
-c	  IS	    2*8		Nodesize(bytes), (max 256)
-capacity  IS	    100		max number of c-Byte nodes 
+c	  IS	    28		Nodesize(bytes), (max 256)
+capacity  IS	    NUM_UNITS*10 max number of c-Byte nodes 
 c_2	  IS	    3*8		Nodesize(bytes), (max 256)
-capacity_2 IS	    50		max number of c-Byte nodes 
+capacity_2 IS	    50		max number of c_2-Byte nodes 
 LINK	  IS 	    0		location of NEXT pointer in a node
 INFO	  IS	    8		octabyte of data in a 16-byte node
 IN_UNITS  IS	    0		gate byte-offset: linked list containing all units going into a gate
@@ -151,8 +153,10 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
 	  LDA	    POOLMAX_2,L0_pool_2
 	  LDA	    SEQMIN_2,endOfPool_2
+	  PUSHJ	    $0,:CreateNetwork
+	  TRAP	    0,Halt,0
 	  PUSHJ	    $0,:Init		Initialized the network data structure
-	  PUSHJ	    $0,:TopSort		Determines a topoligical ordering of the nodes
+	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
 ;	  	    			in the network in order to know order to compute
 ;					forward prop and backprop.
 	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
@@ -163,52 +167,73 @@ Main	  LDA	    POOLMAX,L0_pool
 	  PREFIX    CreateNetwork:
 ;	  Creates the structure of a network based off of networkShape
 ;	  Step 1)   Create all gates
-retaddr	  IS   	    $
+retaddr	  IS   	    $0
 networkShape IS	    $1
 currLayer IS 	    $2
-lastLayer IS 	    $2
-unitPtr	  IS	    $3
-gatePtr	  IS	    $4
-prevOutUnit IS	    $5
-prevOutUnitIter IS  $6
-inputPtr  IS	    $4
-paramPtr  IS	    $5
-numLeftInner IS	    $6
-numLeftOuter IS	    $6
-last	  IS	    $9
-CreateNetwork PUT   :rJ,retaddr
+lastLayer IS 	    $3
+unitPtr	  IS	    $4
+gatePtr	  IS	    $5
+prevOutUnit IS	    $6
+prevOutUnitIter IS  $7
+firstGate IS  	    $8
+inputPtr  IS	    $9
+paramPtr  IS	    $10
+numLeftInner IS	    $11
+numLeftOuter IS	    $12
+last	  IS	    $13
+:CreateNetwork GET  retaddr,:rJ
 	  LDA	    networkShape,:networkShape
 	  LDO	    lastLayer,networkShape
 	  LDO	    currLayer,networkShape,8
 	  ADD	    networkShape,networkShape,8
-	  LDA	    prevOutUnit,:Unit_arr
+	  LDA	    prevOutUnit,:Unit_arr	
 	  LDA	    gatePtr,:Gate_arr
-	  SET	    :t,inputLayer
+	  SET	    :t,lastLayer
 	  MUL	    :t,:t,:UNIT_SIZE
-	  ADD	    unitPtr,prevOutUnit,:t
-	  SET	    numLeftOuter,lastLayer
-evalLayer BZ	    numLeftOuter,layerComplete
+	  ADD	    unitPtr,prevOutUnit,:t	moves unitPtr just after the last output unit from the input layer
+evalNetwork BZ	    currLayer,networkComplete	loops until current layer is 0
+	  SET	    numLeftOuter,currLayer	iterate the next loop currLayer number of times
+	  SET	    firstGate,gatePtr		record the first gate within this layer
+evalLayer BZ	    numLeftOuter,layerComplete	loops through every gate in the layer
 	  CREATE_GATE(gatePtr,Gate_arbi_1_fwd,Gate_arbi_1_back)
-	  SET	    numLeftInner,lastLayer
-	  SET	    prevOutUnitIter,prevOutUnit
-evalGate  BZ	    numLeftInner,gateComplete
+	  SET	    numLeftInner,lastLayer	iterate the next loop lastLayer number of times
+	  SET	    prevOutUnitIter,prevOutUnit	reset prevOutUnitIter back to the first output unit from the previous layer
+evalGate  BZ	    numLeftInner,gateComplete	loops through every output unit from the previous layer
 	  SET	    (last+1),prevOutUnitIter
-	  ADD	    prevOutUnitIter,prevOutUnitIter,:UNIT_SIZE
+	  ADD	    prevOutUnitIter,prevOutUnitIter,:UNIT_SIZE  moves to the next output unit from the previous layer
 	  SET	    (last+2),gatePtr
-	  PUSHJ	    last,:AttachAsInput
+	  PUSHJ	    last,:AttachAsInput		attaches an output unit from the previous layer to the current gate
 	  CREATE_PARAMETER(unitPtr)
 	  SET	    (last+1),unitPtr
-	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
 	  SET	    (last+2),gatePtr
-	  PUSHJ	    last,:AttachAsInput
-	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  PUSHJ	    last,:AttachAsInput		create a new parameter and attach to the current gate 
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE	move the unitPtr forward since a new unit was created
 	  SUB	    numLeftInner,numLeftInner,1
 	  JMP	    evalGate
-gateComplete 
-layerComplete
-	  
-	  
-	  PUT	    :rJ,retaddr
+gateComplete SET    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
+	  CREATE_PARAMETER(unitPtr)
+	  PUSHJ	    last,:AttachAsInput
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  ADD	    gatePtr,gatePtr,:GATE_SIZE
+	  SUB	    numLeftOuter,numLeftOuter,1
+	  JMP	    evalLayer
+layerComplete SET   gatePtr,firstGate
+	  SET 	    prevOutUnit,unitPtr
+	  SET 	    numLeftOuter,currLayer
+1H	  BZ	    numLeftOuter,2F
+	  SET	    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsOutput
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  ADD	    gatePtr,gatePtr,:GATE_SIZE
+	  SUB	    numLeftOuter,numLeftOuter,1
+	  JMP	    1B
+2H	  LDO	    lastLayer,networkShape
+	  LDO	    currLayer,networkShape,8
+	  ADD	    networkShape,networkShape,8
+	  JMP	    evalNetwork
+networkComplete	PUT :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
 
