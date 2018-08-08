@@ -19,10 +19,12 @@ readData  OCTA	    0
 	  LOC	    readData+28*28
 
 	  LOC       #100
-Main	  SET	    $1,0
+Main	  SET	    $1,1
 	  PUSHJ	    $0,:OpenImages
-	  SET	    $1,1
+	  SET	    $1,0
 	  PUSHJ	    $0,:OpenLabels
+	  LDA	    $1,:readData
+	  PUSHJ	    $0,:LoadNextImage
 	  TRAP	    0,Halt,0
 
 
@@ -95,45 +97,33 @@ test	  LDA	    charPtr,:test_labels
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
 	  BN	    $255,failed
 	  LDT	    $0,readData		Reads the number of labels in file
-	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
-	  BN	    $255,failed		skips over number of rows
-	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
-	  BN	    $255,failed		skips over number of columns
 	  POP	    1,0
 failedMagic TRAP    0,:Halt,0	Wrong magic number!
 failed	  TRAP	    0,:Halt,0	Unable to open file!
 	  PREFIX    :
 
 	  PREFIX    LoadNextImage:
-retaddr	  IS	    $0
-charPtr	  IS	    $1
-numBytes  IS	    $2
-freadAddr IS	    $3
-numLeft	  IS	    $4
-:LoadNextImage GET  retaddr,:rJ
-	  SETL 	    numLeft,28*28
-	  LDA       freadAddr,:freadArgs
-	  SET	    :t,1
+buffer	  IS	    $0
+freadAddr IS	    $1
+:LoadNextImage LDA  freadAddr,:freadArgs
+	  TRAP 	    0,:Ftell,:imageHandle
+	  SETL 	    :t,28*28
 	  STO	    :t,freadAddr,8
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:imageHandle
 	  BN	    $255,failed		skips over number of rows
-	  
-	  PUT  	    :rJ,retaddr
-	  POP	    0,0
+Done	  POP	    0,0
 failed	  TRAP	    0,:Halt,0	Unable to read file!
 	  PREFIX    :
 
 	  PREFIX    LoadNextLabel:
-	  PREFIX    :
-
-	  PREFIX    ReadPair:
-retaddr	  IS	    $0
-:ReadPair GET	    retaddr,:rJ
-;	  LDA	    :t,:Arg2;	TRAP 0,:Fread,:Handle
-;	  LDA	    :t,:Arg2
-;	  PUT	    :rJ,retaddr
-;	  LDO	    :t,:t
-;	  LDO	    $0,:t,0
-;	  LDO	    $1,:t,8
-	  POP	    2,0
+buffer	  IS	    $0
+freadAddr IS	    $1
+:LoadNextLabel LDA  freadAddr,:freadArgs
+	  TRAP 	    0,:Ftell,:labelHandle
+	  SETL 	    :t,1
+	  STO	    :t,freadAddr,8
+	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:imageHandle
+	  BN	    $255,failed		skips over number of rows
+Done	  POP	    0,0
+failed	  TRAP	    0,:Halt,0	Unable to read file!
 	  PREFIX    :
