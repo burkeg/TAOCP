@@ -620,6 +620,59 @@ last	     IS	    $10
 	  POP	    2,0
 	  PREFIX    :
 
+	  PREFIX    AssignGradientBasedOnLabel:
+retaddr	  IS	    $
+currUnit  IS	    $1
+limit	  IS	    $2
+actualDigit IS	    $3
+last	  IS	    $10
+:AssignGradientBasedOnLabel GET retaddr,:rJ
+          LDA	    last,:Unit_arr
+	  SET	    :t,:NUM_UNITS
+	  SUB	    :t,:t,:outputLayer
+	  SET	    limit,:NUM_UNITS
+	  MUL	    :t,:t,:UNIT_SIZE
+	  MUL	    limit,limit,:UNIT_SIZE
+	  ADD	    currUnit,:t,last
+	  CMP	    :t,currUnit,limit
+	  BZ	    :t,1F
+	  PUSHJ	    last,:LoadNextLabel
+	  SET	    actualDigit,last
+
+1H	  PUT	    :rJ,retaddr
+	  PREFIX    :
+
+	  PREFIX    LoadImageIntoNetwork:
+retaddr	  IS	    $0
+limit	  IS	    $1
+buffer	  IS	    $2
+currPixel IS	    $3
+black	  IS	    $4
+currUnit  IS	    $5
+last	  IS	    $6
+LoadImageIntoNetwork: GET retaddr,:rJ
+	  LDA	    buffer,:readData
+	  LDA	    currUnit,:Unit_arr
+	  SET	    currPixel,buffer
+	  SETL	    limit,28*28
+	  SET	    :t,255
+	  FLOT	    black,:t
+	  ADD	    limit,limit,buffer
+	  SET	    (last+1),buffer
+ 	  PUSHJ	    last,:LoadNextImage
+1H	  CMP	    :t,currPixel,limit
+	  BZ	    :t,pixelsDone
+	  LDB	    :t,currPixel
+	  FLOT	    :t,:t
+	  FDIV	    :t,:t,:black
+	  STO	    :t,currUnit,:VALUE
+	  ADD	    currPixel,currPixel,1
+	  ADD	    currUnit,currUnit,:UNIT_SIZE
+	  JMP	    1B
+pixelsDone PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
 	  PREFIX    TrainSingle:
 ;	  Calling Sequence:
 ;	  SET	    $(X+1),expected
@@ -704,6 +757,52 @@ before 	  IS	    outputVal
 after	  IS	    :t
 	  FCMP	    :t,after,outputVal
 improved  FCMP	    :t,expectedVal,outputVal
+	  PUT	    :rJ,retaddr
+	  POP	    1,0
+	  PREFIX    :
+
+	  PREFIX    TrainSingleImage:
+;	  Calling Sequence:
+;	  SET	    $(X+1),expected
+;	  SET	    $(X+2),inputs
+;	  PUSHJ	    $(X),:TrainSingle
+retaddr	  IS	    $0
+limit	  IS   	    $1
+current	  IS	    $2
+unitVal	  IS	    $3
+unitGrad  IS	    $4
+last 	  IS	    $5
+tmp	  IS	    last
+:TrainSingleImage  GET    retaddr,:rJ
+;	  Step 1)   clear all units values and gradients (except parameters)
+	  PUSHJ	    last,:ResetUnits
+;	  Step 2)   initialize inputs
+	  PUSHJ	    last,:LoadImageIntoNetwork
+;	  Step 3)   Do forward propagation
+3H	  PUSHJ	    last,:ForwardProp
+;	  Step 4)   Set the gradient appropriately
+	  PUSHJ	    
+;	  Step 5)   Do Backprop
+Backprop  PUSHJ	    last,:BackProp
+;	  Step 6)   Add addition "spring" pulls
+;	  (no longer applicabale so skipped)
+;6H	  LDO	    (last+1),:springParams
+;	  PUSHJ	    last,:SpringPull
+;	  Step 7)   Parameter update based off of STEP_SIZE
+	  SET	    limit,:NUM_UNITS
+	  MUL	    limit,limit,:UNIT_SIZE
+	  ADD	    limit,limit,:Unit_arr
+	  SET  	    current,:Unit_arr
+7H	  LDO	    unitVal,current,:IS_PARAM
+	  PBZ	    unitVal,8F
+	  LDO	    unitGrad,current,:GRAD
+	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
+	  LDO	    unitVal,current,:VALUE
+	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
+	  STO	    unitVal,current,:VALUE	store the new calculated parameter back into VALUE
+8H	  ADD	    current,current,:UNIT_SIZE
+	  CMP	    :t,current,limit
+	  PBN	    :t,7B
 	  PUT	    :rJ,retaddr
 	  POP	    1,0
 	  PREFIX    :
@@ -1435,15 +1534,16 @@ failed	  TRAP	    0,:Halt,0	Unable to read file!
 	  PREFIX    :
 
 	  PREFIX    LoadNextLabel:
-buffer	  IS	    $0
-freadAddr IS	    $1
+freadAddr IS	    $0
 :LoadNextLabel LDA  freadAddr,:freadArgs
 	  TRAP 	    0,:Ftell,:labelHandle
 	  SETL 	    :t,1
 	  STO	    :t,freadAddr,8
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:imageHandle
 	  BN	    $255,failed		skips over number of rows
-Done	  POP	    0,0
+Done	  LDA	    :t,:readData
+	  LDB	    $0,:t
+	  POP	    1,0
 failed	  TRAP	    0,:Halt,0	Unable to read file!
 	  PREFIX    :
 
