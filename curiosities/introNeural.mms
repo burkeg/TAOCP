@@ -1,6 +1,5 @@
 ; Basic, super inefficient neural net example
 
-#define __NL__
 #define ADD_TRAINING(InputUnit1,InputValue1,InputUnit2,InputValue2,OutputUnit,OutputValue) ;__NL__\
 1H	  IS   	    InputUnit1 __NL__\
 2H	  IS   	    InputValue1 __NL__\
@@ -51,6 +50,18 @@
 	  INCH	    :t,(6B>>48) 48-63__NL__\
 	  STO	    :t,last,:Y_2
 
+#define CREATE_GATE(gatePtr,forwardFunction,backFunction) ;__NL__\
+	  GETA	    :t,:forwardFunction __NL__\
+	  STO	    :t,gatePtr,:FWD_PTR __NL__\
+	  GETA	    :t,:backFunction __NL__\
+	  STO	    :t,gatePtr,:BACK_PTR	 
+
+#define CREATE_PARAMETER(unitPtr,last) ;__NL__\
+	  SET	    :t,1 __NL__\
+	  STO	    :t,unitPtr,:IS_PARAM __NL__\
+	  PUSHJ	    last,:rand __NL__\
+	  STO	    last,unitPtr,:VALUE
+	  
 AVAIL	  GREG
 POOLMAX	  GREG
 SEQMIN	  GREG
@@ -65,20 +76,30 @@ e	  GREG	    #4005BF0A8B145769
 STEP_SIZE GREG	    #3F847AE147AE147B    0.01  in 64-bit floating point
 ;STEP_SIZE GREG	    #3FC999999999999A    0.2   in 64-bit floating point
 ;STEP_SIZE GREG	    #3FF0000000000000    1     in 64-bit floating point
-;STEP_SIZE GREG	    #3FF0000000000000    0.001 in 64-bit floating point
+;STEP_SIZE GREG	    #3F50624DD2F1A9FC    0.001 in 64-bit floating point
 a_init	  GREG	    #3FEAE3C24D02DEC2
 b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
 
 t 	  IS	    $255
-NUM_GATES IS 	    4
-NUM_UNITS IS 	    9
+inputLayer IS	    28*28
+Hidden1	  IS	    16
+Hidden2	  IS	    16
+outputLayer IS	    10
+NUM_GATES_ IS 	    Hidden1+Hidden2+outputLayer
+1H	  IS	    inputLayer+inputLayer*Hidden1+Hidden1
+1H	  IS	    1B+Hidden1+Hidden1*Hidden2+Hidden2
+1H	  IS	    1B+Hidden2+Hidden2*outputLayer+outputLayer
+1H	  IS	    1B+outputLayer
+NUM_UNITS_ IS 	    1B
+NUM_GATES GREG	    NUM_GATES_
+NUM_UNITS GREG	    NUM_UNITS_
 GATE_SIZE IS	    4*8
 UNIT_SIZE IS	    5*8
-c	  IS	    2*8		Nodesize(bytes), (max 256)
-capacity  IS	    100		max number of c-Byte nodes 
+c	  IS	    28		Nodesize(bytes), (max 256)
+capacity  IS	    NUM_UNITS_*10 max number of c-Byte nodes 
 c_2	  IS	    3*8		Nodesize(bytes), (max 256)
-capacity_2 IS	    50		max number of c-Byte nodes 
+capacity_2 IS	    50		max number of c_2-Byte nodes 
 LINK	  IS 	    0		location of NEXT pointer in a node
 INFO	  IS	    8		octabyte of data in a 16-byte node
 IN_UNITS  IS	    0		gate byte-offset: linked list containing all units going into a gate
@@ -100,23 +121,23 @@ Y_2	  IS	    16		2nd octabyte of data in a 24-byte node
 NUM_ITER  IS        #FF		number of times to redo the training data
 imageHandle IS	    5
 labelHandle IS	    6
-
+seed	  IS	    1
 
           LOC       Data_Segment
 Gate_arr  GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+GATE_SIZE*NUM_GATES
+	  LOC	    1B+GATE_SIZE*NUM_GATES_
 Unit_arr  GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+UNIT_SIZE*NUM_UNITS
+	  LOC	    1B+UNIT_SIZE*NUM_UNITS_
 COUNT	  GREG	    @
 1H	  OCTA	    0
 TOP	  GREG	    @
 QLINK	  IS	    COUNT
-	  LOC	    1B+(1+NUM_GATES+MAX_INPUTS)*16
+	  LOC	    1B+(1+NUM_GATES_+MAX_INPUTS)*16
 TopOutput GREG	    @
 1H	  OCTA	    0
-	  LOC	    1B+NUM_GATES*8
+	  LOC	    1B+NUM_GATES_*8
 	  GREG	    @
 L0_pool	  OCTA      0
 	  LOC	    @+c*capacity-8
@@ -130,6 +151,11 @@ springParams OCTA   0
 outputUnits OCTA    0
 trainingSet OCTA    0
 trainingStats OCTA  0
+networkShape OCTA   inputLayer
+	  OCTA	    Hidden1
+	  OCTA	    Hidden2
+	  OCTA	    outputLayer
+	  OCTA	    0
 fopenArgs OCTA	    0,BinaryRead
 freadArgs OCTA	    readData,0
 train_labels BYTE   "train-labels.idx1-ubyte",0
@@ -149,14 +175,89 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
 	  LDA	    POOLMAX_2,L0_pool_2
 	  LDA	    SEQMIN_2,endOfPool_2
+	  PUSHJ	    $0,:CreateNetwork
+	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
+	  TRAP	    0,Halt,0
 	  PUSHJ	    $0,:Init		Initialized the network data structure
-	  PUSHJ	    $0,:TopSort		Determines a topoligical ordering of the nodes
 ;	  	    			in the network in order to know order to compute
 ;					forward prop and backprop.
 	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
 ;	  	    			initial values for parameters
 	  PUSHJ	    $0,:runTillAllCorrect
 	  TRAP	    0,Halt,0
+
+	  PREFIX    CreateNetwork:
+;	  Creates the structure of a network based off of networkShape
+;	  Step 1)   Create all gates
+retaddr	  IS   	    $0
+networkShape IS	    $1
+currLayer IS 	    $2
+lastLayer IS 	    $3
+unitPtr	  IS	    $4
+gatePtr	  IS	    $5
+prevOutUnit IS	    $6
+prevOutUnitIter IS  $7
+firstGate IS  	    $8
+inputPtr  IS	    $9
+paramPtr  IS	    $10
+numLeftInner IS	    $11
+numLeftOuter IS	    $12
+last	  IS	    $13
+:CreateNetwork GET  retaddr,:rJ
+	  LDA	    networkShape,:networkShape
+	  LDO	    lastLayer,networkShape
+	  LDO	    currLayer,networkShape,8
+	  ADD	    networkShape,networkShape,8
+	  LDA	    prevOutUnit,:Unit_arr	
+	  LDA	    gatePtr,:Gate_arr
+	  SET	    :t,lastLayer
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    unitPtr,prevOutUnit,:t	moves unitPtr just after the last output unit from the input layer
+evalNetwork BZ	    currLayer,networkComplete	loops until current layer is 0
+	  SET	    numLeftOuter,currLayer	iterate the next loop currLayer number of times
+	  SET	    firstGate,gatePtr		record the first gate within this layer
+evalLayer BZ	    numLeftOuter,layerComplete	loops through every gate in the layer
+	  CREATE_GATE(gatePtr,Gate_arbi_1_fwd,Gate_arbi_1_back)
+	  SET	    numLeftInner,lastLayer	iterate the next loop lastLayer number of times
+	  SET	    prevOutUnitIter,prevOutUnit	reset prevOutUnitIter back to the first output unit from the previous layer
+evalGate  BZ	    numLeftInner,gateComplete	loops through every output unit from the previous layer
+	  SET	    (last+1),prevOutUnitIter
+	  ADD	    prevOutUnitIter,prevOutUnitIter,:UNIT_SIZE  moves to the next output unit from the previous layer
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsInput		attaches an output unit from the previous layer to the current gate
+	  CREATE_PARAMETER(unitPtr,last)
+	  SET	    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsInput		create a new parameter and attach to the current gate 
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE	move the unitPtr forward since a new unit was created
+	  SUB	    numLeftInner,numLeftInner,1
+	  JMP	    evalGate
+gateComplete SET    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
+	  CREATE_PARAMETER(unitPtr,last)
+	  PUSHJ	    last,:AttachAsInput
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  ADD	    gatePtr,gatePtr,:GATE_SIZE
+	  SUB	    numLeftOuter,numLeftOuter,1
+	  JMP	    evalLayer
+layerComplete SET   gatePtr,firstGate
+	  SET 	    prevOutUnit,unitPtr
+	  SET 	    numLeftOuter,currLayer
+1H	  BZ	    numLeftOuter,2F
+	  SET	    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
+	  PUSHJ	    last,:AttachAsOutput
+	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
+	  ADD	    gatePtr,gatePtr,:GATE_SIZE
+	  SUB	    numLeftOuter,numLeftOuter,1
+	  JMP	    1B
+2H	  LDO	    lastLayer,networkShape
+	  LDO	    currLayer,networkShape,8
+	  ADD	    networkShape,networkShape,8
+	  JMP	    evalNetwork
+networkComplete	PUT :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    σ:	sigmoid
 X	  IS	    $0
@@ -235,12 +336,14 @@ last	  IS	    $3
 	  SET	    :t,1    initialize to non-zero value
 1H	  BZ	    :t,2F   
 	  PUSHJ	    last,:Train
-	  SET	    numCorrect,(last+1)
-	  SET	    numTotal,last
-	  CMP	    :t,numCorrect,numTotal
+	  ADD	    numCorrect,numCorrect,(last+1)
+	  ADD	    numTotal,numTotal,last
+	  CMP	    :t,(last+1),last
 	  JMP	    1B
 2H	  PUT	    :rJ,retaddr
-	  POP	    0,0
+finished  SET	    $0,numCorrect
+	  SET	    $1,numTotal
+	  POP	    2,0
 	  PREFIX    :
 
 	  PREFIX    Init:
@@ -272,41 +375,8 @@ retval	  IS	    $13
 ;---------
 ;	  Create gates
 ;
-;	  Multiply Gate 1 init
-	  GETA	    fptrFw,:Gate_Multiplication_2_fwd
-	  GETA	    fptrBw,:Gate_Multiplication_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Multiply Gate 2 init
-	  GETA	    fptrFw,:Gate_Multiplication_2_fwd
-	  GETA	    fptrBw,:Gate_Multiplication_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Add Gate 3 init
-	  GETA	    fptrFw,:Gate_Addition_2_fwd
-	  GETA	    fptrBw,:Gate_Addition_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
-;
-	  ADD	    gateI,gateI,1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-;
-;	  Add Gate 4 init
-	  GETA	    fptrFw,:Gate_Addition_2_fwd
-	  GETA	    fptrBw,:Gate_Addition_2_back
-	  STO	    fptrFw,gateAddr,:FWD_PTR
-	  STO	    fptrBw,gateAddr,:BACK_PTR
+;	  Arbitrary Gate 1 init
+	  CREATE_GATE(gateAddr,Gate_arbi_1_fwd,Gate_arbi_1_back)
 ;
 ;
 ;---------
@@ -333,7 +403,7 @@ retval	  IS	    $13
 	  PUSHJ	    retval,:AttachAsInput
 ;
 1H	  IS   	    3	Unit
-2H	  IS   	    2	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -343,7 +413,7 @@ retval	  IS	    $13
 	  PUSHJ	    retval,:AttachAsInput
 ;
 1H	  IS   	    4	Unit
-2H	  IS   	    2	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -351,60 +421,6 @@ retval	  IS	    $13
 	  ADD	    (retval+1),unitAddr,UnitBase
 	  ADD	    (retval+2),gateAddr,GateBase
 	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    5	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    6	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    7	Unit
-2H	  IS   	    4	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    8	Unit
-2H	  IS   	    4	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;	  
-;1H	  IS   	    8	Unit	Test to see if breaks, should because it creates a cycle!
-;2H	  IS   	    2	Gate
-;	  SET	    unitI,1B-1
-;	  SET	    gateI,2B-1
-;	  MUL	    gateAddr,gateI,:GATE_SIZE
-;	  MUL	    unitAddr,unitI,:UNIT_SIZE
-;	  ADD	    (retval+1),unitAddr,UnitBase
-;	  ADD	    (retval+2),gateAddr,GateBase
-;	  PUSHJ	    retval,:AttachAsInput
-;
-;
-;---------
-;	  Attach outputs
 ;
 1H	  IS   	    5	Unit
 2H	  IS   	    1	Gate
@@ -414,30 +430,16 @@ retval	  IS	    $13
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    (retval+1),unitAddr,UnitBase
 	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
+	  PUSHJ	    retval,:AttachAsInput
+;
+;
+;
+;
+;---------
+;	  Attach outputs
 ;
 1H	  IS   	    6	Unit
-2H	  IS   	    2	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
-;
-1H	  IS   	    8	Unit
-2H	  IS   	    3	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
-;
-1H	  IS   	    9	Unit
-2H	  IS   	    4	Gate
+2H	  IS   	    1	Gate
 	  SET	    unitI,1B-1
 	  SET	    gateI,2B-1
 	  MUL	    gateAddr,gateI,:GATE_SIZE
@@ -456,9 +458,9 @@ retval	  IS	    $13
 	  SET	    :t,2B
 	  MUL	    unitAddr,unitI,:UNIT_SIZE
 	  ADD	    retval,unitAddr,UnitBase
-;	  FLOT	    :t,:t
+	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
-	  STO	    :a_init,retval,:VALUE
+;	  STO	    :a_init,retval,:VALUE
 	  SET	    :t,1
 	  STO	    :t,retval,:IS_PARAM
 ;
@@ -494,7 +496,7 @@ retval	  IS	    $13
 	  FLOT	    :t,:t
 	  STO	    :t,retval,:VALUE
 ;
-1H	  IS   	    7	Unit
+1H	  IS   	    5	Unit
 2H	  IS   	    -1	Value
 	  SET	    unitI,1B-1
 	  SET	    :t,2B
@@ -512,7 +514,7 @@ retval	  IS	    $13
 ;---------
 ;	  Assign gradient of output
 ;
-1H	  IS   	    9	Unit
+1H	  IS   	    6	Unit
 2H	  IS   	    1	Value
 	  SET	    unitI,1B-1
 	  SET	    :t,2B
@@ -562,7 +564,7 @@ last	  IS	    $8
 ;---------
 ;	  Assign output units
 ;
-1H	  IS   	    9	Unit
+1H	  IS   	    6	Unit
 assignOutUnits	  SET	    tmp1,1B-1
 	  MUL	    tmp2,tmp1,:UNIT_SIZE
 	  ADD	    (last+1),tmp2,:Unit_arr
@@ -634,9 +636,12 @@ unitGrad  IS	    $7
 guessedCorrect IS   $8
 outputUnit IS	    $9
 outputVal IS	    $10
-last 	  IS	    $11
+half	  IS	    $11
+expectedVal IS	    $12
+last 	  IS	    $13
 tmp	  IS	    last
 :TrainSingle  GET    retaddr,:rJ
+	  FDIV	    half,:FONE,:FTWO
 	  SET       :t,1
 	  SUB	    :t,:ZERO,1
 ;	  Step 1)   clear all units values and gradients (except parameters)
@@ -653,20 +658,21 @@ tmp	  IS	    last
 3H	  PUSHJ	    last,:ForwardProp
 ;	  Requires redo of logic \/
 ;	  Step 4)   If data aligns with training set, GRAD = 1, else GRAD = -1
-	  LDA  	    outputs,:outputUnits
+applyGrad LDA  	    outputs,:outputUnits
 	  LDO	    outputs,outputs
 	  LDO  	    outputUnit,outputs,:INFO
 	  LDO  	    expected,expected,:PARAM_VALUE
+	  SET	    expectedVal,expected
 	  LDO  	    outputVal,outputUnit,:VALUE
 	  FCMP	    :t,outputVal,expected
-	  FCMP	    tmp,expected,:ZERO
+	  FCMP	    tmp,expected,half
 	  CMP	    :t,:t,tmp
 	  BZ	    :t,1F	If :t and tmp are equal then move on and don't do anything
 	  FLOT	    :t,tmp
 	  STO	    :t,outputUnit,:GRAD	   Set gradient appropriately
 ;	  Step 4a)  Determine if the guess was accurate
-	  FCMP 	    :t,outputVal,:ZERO
-	  FCMP	    tmp,expected,:ZERO
+	  FCMP 	    :t,outputVal,half
+	  FCMP	    tmp,expected,half
 	  CMP	    guessedCorrect,:t,tmp	0 means correct
 ;	  Step 5)   Do Backprop
 Backprop  PUSHJ	    last,:BackProp
@@ -692,7 +698,13 @@ Backprop  PUSHJ	    last,:BackProp
 	  SET	    $0,1	if guessedCorrect was 0, that means the guess was correct!
 	  JMP	    2F
 1H	  SET	    $0,0
-2H	  PUT	    :rJ,retaddr
+2H	  PUSHJ	    last,:ForwardProp
+	  LDO	    :t,outputUnit,:VALUE
+before 	  IS	    outputVal
+after	  IS	    :t
+	  FCMP	    :t,after,outputVal
+improved  FCMP	    :t,expectedVal,outputVal
+	  PUT	    :rJ,retaddr
 	  POP	    1,0
 	  PREFIX    :
 
@@ -775,7 +787,7 @@ retval	  IS	    $7
 :BackProp GET	    retaddr,:rJ
 	  SET	    gateIndex,0
 	  SET	    count,0
-	  SET	    :t,:NUM_GATES-1
+	  SUB	    :t,:NUM_GATES,1
 	  MUL	    :t,:t,8
 	  ADD	    outputPtr,:t,:TopOutput	initialize outputPtr to the last gate in topological order
 1H	  LDO	    :t,outputPtr	load the next gate in topological ordering
@@ -785,7 +797,6 @@ retval	  IS	    $7
 	  LDO	    fptr,gatePtr,:BACK_PTR
 	  SET	    (retval+1),gatePtr
 	  PUSHGO    retval,fptr
-	  SUB	    outputPtr,outputPtr,8
 	  ADD	    count,count,1
 	  CMP	    :t,count,:NUM_GATES
 	  PBN	    :t,1B
@@ -1005,7 +1016,7 @@ currUnit  IS	    $3
 param	  IS	    $4
 var	  IS	    $5
 last	  IS	    $10
-:Gate_arbi_fwd	GET retaddr,:rJ
+:Gate_arbi_1_fwd	GET retaddr,:rJ
 	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    :t,currUnit,:INFO
 	  LDO	    acc,:t,:VALUE
@@ -1025,6 +1036,7 @@ sumDone	  SET	    (last+1),acc
 	  LDO	    :t,Gate,:OUT_UNIT
 	  STO	    last,:t,:VALUE
 	  PUT  	    :rJ,retaddr
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_arbi_1_back:
@@ -1044,15 +1056,18 @@ dparam	  IS	    $8	parameter such as a,b,c
 dvar	  IS	    $9  variable such as x,y,z
 paramPtr  IS	    $10
 varPtr	  IS	    $11
-last	  IS	    $12
-:Gate_arbi_back	GET retaddr,:rJ
+inGrad	  IS	    $12
+last	  IS	    $13
+:Gate_arbi_1_back	GET retaddr,:rJ
 	  LDO	    :t,Gate,:OUT_UNIT
 	  LDO	    s,:t,:VALUE		computes σ(ax+by+cz+...+offset)
+	  LDO	    inGrad,:t,:GRAD		incoming gradient
 	  FSUB	    :t,:FONE,s
-	  FMUL	    ds,:t,s	        computes σ(...)*(1-σ(...))
+	  FMUL	    ds,:t,s
+	  FMUL	    ds,ds,inGrad	        computes σ(...)*(1-σ(...))*incoming gradient
 	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    currUnitPtr,currUnit,:INFO
-	  LDO	    :t,currUnitPtr,:GRAD	load current gradient
+	  LDO	    :t,currUnitPtr,:GRAD		load current gradient
 	  FADD	    :t,:t,ds
 	  STO	    :t,currUnitPtr,:GRAD	offset.grad+=ds
 	  LDO	    currUnit,currUnit,:LINK
@@ -1070,9 +1085,10 @@ nextPair  BZ	    currUnit,sumDone
 	  LDO	    :t,paramPtr,:GRAD
 	  FMUL	    dparam,var,ds
 	  FADD	    :t,dparam,:t		param.grad+=var.value*ds
-	  STO	    :t,varPtr,:GRAD
+	  STO	    :t,paramPtr,:GRAD
 	  JMP	    nextPair
 sumDone	  PUT  	    :rJ,retaddr
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    Gate_Addition_2_fwd:
@@ -1429,4 +1445,29 @@ freadAddr IS	    $1
 	  BN	    $255,failed		skips over number of rows
 Done	  POP	    0,0
 failed	  TRAP	    0,:Halt,0	Unable to read file!
+	  PREFIX    :
+
+	  PREFIX    rand:
+X	  IS	    $0
+a	  IS	    $1
+c	  IS	    $2
+last	  IS	    $3
+:rand	  GETA	    last,X_
+	  LDO	    X,last
+	  GETA	    :t,a_
+	  LDO	    a,:t
+	  GETA	    :t,c_
+	  LDO	    c,:t
+	  MUL	    :t,a,X
+	  ADD	    X,:t,c
+	  STO	    X,last
+	  FLOT	    X,X
+	  SET	    :t,:NEGONE
+	  ANDNH	    :t,#8000
+	  FLOT	    :t,:t
+	  FDIV	    X,X,:t
+	  POP	    1,0
+a_	  OCTA	    #5851F42D4C957F2D
+c_	  OCTA	    #14057B7EF767814F
+X_	  OCTA	    :seed
 	  PREFIX    :
