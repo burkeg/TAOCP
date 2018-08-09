@@ -95,7 +95,7 @@ NUM_UNITS_ IS 	    1B
 NUM_GATES GREG	    NUM_GATES_
 NUM_UNITS GREG	    NUM_UNITS_
 GATE_SIZE IS	    4*8
-UNIT_SIZE IS	    5*8
+UNIT_SIZE IS	    6*8
 c	  IS	    28		Nodesize(bytes), (max 256)
 capacity  IS	    NUM_UNITS_*10 max number of c-Byte nodes 
 c_2	  IS	    3*8		Nodesize(bytes), (max 256)
@@ -108,9 +108,10 @@ FWD_PTR	  IS	    16		gate byte-offset: forward propagation function pointer
 BACK_PTR  IS 	    24		gate byte-offset: back propagation function pointer
 VALUE	  IS	    0		unit byte-offset: value used during forward propagation
 GRAD	  IS	    8		unit byte-offset: gradient used during back propagation
-IS_PARAM  IS	    16		unit byte-offset: field specifying whether a unit is a parameter
-IN_GATES  IS	    24		unit byte-offset: linked list containing all gates a unit is going into
-OUT_GATE  IS	    32		unit byte-offset: pointer to the gate this unit is going out of
+GRAD_SUM  IS	    16		unit byte-offset: summation of gradient over a batch
+IS_PARAM  IS	    24		unit byte-offset: field specifying whether a unit is a parameter
+IN_GATES  IS	    32		unit byte-offset: linked list containing all gates a unit is going into
+OUT_GATE  IS	    40		unit byte-offset: pointer to the gate this unit is going out of
 MAX_INPUTS IS	    5		number of units that are initialized before forward propagation
 NUM_INPUTS IS	    2		number of input variables in training data
 NUM_OUTPUTS IS	    1		number of output variables in training data
@@ -177,6 +178,7 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN_2,endOfPool_2
 	  PUSHJ	    $0,:CreateNetwork
 	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
+	  PUSHJ	    $0,:TrainNetworkWithMNIST
 	  TRAP	    0,Halt,0
 	  PUSHJ	    $0,:Init		Initialized the network data structure
 ;	  	    			in the network in order to know order to compute
@@ -185,6 +187,40 @@ Main	  LDA	    POOLMAX,L0_pool
 ;	  	    			initial values for parameters
 	  PUSHJ	    $0,:runTillAllCorrect
 	  TRAP	    0,Halt,0
+
+	  PREFIX    TrainNetworkWithMNIST:
+test	  IS	    0
+train	  IS	    1
+setting	  IS	    test	Temporarily set to TEST since it's a smaller dataset
+retaddr	  IS	    $0
+numTotalItems IS    $1
+numInBatch IS 	    $2
+batchSize IS	    100
+last	  IS	    $3
+:TrainNetworkWithMNIST GET retaddr,:rJ
+	  SET	    (last+1),setting
+	  PUSHJ	    last,:OpenImages
+	  SET	    (last+1),setting
+	  PUSHJ	    last,:OpenLabels
+	  SET	    numTotalItems,last
+	  SET	    (last+1),1
+	  PUSHJ	    last,:ResetUnits
+2H	  BZ	    numTotalItems,batchesDone
+	  SET	    numInBatch,batchSize
+1H	  BZ	    numInBatch,batchDone
+	  PUSHJ	    last,:TrainSingleImage
+	  SET	    (last+1),0
+	  PUSHJ	    last,:ResetUnits
+	  SUB	    numInBatch,numInBatch,1
+	  JMP	    1B
+batchDone SUB	    numTotalItems,numTotalItems,batchSize
+	  PUSHJ	    last,:ParameterUpdate
+	  SET	    (last+1),1
+	  PUSHJ	    last,:ResetUnits
+	  JMP	    2B
+batchesDone PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
 
 	  PREFIX    CreateNetwork:
 ;	  Creates the structure of a network based off of networkShape
@@ -620,26 +656,63 @@ last	     IS	    $10
 	  POP	    2,0
 	  PREFIX    :
 
+	  PREFIX    ParameterUpdate:
+retaddr	  IS	    $0
+limit	  IS	    $1
+current   IS	    $2
+unitVal	  IS	    $3
+unitGrad  IS	    $4
+last	  IS	    $5
+:ParameterUpdate GET retaddr,:rJ
+	  SET	    limit,:NUM_UNITS
+	  MUL	    limit,limit,:UNIT_SIZE
+	  ADD	    limit,limit,:Unit_arr
+	  SET  	    current,:Unit_arr
+1H	  LDO	    unitVal,current,:IS_PARAM
+	  PBZ	    unitVal,2F
+	  LDO	    unitGrad,current,:GRAD_SUM
+	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
+	  LDO	    unitVal,current,:VALUE
+	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
+	  STO	    unitVal,current,:VALUE	store the new calculated parameter back into VALUE
+2H	  ADD	    current,current,:UNIT_SIZE
+	  CMP	    :t,current,limit
+	  PBN	    :t,1B
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
 	  PREFIX    AssignGradientBasedOnLabel:
-retaddr	  IS	    $
+retaddr	  IS	    $0
 currUnit  IS	    $1
-limit	  IS	    $2
-actualDigit IS	    $3
-last	  IS	    $10
+actualDigit IS	    $2
+outputNum IS	    $3
+last	  IS	    $4
 :AssignGradientBasedOnLabel GET retaddr,:rJ
           LDA	    last,:Unit_arr
-	  SET	    :t,:NUM_UNITS
-	  SUB	    :t,:t,:outputLayer
-	  SET	    limit,:NUM_UNITS
+	  SET	    outputNum,0
+	  SUB	    :t,:NUM_UNITS,:outputLayer
 	  MUL	    :t,:t,:UNIT_SIZE
-	  MUL	    limit,limit,:UNIT_SIZE
 	  ADD	    currUnit,:t,last
-	  CMP	    :t,currUnit,limit
-	  BZ	    :t,1F
 	  PUSHJ	    last,:LoadNextLabel
 	  SET	    actualDigit,last
-
+2H	  CMP	    :t,outputNum,:outputLayer
+	  BZ	    :t,1F
+	  CMP	    :t,actualDigit,outputNum
+	  BNZ	    :t,incorrectDigit
+	  LDO	    :t,currUnit,:VALUE
+	  FSUB	    :t,:FONE,:t
+	  FMUL	    :t,:FTWO,:t
+	  JMP	    3F
+incorrectDigit LDO  last,currUnit,:VALUE
+	  FSUB	    :t,:ZERO,:FTWO
+	  FMUL	    :t,:t,last
+3H	  STO	    :t,currUnit,:GRAD
+	  ADD	    outputNum,outputNum,1
+	  ADD	    currUnit,currUnit,:UNIT_SIZE	    
+	  JMP	    2B
 1H	  PUT	    :rJ,retaddr
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    LoadImageIntoNetwork:
@@ -650,7 +723,7 @@ currPixel IS	    $3
 black	  IS	    $4
 currUnit  IS	    $5
 last	  IS	    $6
-LoadImageIntoNetwork: GET retaddr,:rJ
+:LoadImageIntoNetwork GET retaddr,:rJ
 	  LDA	    buffer,:readData
 	  LDA	    currUnit,:Unit_arr
 	  SET	    currPixel,buffer
@@ -663,8 +736,8 @@ LoadImageIntoNetwork: GET retaddr,:rJ
 1H	  CMP	    :t,currPixel,limit
 	  BZ	    :t,pixelsDone
 	  LDB	    :t,currPixel
-	  FLOT	    :t,:t
-	  FDIV	    :t,:t,:black
+	  FLOTU	    :t,:t
+	  FDIV	    :t,:t,black
 	  STO	    :t,currUnit,:VALUE
 	  ADD	    currPixel,currPixel,1
 	  ADD	    currUnit,currUnit,:UNIT_SIZE
@@ -698,6 +771,7 @@ tmp	  IS	    last
 	  SET       :t,1
 	  SUB	    :t,:ZERO,1
 ;	  Step 1)   clear all units values and gradients (except parameters)
+	  SET	    (last+1),0
 	  PUSHJ	    last,:ResetUnits
 ;	  Step 2)   initialize inputs
 	  SET  	    current,inputs
@@ -775,36 +849,18 @@ last 	  IS	    $5
 tmp	  IS	    last
 :TrainSingleImage  GET    retaddr,:rJ
 ;	  Step 1)   clear all units values and gradients (except parameters)
+	  SET  	    (last+1),0
 	  PUSHJ	    last,:ResetUnits
 ;	  Step 2)   initialize inputs
 	  PUSHJ	    last,:LoadImageIntoNetwork
 ;	  Step 3)   Do forward propagation
 3H	  PUSHJ	    last,:ForwardProp
 ;	  Step 4)   Set the gradient appropriately
-	  PUSHJ	    
+	  PUSHJ	    last,:AssignGradientBasedOnLabel
 ;	  Step 5)   Do Backprop
-Backprop  PUSHJ	    last,:BackProp
-;	  Step 6)   Add addition "spring" pulls
-;	  (no longer applicabale so skipped)
-;6H	  LDO	    (last+1),:springParams
-;	  PUSHJ	    last,:SpringPull
-;	  Step 7)   Parameter update based off of STEP_SIZE
-	  SET	    limit,:NUM_UNITS
-	  MUL	    limit,limit,:UNIT_SIZE
-	  ADD	    limit,limit,:Unit_arr
-	  SET  	    current,:Unit_arr
-7H	  LDO	    unitVal,current,:IS_PARAM
-	  PBZ	    unitVal,8F
-	  LDO	    unitGrad,current,:GRAD
-	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
-	  LDO	    unitVal,current,:VALUE
-	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
-	  STO	    unitVal,current,:VALUE	store the new calculated parameter back into VALUE
-8H	  ADD	    current,current,:UNIT_SIZE
-	  CMP	    :t,current,limit
-	  PBN	    :t,7B
+	  PUSHJ	    last,:BackProp
 	  PUT	    :rJ,retaddr
-	  POP	    1,0
+	  POP	    0,0
 	  PREFIX    :
 
 	  PREFIX    SpringPull:
@@ -830,14 +886,24 @@ tmp	  IS	    $3
 	  PREFIX    :
 
 	  PREFIX    ResetUnits:
-unitPtr	  IS	    $0
-maxUnit	  IS	    $1
-isParam	  IS	    $2
+isFullRst IS	    $0		0 indicates: GRAD_SUM+=GRAD and reset GRAD
+;	  	    		1 indicates: reset GRAD_SUM and GRAD
+unitPtr	  IS	    $1
+maxUnit	  IS	    $2
+isParam	  IS	    $3
+last	  IS	    $4
 :ResetUnits SET	    unitPtr,:Unit_arr
 	  SET	    :t,:UNIT_SIZE
 	  MUL	    :t,:t,:NUM_UNITS
 	  ADD	    maxUnit,:t,:Unit_arr
-1H	  STO	    :ZERO,unitPtr,:GRAD
+1H	  BZ	    isFullRst,3F
+	  STO	    :ZERO,unitPtr,:GRAD_SUM
+	  JMP	    2F
+3H	  LDO	    :t,unitPtr,:GRAD
+	  LDO	    last,unitPtr,:GRAD_SUM
+	  FADD	    :t,last,:t
+	  STO	    :t,unitPtr,:GRAD_SUM
+2H	  STO	    :ZERO,unitPtr,:GRAD
 	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
 	  CMP	    :t,unitPtr,maxUnit
 	  PBN	    :t,1B
@@ -1539,7 +1605,7 @@ freadAddr IS	    $0
 	  TRAP 	    0,:Ftell,:labelHandle
 	  SETL 	    :t,1
 	  STO	    :t,freadAddr,8
-	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:imageHandle
+	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
 	  BN	    $255,failed		skips over number of rows
 Done	  LDA	    :t,:readData
 	  LDB	    $0,:t
