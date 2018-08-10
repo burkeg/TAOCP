@@ -112,7 +112,7 @@ GRAD_SUM  IS	    16		unit byte-offset: summation of gradient over a batch
 IS_PARAM  IS	    24		unit byte-offset: field specifying whether a unit is a parameter
 IN_GATES  IS	    32		unit byte-offset: linked list containing all gates a unit is going into
 OUT_GATE  IS	    40		unit byte-offset: pointer to the gate this unit is going out of
-MAX_INPUTS IS	    5		number of units that are initialized before forward propagation
+MAX_INPUTS IS	    28*28	number of units that are initialized before forward propagation
 NUM_INPUTS IS	    2		number of input variables in training data
 NUM_OUTPUTS IS	    1		number of output variables in training data
 PARAM_UNIT IS	    8		1st octabyte of data in a 24-byte node
