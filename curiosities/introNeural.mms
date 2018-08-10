@@ -178,7 +178,13 @@ Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN_2,endOfPool_2
 	  PUSHJ	    $0,:CreateNetwork
 	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
-	  PUSHJ	    $0,:TrainNetworkWithMNIST
+;	  PUSHJ	    $0,:CountInputs
+	  SET	    $0,5
+1H	  BZ	    $0,1F
+	  PUSHJ	    $1,:TrainNetworkWithMNIST
+	  SUB	    $0,$0,1
+	  JMP	    1B
+1H	  PUSHJ	    $0,:TestNetworkWithMNIST
 	  TRAP	    0,Halt,0
 	  PUSHJ	    $0,:Init		Initialized the network data structure
 ;	  	    			in the network in order to know order to compute
@@ -205,20 +211,64 @@ last	  IS	    $3
 	  SET	    numTotalItems,last
 	  SET	    (last+1),1
 	  PUSHJ	    last,:ResetUnits
-2H	  BZ	    numTotalItems,batchesDone
+nextBatch BZ	    numTotalItems,batchesDone
 	  SET	    numInBatch,batchSize
-1H	  BZ	    numInBatch,batchDone
+nextItem  BZ	    numInBatch,batchDone
 	  PUSHJ	    last,:TrainSingleImage
 	  SET	    (last+1),0
 	  PUSHJ	    last,:ResetUnits
 	  SUB	    numInBatch,numInBatch,1
-	  JMP	    1B
+	  JMP	    nextItem
 batchDone SUB	    numTotalItems,numTotalItems,batchSize
 	  PUSHJ	    last,:ParameterUpdate
 	  SET	    (last+1),1
 	  PUSHJ	    last,:ResetUnits
-	  JMP	    2B
-batchesDone PUT	    :rJ,retaddr
+	  JMP	    nextBatch
+batchesDone PUSHJ   last,:CloseImages
+	  PUSHJ	    last,:CloseLabels
+	  PUT	    :rJ,retaddr
+	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    TestNetworkWithMNIST:
+test	  IS	    0
+train	  IS	    1
+setting	  IS	    test	Temporarily set to TEST since it's a smaller dataset
+batchSize IS	    10
+retaddr	  IS	    $0
+numTotalItems IS    $1
+numInBatch IS 	    $2
+numCorrect IS	    $3
+numAttempted IS	    $4
+last	  IS	    $5
+:TestNetworkWithMNIST GET retaddr,:rJ
+	  SET	    (last+1),setting
+	  PUSHJ	    last,:OpenImages
+	  SET	    (last+1),setting
+	  PUSHJ	    last,:OpenLabels
+	  SET	    numTotalItems,last
+	  SET	    (last+1),1
+	  PUSHJ	    last,:ResetUnits
+nextBatch BZ	    numTotalItems,batchesDone
+	  SET	    numInBatch,batchSize
+nextItem  BZ	    numInBatch,batchDone
+	  PUSHJ	    last,:TestSingleImage
+	  ZSZ	    :t,last,1
+	  ADD	    numCorrect,numCorrect,:t
+	  ADD	    numAttempted,numAttempted,1
+	  SET	    (last+1),0
+	  PUSHJ	    last,:ResetUnits
+	  SUB	    numInBatch,numInBatch,1
+	  JMP	    nextItem
+batchDone SUB	    numTotalItems,numTotalItems,batchSize
+	  CMP	    :t,numCorrect,numAttempted
+	  PUSHJ	    last,:ParameterUpdate
+	  SET	    (last+1),1
+	  PUSHJ	    last,:ResetUnits
+	  JMP	    nextBatch
+batchesDone PUSHJ   last,:CloseImages
+	  PUSHJ	    last,:CloseLabels
+	  PUT	    :rJ,retaddr
 	  POP	    0,0
 	  PREFIX    :
 
@@ -268,9 +318,10 @@ evalGate  BZ	    numLeftInner,gateComplete	loops through every output unit from 
 	  ADD	    unitPtr,unitPtr,:UNIT_SIZE	move the unitPtr forward since a new unit was created
 	  SUB	    numLeftInner,numLeftInner,1
 	  JMP	    evalGate
-gateComplete SET    (last+1),unitPtr
-	  SET	    (last+2),gatePtr
+gateComplete SWYM
 	  CREATE_PARAMETER(unitPtr,last)
+	  SET	    (last+1),unitPtr
+	  SET	    (last+2),gatePtr
 	  PUSHJ	    last,:AttachAsInput
 	  ADD	    unitPtr,unitPtr,:UNIT_SIZE
 	  ADD	    gatePtr,gatePtr,:GATE_SIZE
@@ -715,6 +766,39 @@ incorrectDigit LDO  last,currUnit,:VALUE
 	  POP	    0,0
 	  PREFIX    :
 
+	  PREFIX    AcquireNetworkGuess:	0 means no difference between guess and actual
+retaddr	  IS	    $0
+currUnit  IS	    $1
+actualDigit IS	    $2
+outputNum IS	    $3
+highest	  IS	    $5
+highestIndex IS	    $6
+last	  IS	    $7
+:AcquireNetworkGuess GET retaddr,:rJ
+          LDA	    last,:Unit_arr
+	  SET	    outputNum,0
+	  SUB	    :t,:NUM_UNITS,:outputLayer
+	  MUL	    :t,:t,:UNIT_SIZE
+	  ADD	    currUnit,:t,last
+	  PUSHJ	    last,:LoadNextLabel
+	  SET	    actualDigit,last
+	  SET	    highest,0
+	  SET 	    highestIndex,:NEGONE
+2H	  CMP	    :t,outputNum,:outputLayer
+	  BZ	    :t,1F
+	  LDO	    :t,currUnit,:VALUE
+	  FCMP	    last,:t,highest
+	  BNP	    last,3F
+	  SET	    highestIndex,outputNum
+	  SET	    highest,:t
+3H	  ADD	    outputNum,outputNum,1
+	  ADD	    currUnit,currUnit,:UNIT_SIZE
+	  JMP	    2B
+1H	  PUT	    :rJ,retaddr
+	  CMP	    $0,highestIndex,actualDigit
+	  POP	    1,0
+	  PREFIX    :
+
 	  PREFIX    LoadImageIntoNetwork:
 retaddr	  IS	    $0
 limit	  IS	    $1
@@ -863,6 +947,33 @@ tmp	  IS	    last
 	  POP	    0,0
 	  PREFIX    :
 
+	  PREFIX    TestSingleImage:
+;	  Calling Sequence:
+;	  SET	    $(X+1),expected
+;	  SET	    $(X+2),inputs
+;	  PUSHJ	    $(X),:TrainSingle
+retaddr	  IS	    $0
+limit	  IS   	    $1
+current	  IS	    $2
+unitVal	  IS	    $3
+unitGrad  IS	    $4
+last 	  IS	    $5
+tmp	  IS	    last
+:TestSingleImage  GET    retaddr,:rJ
+;	  Step 1)   clear all units values and gradients (except parameters)
+	  SET  	    (last+1),0
+	  PUSHJ	    last,:ResetUnits
+;	  Step 2)   initialize inputs
+	  PUSHJ	    last,:LoadImageIntoNetwork
+;	  Step 3)   Do forward propagation
+3H	  PUSHJ	    last,:ForwardProp
+;	  Step 4)   Determind the network's guess
+	  PUSHJ	    last,:AcquireNetworkGuess
+	  PUT	    :rJ,retaddr
+	  SET	    $0,last
+	  POP	    1,0
+	  PREFIX    :
+
 	  PREFIX    SpringPull:
 ;	  Calling Sequence:
 ;	  PUSHJ	    $(X),:SpringPull
@@ -897,6 +1008,7 @@ last	  IS	    $4
 	  MUL	    :t,:t,:NUM_UNITS
 	  ADD	    maxUnit,:t,:Unit_arr
 1H	  BZ	    isFullRst,3F
+	  STO	    :ZERO,unitPtr,:GRAD
 	  STO	    :ZERO,unitPtr,:GRAD_SUM
 	  JMP	    2F
 3H	  LDO	    :t,unitPtr,:GRAD
@@ -1551,6 +1663,16 @@ failedMagic TRAP    0,:Halt,0	Wrong magic number!
 failed	  TRAP	    0,:Halt,0	Unable to open file!
 	  PREFIX    :
 
+	  PREFIX    CloseImages:
+:CloseImages TRAP   0,:Fclose,:imageHandle
+	  POP	    0,0
+	  PREFIX    :
+
+	  PREFIX    CloseLabels:
+:CloseLabels TRAP   0,:Fclose,:labelHandle
+	  POP	    0,0
+	  PREFIX    :
+
 	  PREFIX    OpenLabels:
 isTrain	  IS	    $0		0 means test set, 1 means training set
 charPtr	  IS	    $1
@@ -1636,4 +1758,26 @@ last	  IS	    $3
 a_	  OCTA	    #5851F42D4C957F2D
 c_	  OCTA	    #14057B7EF767814F
 X_	  OCTA	    :seed
+	  PREFIX    :
+
+	  PREFIX    CountInputs:
+count 	  IS	    $0
+tmp	  IS	    $1
+ptr	  IS	    $2
+:CountInputs LDA    ptr,:Gate_arr
+	  LDA	    tmp,:Unit_arr
+	  SET	    count,0
+3H	  CMP	    :t,ptr,tmp
+	  BNZ	    :t,4F
+	  POP	    0,0
+4H	  SET	    :t,ptr
+1H	  LDO	    :t,:t,:LINK
+	  BNZ	    :t,2F
+	  JMP	    nextGate
+2H	  ADD	    count,count,1
+	  JMP	    1B
+nextGate  SET	    :t,count
+	  SET	    count,0
+	  ADD	    ptr,ptr,:GATE_SIZE
+	  JMP	    3B
 	  PREFIX    :
