@@ -80,6 +80,7 @@ STEP_SIZE GREG	    #3F847AE147AE147B    0.01  in 64-bit floating point
 a_init	  GREG	    #3FEAE3C24D02DEC2
 b_init	  GREG	    #BFB3960EFF7BEBF6
 c_init	  GREG	    #BFEFAE147AE147AE
+epoch	  GREG	    
 
 t 	  IS	    $255
 inputLayer IS	    28*28
@@ -170,34 +171,33 @@ images_magic TETRA #00000803
 readData  OCTA	    0
 	  LOC	    readData+28*28
 	  LOC 	    @+NUM_ITER*5*8-8
-
+	  GREG	    @
+dataDump  OCTA	    0
+dmpPtr	  GREG
 	  LOC	    #100
 Main	  LDA	    POOLMAX,L0_pool
 	  LDA	    SEQMIN,endOfPool
 	  LDA	    POOLMAX_2,L0_pool_2
 	  LDA	    SEQMIN_2,endOfPool_2
+	  LDA	    dmpPtr,dataDump
 	  PUSHJ	    $0,:CreateNetwork
 	  PUSHJ	    $0,:TopSort		Determines a topological ordering of the nodes
 ;	  PUSHJ	    $0,:CountInputs
-	  SET	    $0,5
-1H	  BZ	    $0,1F
-	  PUSHJ	    $1,:TrainNetworkWithMNIST
-	  SUB	    $0,$0,1
+;	  PUSHJ	    $0,:CountInputs1
+;	  TRAP	    0,Halt,0
+;	  SET	    $0,5
+;1H	  BZ	    $0,1F
+1H	  PUSHJ	    $1,:TrainNetworkWithMNIST
+	  PUSHJ	    $1,:TestNetworkWithMNIST
+	  ADD	    epoch,epoch,1
+;	  SUB	    $0,$0,1
 	  JMP	    1B
-1H	  PUSHJ	    $0,:TestNetworkWithMNIST
-	  TRAP	    0,Halt,0
-	  PUSHJ	    $0,:Init		Initialized the network data structure
-;	  	    			in the network in order to know order to compute
-;					forward prop and backprop.
-	  PUSHJ	    $0,:InitTraining	Initializes the training data structure and loads
-;	  	    			initial values for parameters
-	  PUSHJ	    $0,:runTillAllCorrect
-	  TRAP	    0,Halt,0
+1H	  TRAP	    0,Halt,0
 
 	  PREFIX    TrainNetworkWithMNIST:
 test	  IS	    0
 train	  IS	    1
-setting	  IS	    test	Temporarily set to TEST since it's a smaller dataset
+setting	  IS	    train	Temporarily set to TEST since it's a smaller dataset
 retaddr	  IS	    $0
 numTotalItems IS    $1
 numInBatch IS 	    $2
@@ -220,6 +220,7 @@ nextItem  BZ	    numInBatch,batchDone
 	  SUB	    numInBatch,numInBatch,1
 	  JMP	    nextItem
 batchDone SUB	    numTotalItems,numTotalItems,batchSize
+	  SET	    (last+1),batchSize
 	  PUSHJ	    last,:ParameterUpdate
 	  SET	    (last+1),1
 	  PUSHJ	    last,:ResetUnits
@@ -262,13 +263,15 @@ nextItem  BZ	    numInBatch,batchDone
 	  JMP	    nextItem
 batchDone SUB	    numTotalItems,numTotalItems,batchSize
 	  CMP	    :t,numCorrect,numAttempted
-	  PUSHJ	    last,:ParameterUpdate
+	  STO	    numCorrect,:dmpPtr
+	  STO	    numAttempted,:dmpPtr,8
 	  SET	    (last+1),1
 	  PUSHJ	    last,:ResetUnits
 	  JMP	    nextBatch
 batchesDone PUSHJ   last,:CloseImages
 	  PUSHJ	    last,:CloseLabels
 	  PUT	    :rJ,retaddr
+	  ADD	    :dmpPtr,:dmpPtr,16
 	  POP	    0,0
 	  PREFIX    :
 
@@ -433,251 +436,6 @@ finished  SET	    $0,numCorrect
 	  POP	    2,0
 	  PREFIX    :
 
-	  PREFIX    Init:
-retaddr	  IS	    $0
-GateBase  IS	    $1
-UnitBase  IS	    $2
-gateI	  IS	    $4
-gateN	  IS	    $5
-unitI	  IS	    $6
-unitN	  IS	    $7
-gateAddr  IS	    $8
-unitAddr  IS	    $9
-fptrFw	  IS	    $11
-fptrBw	  IS	    $12
-retval	  IS	    $13
-:Init	  GET	    retaddr,:rJ
-	  LDA	    GateBase,:Gate_arr
-	  LDA	    UnitBase,:Unit_arr
-	  ADD	    gateN,:ZERO,4
-	  ADD	    unitN,:ZERO,9
-	  SET	    gateI,:ZERO
-	  SET	    unitI,:ZERO
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    gateAddr,gateAddr,GateBase
-	  ADD	    unitAddr,unitAddr,UnitBase
-;
-;
-;---------
-;	  Create gates
-;
-;	  Arbitrary Gate 1 init
-	  CREATE_GATE(gateAddr,Gate_arbi_1_fwd,Gate_arbi_1_back)
-;
-;
-;---------
-;	  Attach inputs
-;
-1H	  IS   	    1	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    2	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    3	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    4	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-1H	  IS   	    5	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsInput
-;
-;
-;
-;
-;---------
-;	  Attach outputs
-;
-1H	  IS   	    6	Unit
-2H	  IS   	    1	Gate
-	  SET	    unitI,1B-1
-	  SET	    gateI,2B-1
-	  MUL	    gateAddr,gateI,:GATE_SIZE
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    (retval+1),unitAddr,UnitBase
-	  ADD	    (retval+2),gateAddr,GateBase
-	  PUSHJ	    retval,:AttachAsOutput
-;
-;
-;---------
-;	  Assign inputs
-;
-1H	  IS   	    1	Unit
-2H	  IS   	    1	Value
-	  SET	    unitI,1B-1
-	  SET	    :t,2B
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:VALUE
-;	  STO	    :a_init,retval,:VALUE
-	  SET	    :t,1
-	  STO	    :t,retval,:IS_PARAM
-;
-1H	  IS   	    2	Unit
-2H	  IS   	    1	Value
-	  SET	    unitI,1B-1
-	  SUB	    :t,:ZERO,2B
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:VALUE
-;
-1H	  IS   	    3	Unit
-2H	  IS   	    -2	Value
-	  SET	    unitI,1B-1
-	  SET	    :t,2B
-	  SL	    :t,:t,56
-	  SR	    :t,:t,56
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:VALUE
-;	  STO	    :b_init,retval,:VALUE
-	  SET	    :t,1
-	  STO	    :t,retval,:IS_PARAM
-;
-1H	  IS   	    4	Unit
-2H	  IS   	    3	Value
-	  SET	    unitI,1B-1
-	  SET	    :t,2B
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:VALUE
-;
-1H	  IS   	    5	Unit
-2H	  IS   	    -1	Value
-	  SET	    unitI,1B-1
-	  SET	    :t,2B
-	  SL	    :t,:t,56
-	  SR	    :t,:t,56
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:VALUE
-;	  STO	    :c_init,retval,:VALUE
-	  SET	    :t,1
-	  STO	    :t,retval,:IS_PARAM
-;
-;
-;---------
-;	  Assign gradient of output
-;
-1H	  IS   	    6	Unit
-2H	  IS   	    1	Value
-	  SET	    unitI,1B-1
-	  SET	    :t,2B
-	  MUL	    unitAddr,unitI,:UNIT_SIZE
-	  ADD	    retval,unitAddr,UnitBase
-	  FLOT	    :t,:t
-	  STO	    :t,retval,:GRAD
-;
-	  PUT	    :rJ,retaddr
-	  POP	    0,0
-	  PREFIX    :
-
-	  PREFIX    InitTraining:
-retaddr	  IS	    $0
-springs	  IS        $1
-outputs	  IS        $2
-trainingSet IS	    $3
-tmp1 	  IS	    $4
-tmp2 	  IS	    $5
-setPtr 	  IS	    $6
-subPtr 	  IS	    $7
-last	  IS	    $8
-:InitTraining GET  retaddr,:rJ
-	  LDA   springs,:springParams
-	  LDA       outputs,:outputUnits
-	  LDA	    trainingSet,:trainingSet
-;
-;
-;---------
-;	  Assign "spring" parameters
-;
-1H	  IS   	    1	Unit
-	  SET	    tmp1,1B-1
-	  MUL	    tmp2,tmp1,:UNIT_SIZE
-	  ADD	    (last+1),tmp2,:Unit_arr
-	  SET	    (last+2),springs
-	  PUSHJ	    last,:Push
-;
-1H	  IS   	    3	Unit
-	  SET	    tmp1,1B-1
-	  MUL	    tmp2,tmp1,:UNIT_SIZE
-	  ADD	    (last+1),tmp2,:Unit_arr
-	  SET	    (last+2),springs
-	  PUSHJ	    last,:Push
-;
-;
-;---------
-;	  Assign output units
-;
-1H	  IS   	    6	Unit
-assignOutUnits	  SET	    tmp1,1B-1
-	  MUL	    tmp2,tmp1,:UNIT_SIZE
-	  ADD	    (last+1),tmp2,:Unit_arr
-	  SET	    (last+2),outputs
-	  PUSHJ	    last,:Push
-;
-;
-;---------
-;	  Assign training set
-; set 6	  2.1,-3 [-1]
-	  ADD_TRAINING(2,#4000CCCCCCCCCCCD,4,#C008000000000000,9,#3FF0000000000000)
-; set 5	  -1.0,1.1 [-1]
-	  ADD_TRAINING(2,#BFF0000000000000,4,#3FF199999999999A,9,#BFF0000000000000)
-; set 4	  -0.1,-1.0 [-1]
-	  ADD_TRAINING(2,#BFB999999999999A,4,#BFF0000000000000,9,#BFF0000000000000)
-; set 3	  3.0,0.1 [1]
-	  ADD_TRAINING(2,#4008000000000000,4,#3FB999999999999A,9,#3FF0000000000000)
-; set 2	  -0.3,-0.5 [-1]
-	  ADD_TRAINING(2,#BFD3333333333333,4,#BFE0000000000000,9,#BFF0000000000000)
-; set 1	  1.2,0.7 [1]
-	  ADD_TRAINING(2,#3FF3333333333333,4,#3FE6666666666666,9,#3FF0000000000000)
-;
-	  PUT	    :rJ,retaddr
-	  POP	    0,0
-	  PREFIX    :
-
 	  PREFIX    Train:
 retaddr	  IS	    $0
 currSet	  IS	    $1
@@ -708,20 +466,23 @@ last	     IS	    $10
 	  PREFIX    :
 
 	  PREFIX    ParameterUpdate:
-retaddr	  IS	    $0
-limit	  IS	    $1
-current   IS	    $2
-unitVal	  IS	    $3
-unitGrad  IS	    $4
-last	  IS	    $5
+batchSize IS	    $0
+retaddr	  IS	    $1
+limit	  IS	    $2
+current   IS	    $3
+unitVal	  IS	    $4
+unitGrad  IS	    $5
+last	  IS	    $6
 :ParameterUpdate GET retaddr,:rJ
 	  SET	    limit,:NUM_UNITS
 	  MUL	    limit,limit,:UNIT_SIZE
 	  ADD	    limit,limit,:Unit_arr
 	  SET  	    current,:Unit_arr
+	  FLOT	    batchSize,batchSize
 1H	  LDO	    unitVal,current,:IS_PARAM
 	  PBZ	    unitVal,2F
 	  LDO	    unitGrad,current,:GRAD_SUM
+;	  FDIV	    unitGrad,unitGrad,batchSize	take average gradient over each batch
 	  FMUL	    unitGrad,unitGrad,:STEP_SIZE
 	  LDO	    unitVal,current,:VALUE
 	  FADD	    unitVal,unitVal,unitGrad	perform parameter update on a single parameter
@@ -811,7 +572,7 @@ last	  IS	    $6
 	  LDA	    buffer,:readData
 	  LDA	    currUnit,:Unit_arr
 	  SET	    currPixel,buffer
-	  SETL	    limit,28*28
+	  SETL	    limit,:inputLayer
 	  SET	    :t,255
 	  FLOT	    black,:t
 	  ADD	    limit,limit,buffer
@@ -819,8 +580,8 @@ last	  IS	    $6
  	  PUSHJ	    last,:LoadNextImage
 1H	  CMP	    :t,currPixel,limit
 	  BZ	    :t,pixelsDone
-	  LDB	    :t,currPixel
-	  FLOTU	    :t,:t
+	  LDBU	    :t,currPixel
+	  FLOT	    :t,:t
 	  FDIV	    :t,:t,black
 	  STO	    :t,currUnit,:VALUE
 	  ADD	    currPixel,currPixel,1
@@ -1074,6 +835,7 @@ retval	  IS	    $7
 	  LDO	    fptr,gatePtr,:BACK_PTR
 	  SET	    (retval+1),gatePtr
 	  PUSHGO    retval,fptr
+	  SUB	    outputPtr,outputPtr,8
 	  ADD	    count,count,1
 	  CMP	    :t,count,:NUM_GATES
 	  PBN	    :t,1B
@@ -1293,17 +1055,24 @@ currUnit  IS	    $3
 param	  IS	    $4
 var	  IS	    $5
 last	  IS	    $10
+tmp	  IS	    last
 :Gate_arbi_1_fwd	GET retaddr,:rJ
 	  LDO	    currUnit,Gate,:IN_UNITS  loads head of in_units
 	  LDO	    :t,currUnit,:INFO
 	  LDO	    acc,:t,:VALUE
+	  LDO	    tmp,:t,:IS_PARAM
+	  BZ	    tmp,error
 	  LDO	    currUnit,currUnit,:LINK
 nextPair  BZ	    currUnit,sumDone
 	  LDO	    :t,currUnit,:INFO
-	  LDO	    var,:t,:VALUE
+	  LDO	    param,:t,:VALUE
+	  LDO	    tmp,:t,:IS_PARAM
+	  BZ	    tmp,error
 	  LDO	    currUnit,currUnit,:LINK
 	  LDO	    :t,currUnit,:INFO
-	  LDO	    param,:t,:VALUE
+	  LDO	    var,:t,:VALUE
+	  LDO	    tmp,:t,:IS_PARAM
+	  BNZ	    tmp,error
 	  LDO	    currUnit,currUnit,:LINK
 	  FMUL	    :t,param,var
 	  FADD	    acc,acc,:t		acc+=a*x where a is a parameter and x is a variable
@@ -1314,6 +1083,7 @@ sumDone	  SET	    (last+1),acc
 	  STO	    last,:t,:VALUE
 	  PUT  	    :rJ,retaddr
 	  POP	    0,0
+error	  TRAP	    0,:Halt,0	unit is/isn't parameter when it should/shouldn't be
 	  PREFIX    :
 
 	  PREFIX    Gate_arbi_1_back:
@@ -1658,6 +1428,7 @@ test	  LDA	    charPtr,:test_images
 	  BN	    $255,failed		skips over number of rows
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:imageHandle
 	  BN	    $255,failed		skips over number of columns
+;	  SET	    $0,100
 	  POP	    1,0
 failedMagic TRAP    0,:Halt,0	Wrong magic number!
 failed	  TRAP	    0,:Halt,0	Unable to open file!
@@ -1703,6 +1474,7 @@ test	  LDA	    charPtr,:test_labels
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
 	  BN	    $255,failed
 	  LDT	    $0,readData		Reads the number of labels in file
+;	  SET	    $0,100
 	  POP	    1,0
 failedMagic TRAP    0,:Halt,0	Wrong magic number!
 failed	  TRAP	    0,:Halt,0	Unable to open file!
@@ -1730,7 +1502,7 @@ freadAddr IS	    $0
 	  LDA	    $255,:freadArgs;	TRAP  0,:Fread,:labelHandle
 	  BN	    $255,failed		skips over number of rows
 Done	  LDA	    :t,:readData
-	  LDB	    $0,:t
+	  LDBU	    $0,:t
 	  POP	    1,0
 failed	  TRAP	    0,:Halt,0	Unable to read file!
 	  PREFIX    :
@@ -1779,5 +1551,30 @@ ptr	  IS	    $2
 nextGate  SET	    :t,count
 	  SET	    count,0
 	  ADD	    ptr,ptr,:GATE_SIZE
+	  JMP	    3B
+	  PREFIX    :
+
+	  PREFIX    CountInputs1:
+count 	  IS	    $0
+tmp	  IS	    $1
+ptr	  IS	    $2
+:CountInputs1 LDA   ptr,:Unit_arr
+	  ADD 	    ptr,ptr,:IN_GATES
+	  LDA	    tmp,:COUNT
+	  SET	    count,0
+3H	  CMP	    :t,ptr,tmp
+	  PBN	    :t,4F
+	  POP	    0,0
+4H	  SET	    :t,ptr
+1H	  LDO	    :t,:t,:LINK
+	  BNZ	    :t,2F
+	  JMP	    nextUnit
+2H	  ADD	    count,count,1
+	  JMP	    1B
+nextUnit  SET	    :t,count
+;	  STO	    count,:dmpPtr
+;	  ADD	    :dmpPtr,:dmpPtr,8
+	  SET	    count,0
+	  ADD	    ptr,ptr,:UNIT_SIZE
 	  JMP	    3B
 	  PREFIX    :
