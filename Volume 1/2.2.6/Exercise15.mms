@@ -9,7 +9,7 @@ FTWO	  GREG	    #4000000000000000
 
 t 	  IS	    $255
 octaSize  IS	    8
-capacity  IS	    6		max number of nodeSize-Byte nodes 
+capacity  IS	    7		max number of nodeSize-Byte nodes 
 LINK	  IS 	    0
 INFO	  IS	    8
 _nodeSize IS	    5*octaSize
@@ -48,19 +48,19 @@ PIVOT	  IS	    $0
 retaddr	  IS	    $1
 ALPHA	  IS	    $2
 I0	  IS	    $3
-J0	  IS	    $3
-P0	  IS	    $3
-Q0	  IS	    $3
-I	  IS	    $3
-J	  IS	    $3
-P	  IS		$3
-P1	  IS	    $3
-tmp	  IS	    $3
-Ji	  IS	    $3
-Jptr	  IS	    $3
-JupPtr	  IS	    $3
-X	  IS	    $3
-last	  IS	    $10
+J0	  IS	    $4
+P0	  IS	    $5
+Q0	  IS	    $6
+I	  IS	    $7
+J	  IS	    $8
+P	  IS	    $9
+P1	  IS	    $10
+tmp	  IS	    $11
+Ji	  IS	    $12
+Jptr	  IS	    $13
+JupPtr	  IS	    $14
+X	  IS	    $15
+last	  IS	    $16
 :AlgorithmS GET retaddr,:rJ
 ;	  S1	    [Initialize.]
 1H	  LDO	    :t,PIVOT,:node:VAL
@@ -77,10 +77,12 @@ last	  IS	    $10
 ;	  S2	    [Process pivot row.]
 2H	  LDO	    P0,P0,:node:LEFT		P0<-LEFT(P0)
 	  LDO	    J,P0,:node:COL		J<-COL(P0)
-	  BN	    J,3F			if J<0
+	  BN	    J,3F			if J<0 jump to S3
 	  SUB	    :t,J,1
 	  MUL	    :t,:t,:_nodeSize		convert J to index
-	  LDA	    tmp,:BASECOL,:t		use 2nd temp variable because J is still needed as an index
+	  LDA	    tmp,:BASECOL,:t	
+	  SUB	    :t,J,1
+	  MUL	    :t,:t,:octaSize		convert J to index
 	  STO	    tmp,:PTR,:t			PTR[J]<-LOC(BASECOL[J])
 	  LDO	    :t,P0,:node:VAL		get VAL(P0)
 	  FMUL	    :t,ALPHA,:t			compute ALPHA*VAL(P0)
@@ -89,13 +91,13 @@ last	  IS	    $10
 ;	  S3	    [Find new row.]
 3H	  LDO	    Q0,Q0,:node:UP
 	  LDO	    I,Q0,:node:ROW		I<-ROW(Q0)
-	  BNN	    J,rowRemain			if J<0 terminate
+	  BNN	    I,rowRemain			if I<0 terminate
 	  TRAP	    0,:Halt,0			terminate.
 rowRemain CMP	    :t,I,I0
 	  BZ	    :t,3B			IF I=I0, repeat S3
 	  SUB	    :t,I,1
 	  MUL	    :t,:t,:_nodeSize		convert I to index
-	  LDA	    P,:BASEROW,:t		P<-LOC(BASEROW(I])
+	  LDA	    P,:BASEROW,:t		P<-LOC(BASEROW([I])
 	  LDO	    P1,P,:node:LEFT		P1<-LEFT(P)
 ;	  S4	    [Find new column.]
 4H	  LDO	    P0,P0,:node:LEFT		P0<-LEFT(P0)
@@ -107,25 +109,23 @@ rowRemain CMP	    :t,I,I0
 	  STO	    :t,Q0,:node:VAL		VAL(Q0) <- -ALPHA*VAL(Q0)
 	  JMP	    3B				return to S3
 JnonNeg	  CMP	    :t,J,J0
-	  BN	    :t,5F
-	  JMP	    4B				If J=J0, repeat S4
+	  PBZ	    :t,4B			If J=J0, repeat S4
 ;	  S5	    [Find I, J element.]
 5H	  LDO	    :t,P1,:node:COL		get COL(P1)
 	  CMP	    :t,:t,J
-	  BN	    :t,9F			If COL(P1)>J
+	  BNP	    :t,9F			If COL(P1)>J
 	  SET	    P,P1			P<-P1
 	  LDO	    P1,P,:node:LEFT		P1<-LEFT(P)
 	  JMP	    5B				Repeat S5
-9H	  BZ	    :t,7F			If COL(P1)=J
-	  JMP	    6F				go to S6
+9H	  BZ	    :t,7F			If COL(P1)=J jump to S7
 ;	  S6	    [Insert I, J element.]
 6H	  SUB	    :t,J,1
-	  MUL	    Ji,:t,:_nodeSize		convert J to index	(Ji)
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
 	  LDO	    Jptr,:PTR,Ji		get PTR[J]   		(Jptr)
 	  LDO	    JupPtr,Jptr,:node:UP	get UP(PTR[J])		(JupPtr)
 	  LDO	    :t,JupPtr,:node:ROW		get ROW(UP(PTR[J]))
 	  CMP	    :t,:t,I
-	  BN	    :t,insertNode
+	  BNP	    :t,insertNode		If ROW(UP(PTR[J])) > I
 	  STO	    JupPtr,:PTR,Ji		PTR[J]<-UP(PTR[J])
 	  JMP	    6B
 insertNode PUSHJ    last,:Alloc
@@ -134,8 +134,15 @@ insertNode PUSHJ    last,:Alloc
 	  STO	    I,X,:node:ROW		ROW(X)<-I
 	  STO	    J,X,:node:COL		COL(X)<-J
 	  STO	    P1,X,:node:LEFT		LEFT(X)<-P1
+	  SUB	    :t,J,1
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
+	  LDO	    Jptr,:PTR,Ji		get PTR[J]   		(Jptr)
+	  LDO	    JupPtr,Jptr,:node:UP	get UP(PTR[J])		(JupPtr)
 	  STO	    JupPtr,X,:node:UP		UP(X)<-UP(PTR[J])
 	  STO	    X,P,:node:LEFT		LEFT(P)<-X
+	  SUB	    :t,J,1
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
+	  LDO	    Jptr,:PTR,Ji		get PTR[J]   		(Jptr)
 	  STO	    X,Jptr,:node:UP		UP(PTR[J])<-X
 	  SET	    P1,X			P1<-X
 ;	  S7	    [Pivot.]
@@ -143,20 +150,30 @@ insertNode PUSHJ    last,:Alloc
 	  LDO	    tmp,P0,:node:VAL		get VAL(P0)
 	  FMUL	    :t,:t,tmp			compute VAL(Q0)*VAL(P0)
 	  LDO	    tmp,P1,:node:VAL		get VAL(P1)
-	  FSUB	    :t,:t,tmp			compute VAL(P1)-VAL(Q0)*VAL(P0)
+	  FSUB	    :t,tmp,:t			compute VAL(P1)-VAL(Q0)*VAL(P0)
 	  STO	    :t,P1,:node:VAL		VAL(P1)<-VAL(P1)-VAL(Q0)*VAL(P0)
 	  FEQLE	    :t,:t,:ZERO			Check if VAL(P1) is equal to zero w.r.t. epsilon
-	  BZ	    :t,8F			if VAL(P1)=0, go to S8
+	  BNZ	    :t,8F			if VAL(P1)=0, go to S8
+	  SUB	    :t,J,1
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
 	  STO	    P1,:PTR,Ji			PTR[J]<-P1
 	  SET	    P,P1			P<-P1
 	  LDO	    P1,P,:node:LEFT		P1<-LEFT(P)
 	  JMP	    4B
 ;	  S8	    [Delete I, J element.]
-8H	  CMP	    :t,P1,JupPtr
+8H	  SUB	    :t,J,1
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
+	  LDO	    Jptr,:PTR,Ji		get PTR[J]   		(Jptr)
+	  LDO	    JupPtr,Jptr,:node:UP	get UP(PTR[J])		(JupPtr)
+	  CMP	    :t,P1,JupPtr
 	  BZ	    :t,finalDelete		if UP(PTR[J])!=P1
 	  STO	    JupPtr,:PTR,Ji		PTR[J]<-UP(PTR[J])
 	  JMP	    8B
-finalDelete LDO	    :t,P1,:node:UP		get UP(P1)
+finalDelete SUB	    :t,J,1
+	  MUL	    Ji,:t,:octaSize		convert J to index	(Ji)
+	  LDO	    Jptr,:PTR,Ji		get PTR[J]   		(Jptr)
+	  LDO	    JupPtr,Jptr,:node:UP	get UP(PTR[J])		(JupPtr)
+	  LDO	    :t,P1,:node:UP		get UP(P1)
 	  STO	    :t,Jptr,:node:UP		UP(PTR[J])<-UP(P1)
 	  LDO	    :t,P1,:node:LEFT		get LEFT(P1)
 	  STO	    :t,P,:node:LEFT		LEFT(P)<-LEFT(P1)
