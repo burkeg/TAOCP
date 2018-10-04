@@ -22,7 +22,8 @@ INFO		IS	    	8*2
 
 		LOC       	Data_Segment
 		GREG	    	@
-T		OCTA		0		
+T		OCTA		0
+		LOC	    	@+_nodeSize*octaSize
 		LOC	    	@+_nodeSize*octaSize*cols
 L0		OCTA      	0
 		LOC	    	L0+_nodeSize*octaSize*capacity
@@ -36,23 +37,40 @@ Main		LDA	    	POOLMAX,L0
 		LDA		$1,T
 		PUSHJ	    	$0,:ConstructTree
 		LDA		$1,T
-		LDO		$1,T
-		GETA		$2,:Visit
-		PUSHJ		$0,:Preorderfptr
-		LDA		$1,T
-		LDO		$1,T
-		GETA		$2,:Visit
-		PUSHJ		$0,:Inorderfptr
-		LDA		$1,T
-		LDO		$1,T
-		GETA		$2,:Visit
-		PUSHJ		$0,:Postorderfptr
+		PUSHJ		$0,:ThreadTree
 		TRAP	    	0,Halt,0
 
-		PREFIX		AddRightThreads:
+		PREFIX		AddMostRightThreads:
 T		IS		$0
 retaddr		IS		$1
-:AddRightThreads GET		retaddr,:rJ
+tmp		IS		$2
+last		IS		$10
+lastVisited	GREG
+:AddMostRightThreads GET	retaddr,:rJ
+		SET		tmp,lastVisited		If the last visited node existed, set its RLINK to T and RTAG to 1
+		BZ		tmp,hasRight
+		LDO		:t,tmp,:node:RLINK	Determine if RLINK is unused
+		SR		:t,:t,1
+		BP		:t,hasRight
+		ADD		tmp,T,1
+		STO		tmp,lastVisited,:node:RLINK	skip the first node	
+hasRight	SET		lastVisited,T
+		PUT		:rJ,retaddr
+		POP		0,0
+		PREFIX		:
+		
+		PREFIX		ThreadTree:
+T		IS		$0
+retaddr		IS		$1
+tmp		IS		$2
+last		IS		$10
+:ThreadTree GET		retaddr,:rJ
+		SET		:AddMostRightThreads:lastVisited,0
+		LDO		(last+1),T
+		GETA		(last+2),:AddMostRightThreads
+		PUSHJ		last,:Inorderfptr
+		ADD		:t,T,1
+		STO		:t,:AddMostRightThreads:lastVisited,:node:RLINK
 		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
