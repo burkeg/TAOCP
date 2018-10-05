@@ -42,7 +42,52 @@ Main		LDA	    	POOLMAX,L0
 		GETA		$2,:Visit
 		PUSHJ		$0,:InorderThreadedFptr
 		TRAP	    	0,Halt,0
- 		
+
+		PREFIX		CopyBinaryTree:
+HEAD		IS		$0
+retaddr		IS		$1
+T		IS		$2
+P		IS		$3
+Q		IS		$4
+U		IS		$5
+tmp		IS		$6
+last		IS		$7
+:CopyBinaryTree GET		retaddr,:rJ
+		PUSHJ		last,:Avail
+		SET		U,last		Allocate NODE(U)
+		SET		P,HEAD		P <- HEAD
+		SET		Q,U		Q <- U
+		JMP		4F
+
+4H		
+		PUT		:rJ,retaddr
+		POP		1,0
+		PREFIX		:
+
+		PREFIX		AttachAsRightChild:
+P		IS		$0
+Q		IS		$1
+tmp		IS		$2
+:AttachAsRightChild LDO		:t,P,:node:RLINK
+		STO		:t,Q,:node:RLINK	Copy RLINK(P) to Q
+		SR		:t,Q,1
+		SR		:t,:t,1
+		STO		:t,P,:node:RLINK	RLINK(P) <- Q, RTAG(P) <- 0
+		POP		0,0
+		PREFIX		:
+
+		PREFIX		AttachAsLeftChild:
+P		IS		$0
+Q		IS		$1
+tmp		IS		$2
+:AttachAsLeftChild LDO		:t,P,:node:LLINK
+		STO		:t,Q,:node:LLINK	Copy LLINK(P) to Q
+		SR		:t,Q,1
+		SR		:t,:t,1
+		STO		:t,P,:node:RLINK	RLINK(P) <- Q, RTAG(P) <- 0
+		POP		0,0
+		PREFIX		:
+
 		PREFIX		InorderThreadedFptr:
 T		IS		$0
 fptr		IS		$1
