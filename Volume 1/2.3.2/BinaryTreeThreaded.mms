@@ -38,7 +38,54 @@ Main		LDA	    	POOLMAX,L0
 		PUSHJ	    	$0,:ConstructTree
 		LDA		$1,T
 		PUSHJ		$0,:ThreadTree
+		LDA		$1,T
+		GETA		$2,:Visit
+		PUSHJ		$0,:InorderThreadedFptr
 		TRAP	    	0,Halt,0
+ 		
+		PREFIX		InorderThreadedFptr:
+T		IS		$0
+fptr		IS		$1
+retaddr		IS		$2
+tmp		IS		$3
+P		IS		$4
+Q		IS		$5
+last		IS		$6
+:InorderThreadedFptr GET	retaddr,:rJ
+		LDO		tmp,T
+		BZ   		tmp,done		If the tree is empty, exit immediately 
+1H		LDO		:t,tmp,:node:LLINK
+		BZ		:t,firstNode
+		SET		tmp,:t
+		JMP		1B			This moves tmp to the first inorder node in the tree
+firstNode	SET		P,tmp
+1H		ADD		:t,T,1
+		CMP		:t,P,:t		Check if P = tree head + 1 (the last P always has RLINK=1)
+		BZ		:t,done
+		SET		(last+1),P
+		PUSHGO		last,fptr		Visit node
+		SET		(last+1),P
+		PUSHJ		last,:InorderSuccessor
+		SET		Q,last
+		SET		P,Q
+		JMP		1B
+done		PUT		:rJ,retaddr
+		POP		0,0
+		PREFIX		:
+
+		PREFIX		InorderSuccessor:
+P		IS		$0
+Q		IS		$1
+:InorderSuccessor LDO		Q,P,:node:RLINK
+		SL		:t,Q,63
+		BNZ		:t,done
+1H		LDO		:t,Q,:node:LLINK
+		BZ		:t,done
+		LDO		Q,Q,:node:LLINK
+		JMP		1B
+done		SET		$0,Q
+		POP		1,0
+		PREFIX		:
 
 		PREFIX		AddMostRightThreads:
 T		IS		$0
@@ -68,7 +115,7 @@ last		IS		$10
 		SET		:AddMostRightThreads:lastVisited,0
 		LDO		(last+1),T
 		GETA		(last+2),:AddMostRightThreads
-		PUSHJ		last,:Inorderfptr
+		PUSHJ		last,:InorderFptr
 		ADD		:t,T,1
 		STO		:t,:AddMostRightThreads:lastVisited,:node:RLINK
 		PUT		:rJ,retaddr
@@ -151,13 +198,13 @@ noRight		SET		(last+1),T
 		POP		0,0
 		PREFIX		:
 		
-		PREFIX		Preorderfptr:
+		PREFIX		PreorderFptr:
 T		IS		$0
 fptr		IS		$1
 retaddr		IS		$2
 tmp		IS		$3
 last		IS		$4
-:Preorderfptr 	GET		retaddr,:rJ
+:PreorderFptr 	GET		retaddr,:rJ
 		SET		(last+1),T
 		PUSHGO		last,fptr
 		LDO		:t,T,:node:LLINK
@@ -165,30 +212,30 @@ last		IS		$4
 		BZ		tmp,noLeft
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Preorderfptr
+		PUSHJ		last,:PreorderFptr
 noLeft          LDO		:t,T,:node:RLINK
 		SR		tmp,:t,1
 		BZ		tmp,noRight
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Preorderfptr
+		PUSHJ		last,:PreorderFptr
 noRight		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
 
-		PREFIX		Inorderfptr:
+		PREFIX		InorderFptr:
 T		IS		$0
 fptr		IS		$1
 retaddr		IS		$2
 tmp		IS		$3
 last		IS		$4
-:Inorderfptr 	GET		retaddr,:rJ
+:InorderFptr 	GET		retaddr,:rJ
 		LDO		:t,T,:node:LLINK
 		SR		tmp,:t,1
 		BZ		tmp,noLeft
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Inorderfptr
+		PUSHJ		last,:InorderFptr
 noLeft		SET		(last+1),T
 		PUSHGO		last,fptr
 		LDO		:t,T,:node:RLINK
@@ -196,30 +243,30 @@ noLeft		SET		(last+1),T
 		BZ		tmp,noRight
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Inorderfptr
+		PUSHJ		last,:InorderFptr
 noRight		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
 
-		PREFIX		Postorderfptr:
+		PREFIX		PostorderFptr:
 T		IS		$0
 fptr		IS		$1
 retaddr		IS		$2
 tmp		IS		$3
 last		IS		$4
-:Postorderfptr 	GET		retaddr,:rJ
+:PostorderFptr 	GET		retaddr,:rJ
 		LDO		:t,T,:node:LLINK
 		SR		tmp,:t,1
 		BZ		tmp,noLeft
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Postorderfptr
+		PUSHJ		last,:PostorderFptr
 noLeft          LDO		:t,T,:node:RLINK
 		SR		tmp,:t,1
 		BZ		tmp,noRight
 		SET		(last+1),:t
 		SET		(last+2),fptr
-		PUSHJ		last,:Postorderfptr
+		PUSHJ		last,:PostorderFptr
 noRight		SET		(last+1),T
 		PUSHGO		last,fptr
 		PUT		:rJ,retaddr
