@@ -1,4 +1,4 @@
-; Basic Binary Tree implementation right threads
+; Symbolic Differentiation
 				
 AVAIL		GREG	    
 POOLMAX 	GREG
@@ -7,40 +7,46 @@ ZERO		GREG
 				
 t 		IS	    	$255
 octaSize 	IS	    	8
-capacity 	IS	    	100		max number of nodeSize-Byte nodes 
+capacity 	IS	    	100		max number of nodeSize-Byte nodes
 LINK		IS 	    	0
 INFO		IS	    	8
-_nodeSize 	IS	    	3
+_nodeSize 	IS	    	4
 nodeSize 	GREG	    	_nodeSize*octaSize
-rows		IS	    	4
-cols		IS	    	4
+
 		PREFIX    	node:
 LLINK		IS	    	8*0
 RLINK		IS	    	8*1
 INFO		IS	    	8*2
+TYPE		IS		8*3
+		PREFIX    	TYPE:
+CONSTANT	IS		0
+VARIABLE	IS		1
+LN		IS		2
+NEG		IS		3
+ADD		IS		4
+SUB		IS		5
+MULT		IS		6
+DIV		IS		7
+EXP		IS		8
 		PREFIX    	:
 
 		LOC       	Data_Segment
 		GREG	    	@
-T		OCTA		0
-		LOC	    	@+_nodeSize*octaSize
-		LOC	    	@+_nodeSize*octaSize*cols
 L0		OCTA      	0
 		LOC	    	L0+_nodeSize*octaSize*capacity
 		GREG	    	@
 Linf		OCTA	    	0
 
-
+T		IS		$0
+last		IS		$2
 		LOC		#100
 Main		LDA	    	POOLMAX,L0
 		LDA	    	SEQMIN,Linf
-		LDA		$1,T
-		STO		$1,$1,:node:RLINK
-		PUSHJ	    	$0,:ConstructTree
-		LDA		$1,T
-		PUSHJ		$0,:ThreadTree
-		LDA		$1,T
-		PUSHJ		$0,:CopyBinaryTree
+		PUSHJ	    	T,:ConstructTree2
+		SET		(last+1),T
+		PUSHJ		last,:ThreadTree
+		SET		(last+1),T
+		PUSHJ		last,:CopyBinaryTree
 		TRAP	    	0,Halt,0
 
 		PREFIX		CopyBinaryTree:
@@ -75,7 +81,9 @@ last		IS		$8
 		PUSHJ		last,:AttachAsRightChild
 ;	  	C3	    	[Copy INFO]
 3H		LDO		:t,P,:node:INFO
-		STO		:t,Q,:node:INFO		INFO(Q) <- INFO(P)
+		STO		:t,Q,:node:INFO
+		LDO		:t,P,:node:TYPE
+		STO		:t,Q,:node:TYPE 	INFO(Q) <- INFO(P)
 ;	  	C4	    	[Anything to left?]
 4H		SET		(last+1),P
 		PUSHJ		last,:HasLeftChild
@@ -480,6 +488,172 @@ noRight		SET		(last+1),T
 		PUSHGO		last,fptr
 		PUT		:rJ,retaddr
 		POP		0,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     -				-
+;		   /   \			|
+;		 *       /			*  ------->  /
+;	        / \     / \			|            |
+;	       3  ln   a   ↑			3  --> ln    a --> ↑
+;	       	   |   	  / \			       |     	   |
+;		   +	 x   2			       +	   x --> 2
+;		  / \	     			       |
+;		 x   1				       x --> 1
+		PREFIX		ConstructTree2:
+retaddr		IS		$0
+tmp1		IS		$1
+tmp2		IS		$2
+last		IS		$3
+:ConstructTree2	GET		retaddr,:rJ
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'1'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:CONSTANT
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'+'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:ADD
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'l'<<8+'n'
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:LN
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'3'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:CONSTANT
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'2'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:CONSTANT
+		STO		:t,last,:node:TYPE
+		SET		tmp2,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp2,last,:node:RLINK
+		SET		tmp2,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'^'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:EXP
+		STO		:t,last,:node:TYPE
+		STO		tmp2,last,:node:LLINK
+		SET		tmp2,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'a'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp2,last,:node:RLINK
+		SET		tmp2,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'/'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:DIV
+		STO		:t,last,:node:TYPE
+		STO		tmp2,last,:node:LLINK
+		SET		tmp2,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'*'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:MULT
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		tmp2,last,:node:RLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'-'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:SUB
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
 		PREFIX		:
 
 ;		Stores a pointer to the root at T

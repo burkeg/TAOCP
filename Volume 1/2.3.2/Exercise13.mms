@@ -23,8 +23,7 @@ INFO		IS	    	8*2
 		LOC       	Data_Segment
 		GREG	    	@
 T		OCTA		0
-		LOC	    	@+_nodeSize*octaSize
-		LOC	    	@+_nodeSize*octaSize*cols
+		LOC	    	@+(_nodeSize-1)*octaSize
 L0		OCTA      	0
 		LOC	    	L0+_nodeSize*octaSize*capacity
 		GREG	    	@
