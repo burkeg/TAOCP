@@ -1,4 +1,4 @@
-; Basic Binary Tree implementation right threads
+; Basic Binary Tree implementation with threads
 				
 AVAIL		GREG	    
 POOLMAX 	GREG
@@ -36,8 +36,8 @@ Main		LDA	    	POOLMAX,L0
 		LDA	    	SEQMIN,Linf
 		LDA		$1,T
 		STO		$1,$1,:node:RLINK
-;		PUSHJ	    	$0,:ConstructTree
-;		LDA		$1,T
+		PUSHJ	    	$0,:ConstructTree
+		LDA		$1,T
 		PUSHJ		$0,:ThreadTree
 		LDA		$1,T
 		GETA		$2,:Visit
@@ -126,14 +126,14 @@ retaddr		IS		$1
 Q		IS		$2
 last		IS		$3
 :InorderPredecessor GET		retaddr,:rJ
-		LDO		Q,P,:node:RLINK
+		LDO		Q,P,:node:LLINK
 		SET		(last+1),P
-		PUSHJ		last,:HasRightChild
+		PUSHJ		last,:HasLeftChild
 		BZ		last,done
 1H		SET		(last+1),Q
-		PUSHJ		last,:HasLeftChild
-		BNZ		last,done
-		LDO		Q,Q,:node:LLINK
+		PUSHJ		last,:HasRightChild 
+		BZ		last,done
+		LDO		Q,Q,:node:RLINK
 		JMP		1B
 done		SET		$0,Q
 		PUT		:rJ,retaddr
@@ -215,9 +215,18 @@ no		SET		$0,0
 		PREFIX		Visit:
 T		IS		$0
 retaddr		IS		$1
+PS		IS		$2
+P		IS		$3
+SP		IS		$4
 last		IS		$10
 :Visit 		GET		retaddr,:rJ
-		LDO		:t,T,:node:INFO
+		LDO		P,T,:node:INFO
+		SET		(last+1),T
+		PUSHJ		last,:InorderSuccessor
+		LDO		PS,last,:node:INFO
+		SET		(last+1),T
+		PUSHJ		last,:InorderPredecessor
+		LDO		SP,last,:node:INFO
 		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
@@ -437,8 +446,7 @@ last		IS		$6
 		PUT	    	:rJ,retaddr
 		POP		0,0
 		PREFIX		:
-		
-		
+
 		PREFIX		Alloc:
 X	  	IS	    	$0
 :Alloc	  	PBNZ		:AVAIL,1F

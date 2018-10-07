@@ -7,7 +7,7 @@ ZERO		GREG
 				
 t 		IS	    	$255
 octaSize 	IS	    	8
-capacity 	IS	    	9		max number of nodeSize-Byte nodes 
+capacity 	IS	    	100		max number of nodeSize-Byte nodes 
 LINK		IS 	    	0
 INFO		IS	    	8
 _nodeSize 	IS	    	3
@@ -35,12 +35,12 @@ Linf		OCTA	    	0
 Main		LDA	    	POOLMAX,L0
 		LDA	    	SEQMIN,Linf
 		LDA		$1,T
+		STO		$1,$1,:node:RLINK
 		PUSHJ	    	$0,:ConstructTree
 		LDA		$1,T
 		PUSHJ		$0,:ThreadTree
 		LDA		$1,T
-		GETA		$2,:Visit
-		PUSHJ		$0,:InorderThreadedFptr
+		PUSHJ		$0,:CopyBinaryTree
 		TRAP	    	0,Halt,0
 
 		PREFIX		CopyBinaryTree:
@@ -50,16 +50,56 @@ T		IS		$2
 P		IS		$3
 Q		IS		$4
 U		IS		$5
-tmp		IS		$6
-last		IS		$7
+R		IS		$6
+tmp		IS		$7
+last		IS		$8
+;	  	C1	    	[Initialize.]
 :CopyBinaryTree GET		retaddr,:rJ
-		PUSHJ		last,:Avail
+		PUSHJ		last,:Alloc
 		SET		U,last		Allocate NODE(U)
+		STO		U,U,:node:RLINK
+		SET		:t,U
+		ORL		:t,#0001
+		STO		:t,U,:node:LLINK
 		SET		P,HEAD		P <- HEAD
 		SET		Q,U		Q <- U
 		JMP		4F
-
-4H		
+;	  	C2	    	[Anything to right?]
+2H		SET		(last+1),P
+		PUSHJ		last,:HasRightChild
+		BZ		last,3F			If P doesn't have a right subtree, skip to C3
+		PUSHJ		last,:Alloc
+		SET		R,last		R <= AVAIL
+		SET		(last+1),Q
+		SET		(last+2),R
+		PUSHJ		last,:AttachAsRightChild
+;	  	C3	    	[Copy INFO]
+3H		LDO		:t,P,:node:INFO
+		STO		:t,Q,:node:INFO		INFO(Q) <- INFO(P)
+;	  	C4	    	[Anything to left?]
+4H		SET		(last+1),P
+		PUSHJ		last,:HasLeftChild
+		BZ		last,5F			If P doesn't have a left subtree, skip to C5
+		PUSHJ		last,:Alloc
+		SET		R,last		R <= AVAIL
+		SET		(last+1),Q
+		SET		(last+2),R
+		PUSHJ		last,:AttachAsLeftChild
+;	  	C5	    	[Advance.]
+5H		SET		(last+1),P
+		PUSHJ		last,:PreorderSuccessor
+		SET		P,last		P <- P*
+		SET		(last+1),Q
+		PUSHJ		last,:PreorderSuccessor
+		SET		Q,last		Q <- Q*
+;	  	C6	    	[Test if complete.]
+6H		LDO		:t,U,:node:RLINK
+		ANDNL		:t,#0001
+		SET		tmp,Q
+		ANDNL		tmp,#0001
+		CMP		:t,Q,:t		Compare Q = RLINK(U)
+		BNZ		:t,2B		if true, terminate otherwise go to C2
+		SET		$0,U
 		PUT		:rJ,retaddr
 		POP		1,0
 		PREFIX		:
@@ -67,24 +107,46 @@ last		IS		$7
 		PREFIX		AttachAsRightChild:
 P		IS		$0
 Q		IS		$1
-tmp		IS		$2
-:AttachAsRightChild LDO		:t,P,:node:RLINK
+retaddr		IS		$2
+last		IS		$3
+:AttachAsRightChild GET		retaddr,:rJ
+		LDO		:t,P,:node:RLINK
 		STO		:t,Q,:node:RLINK	Copy RLINK(P) to Q
-		SR		:t,Q,1
-		SR		:t,:t,1
-		STO		:t,P,:node:RLINK	RLINK(P) <- Q, RTAG(P) <- 0
+		ANDNL		Q,#0001
+		STO		Q,P,:node:RLINK	RLINK(P) <- Q, RTAG(P) <- 0
+		ORL		P,#0001
+		STO		P,Q,:node:LLINK LLINK(Q) <- P, LTAG(Q) <- 1
+2H		SET		(last+1),Q
+		PUSHJ		last,:HasRightChild
+		BZ		last,done		if RTAG(Q)=1, terminate
+		SET		(last+1),Q
+;		PUSHJ		last,:InorderSuccessor		last <- Q$
+		ORL		Q,#0001
+		STO		Q,last,:node:LLINK	LLINK(Q$) <- Q, LTAG(Q$) is always a thread
+done		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
 
 		PREFIX		AttachAsLeftChild:
 P		IS		$0
 Q		IS		$1
-tmp		IS		$2
-:AttachAsLeftChild LDO		:t,P,:node:LLINK
+retaddr		IS		$2
+last		IS		$3
+:AttachAsLeftChild GET		retaddr,:rJ
+		LDO		:t,P,:node:LLINK
 		STO		:t,Q,:node:LLINK	Copy LLINK(P) to Q
-		SR		:t,Q,1
-		SR		:t,:t,1
-		STO		:t,P,:node:RLINK	RLINK(P) <- Q, RTAG(P) <- 0
+		ANDNL		Q,#0001
+		STO		Q,P,:node:LLINK	LLINK(P) <- Q, LTAG(P) <- 0
+		ORL		P,#0001
+		STO		P,Q,:node:RLINK RLINK(Q) <- P, RTAG(Q) <- 1
+2H		SET		(last+1),Q
+		PUSHJ		last,:HasLeftChild
+		BZ		last,done		if LTAG(Q)=1, terminate
+		SET		(last+1),Q
+;		PUSHJ		last,:InorderPredecessor	last <- $Q
+		ORL		Q,#0001
+		STO		Q,last,:node:RLINK	RLINK($Q) <- Q, RTAG($Q) is always a thread
+done		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
 
@@ -99,13 +161,15 @@ last		IS		$6
 :InorderThreadedFptr GET	retaddr,:rJ
 		LDO		tmp,T,:node:LLINK
 		BZ   		tmp,done		If the tree is empty, exit immediately 
-1H		LDO		:t,tmp,:node:LLINK
-		BZ		:t,firstNode
-		SET		tmp,:t
+1H		SET		(last+1),tmp
+		PUSHJ		last,:HasLeftChild
+		BZ		last,firstNode
+		LDO		tmp,tmp,:node:LLINK
 		JMP		1B			This moves tmp to the first inorder node in the tree
 firstNode	SET		P,tmp
-1H		ADD		:t,T,1
-		CMP		:t,P,:t		Check if P = tree head + 1 (the last P always has RLINK=1)
+1H		SET		:t,T
+		ORL		:t,#0001
+		CMP		:t,P,:t		Check if P = tree head (as thread)
 		BZ		:t,done
 		SET		(last+1),P
 		PUSHGO		last,fptr		Visit node
@@ -118,35 +182,92 @@ done		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
 
-		PREFIX		InorderSuccessor:
+		PREFIX		PreorderSuccessor:
 P		IS		$0
-Q		IS		$1
-:InorderSuccessor LDO		Q,P,:node:RLINK
-		SL		:t,Q,63
-		BNZ		:t,done
-1H		LDO		:t,Q,:node:LLINK
-		BZ		:t,done
-		LDO		Q,Q,:node:LLINK
-		JMP		1B
+retaddr		IS		$1
+Q		IS		$2
+last		IS		$3
+:PreorderSuccessor GET		retaddr,:rJ
+		SET		Q,P
+		SET		(last+1),P
+		PUSHJ		last,:HasLeftChild
+		BZ		last,noLeft
+		LDO		Q,P,:node:LLINK
+		JMP		done
+noLeft		SET		(last+1),P
+		PUSHJ		last,:HasRightChild
+		BZ		last,noRight
+		LDO		Q,P,:node:RLINK
+		JMP		done
+noRight		LDO		Q,Q,:node:RLINK
+		SET		(last+1),Q
+		PUSHJ		last,:HasRightChild
+		BNZ		last,found
+		JMP		noRight
+found		LDO		Q,Q,:node:RLINK
 done		SET		$0,Q
+		PUT		:rJ,retaddr
 		POP		1,0
 		PREFIX		:
 
-		PREFIX		AddMostRightThreads:
-T		IS		$0
+		PREFIX		InorderSuccessor:
+P		IS		$0
+retaddr		IS		$1
+Q		IS		$2
+last		IS		$3
+:InorderSuccessor GET		retaddr,:rJ
+		LDO		Q,P,:node:RLINK
+		SET		(last+1),P
+		PUSHJ		last,:HasRightChild
+		BZ		last,done
+1H		SET		(last+1),Q
+		PUSHJ		last,:HasLeftChild
+		BZ		last,done
+		LDO		Q,Q,:node:LLINK
+		JMP		1B
+done		SET		$0,Q
+		PUT		:rJ,retaddr
+		POP		1,0
+		PREFIX		:
+		
+		PREFIX		InorderPredecessor:
+P		IS		$0
+retaddr		IS		$1
+Q		IS		$2
+last		IS		$3
+:InorderPredecessor GET		retaddr,:rJ
+		LDO		Q,P,:node:LLINK
+		SET		(last+1),P
+		PUSHJ		last,:HasLeftChild
+		BZ		last,done
+1H		SET		(last+1),Q
+		PUSHJ		last,:HasRightChild 
+		BZ		last,done
+		LDO		Q,Q,:node:RLINK
+		JMP		1B
+done		SET		$0,Q
+		PUT		:rJ,retaddr
+		POP		1,0
+		PREFIX		:
+
+		PREFIX		AddThreads:
+P		IS		$0
 retaddr		IS		$1
 tmp		IS		$2
 last		IS		$10
 lastVisited	GREG
-:AddMostRightThreads GET	retaddr,:rJ
-		SET		tmp,lastVisited		If the last visited node existed, set its RLINK to T and RTAG to 1
-		BZ		tmp,hasRight
-		LDO		:t,tmp,:node:RLINK	Determine if RLINK is unused
-		SR		:t,:t,1
-		BP		:t,hasRight
-		ADD		tmp,T,1
-		STO		tmp,lastVisited,:node:RLINK	skip the first node	
-hasRight	SET		lastVisited,T
+:AddThreads 	GET		retaddr,:rJ
+		SET		(last+1),P
+		PUSHJ		last,:HasLeftChild
+		BNZ		last,hasLeft			If P has a left child
+		ORL		lastVisited,#0001
+		STO		lastVisited,P,:node:LLINK	LLINK(P) <- lastVisited (as a thread)
+hasLeft		SET		(last+1),lastVisited
+		PUSHJ		last,:HasRightChild
+		BNZ		last,hasRight			If lastVisited has a right child
+		ORL		P,#0001
+		STO		P,lastVisited,:node:RLINK	RLINK(lastVisited) <- P (as a thread)
+hasRight	SET		lastVisited,P
 		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
@@ -157,22 +278,65 @@ retaddr		IS		$1
 tmp		IS		$2
 last		IS		$10
 :ThreadTree GET		retaddr,:rJ
-		SET		:AddMostRightThreads:lastVisited,0
+		SET		:AddThreads:lastVisited,T
 		LDO		(last+1),T
-		GETA		(last+2),:AddMostRightThreads
+		GETA		(last+2),:AddThreads
 		PUSHJ		last,:InorderFptr
-		ADD		:t,T,1
-		STO		:t,:AddMostRightThreads:lastVisited,:node:RLINK
-		PUT		:rJ,retaddr
+		SET		tmp,T
+		ANDNL		tmp,#0001
+		SET		:t,:AddThreads:lastVisited
+		ANDNL		:t,#0001
+		CMP		:t,:t,tmp		Compare T to lastVisited, ignoring tags
+		BZ		:t,emptyTree
+		ORL		tmp,#0001
+		STO		tmp,:AddThreads:lastVisited,:node:RLINK		RLINK(lastVisited) <- T (as a thread)
+emptyTree	PUT		:rJ,retaddr
 		POP		0,0
+		PREFIX		:
+
+		PREFIX		HasLeftChild:
+;		This can be used in both threaded and unthreaded trees.
+;		In a threaded tree, zero means LTAG(P)=1
+P		IS		$0
+:HasLeftChild	LDO		:t,P,:node:LLINK
+		BZ		:t,no		if LLINK(P) is null, return no
+		SL		:t,:t,63	otherwise return opposite of LTAG(P)
+		BNZ		:t,no
+yes		SET		$0,1
+		POP		1,0
+no		SET		$0,0
+		POP		1,0
+		PREFIX		:
+
+		PREFIX		HasRightChild:
+;		This can be used in both threaded and unthreaded trees.
+;		In a threaded tree, zero means RTAG(P)=1
+P		IS		$0
+:HasRightChild	LDO		:t,P,:node:RLINK
+		BZ		:t,no		if RLINK(P) is null, return no
+		SL		:t,:t,63	otherwise return opposite of RTAG(P)
+		BNZ		:t,no
+yes		SET		$0,1
+		POP		1,0
+no		SET		$0,0
+		POP		1,0
 		PREFIX		:
 
 		PREFIX		Visit:
 T		IS		$0
 retaddr		IS		$1
+PS		IS		$2
+P		IS		$3
+SP		IS		$4
 last		IS		$10
 :Visit 		GET		retaddr,:rJ
-		LDO		:t,T,:node:INFO
+		LDO		P,T,:node:INFO
+		SET		(last+1),T
+		PUSHJ		last,:InorderSuccessor
+		LDO		PS,last,:node:INFO
+		SET		(last+1),T
+		PUSHJ		last,:InorderPredecessor
+		LDO		SP,last,:node:INFO
 		PUT		:rJ,retaddr
 		POP		0,0
 		PREFIX		:
@@ -392,8 +556,7 @@ last		IS		$6
 		PUT	    	:rJ,retaddr
 		POP		0,0
 		PREFIX		:
-		
-		
+
 		PREFIX		Alloc:
 X	  	IS	    	$0
 :Alloc	  	PBNZ		:AVAIL,1F
