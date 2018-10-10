@@ -49,6 +49,25 @@ Main		LDA	    	POOLMAX,L0
 		PUSHJ		last,:CopyBinaryTree
 		TRAP	    	0,Halt,0
 
+		PREFIX		Differentiate:
+Y		IS		$0
+retaddr		IS		$1
+DY		IS		$2
+last		IS		$10
+:Differentiate	GET		retaddr,:rJ
+;		D1		[Initialize.]
+		PUSHJ		last,:Alloc
+		SET		DY,last		Allocate an empty tree for DY
+		STO		DY,DY,:node:RLINK	 Empty tree RLINK is a link to itself
+		SET		:t,DY
+		ORL		:t,#0001
+		STO		:t,DY,:node:LLINK	Empty tree LLINK is a thread to itself
+		SET		(last+1),Y
+		PUSHJ		last,:InorderSuccessor
+		PUT		:rJ,retaddr
+		POP		1,0
+		PREFIX		:
+		
 		PREFIX		CopyBinaryTree:
 HEAD		IS		$0
 retaddr		IS		$1
