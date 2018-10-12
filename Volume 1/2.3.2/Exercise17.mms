@@ -42,11 +42,9 @@ last		IS		$2
 		LOC		#100
 Main		LDA	    	POOLMAX,L0
 		LDA	    	SEQMIN,Linf
-		PUSHJ	    	T,:ConstructTree5
+		PUSHJ	    	T,:ConstructTree10
 		SET		(last+1),T
 		PUSHJ		last,:ThreadTree
-		SET		(last+1),T
-		PUSHJ		last,:CopyBinaryTree
 		SET		(last+1),T
 		PUSHJ		last,:Differentiate
 		TRAP	    	0,Halt,0
@@ -146,12 +144,12 @@ last		IS		$10
 		INCH		:t,'0'<<8+' '
 		STO		:t,last,:node:INFO
 		SET		:t,:node:TYPE:CONSTANT
-		STO		:t,last,:node:TYPE	create x
+		STO		:t,last,:node:TYPE	create "x"
 		SET		(last+1),tmp
 		PUSHJ		last,:Tree0
 		SET		Q,last			Q <- TREE(0)
 		SET		(last+1),tmp
-		PUSHJ		last,:Dealloc		delete x
+		PUSHJ		last,:Dealloc		delete "x"
 		PUT		:rJ,retaddr
 		SET		$0,Q1
 		SET		$1,Q
@@ -167,7 +165,7 @@ Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
 tmp2		IS		$7
-last		IS		$10
+last		IS		$8
 :DiffVariable 	GET		retaddr,:rJ
 		PUSHJ		last,:Alloc
 		SET		tmp,last
@@ -189,12 +187,12 @@ one		SETL		:t,' '<<8+' '
 		INCH		:t,'1'<<8+' '
 1H		STO		:t,last,:node:INFO
 		SET		:t,:node:TYPE:CONSTANT
-		STO		:t,last,:node:TYPE	create x
+		STO		:t,last,:node:TYPE	create "x"
 		SET		(last+1),tmp
 		PUSHJ		last,:Tree0
-		SET		Q,last			Q <- TREE(0 or 1)
+		SET		Q,last			Q <- TREE("0" or "1")
 		SET		(last+1),tmp
-		PUSHJ		last,:Dealloc		delete x
+		PUSHJ		last,:Dealloc		delete "x"
 		PUT		:rJ,retaddr
 		SET		$0,Q1
 		SET		$1,Q
@@ -202,100 +200,284 @@ one		SETL		:t,' '<<8+' '
 		PREFIX		:
 
 		PREFIX		DiffLn:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffLn 	GET		retaddr,:rJ
+		LDO		tmp,Q,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,nonZero
+		LDO		tmp,Q,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp2	Is INFO(Q) = "0"?
+		BNZ		:t,nonZero
+		TRAP		0,:Halt,0	d(ln(0)) d.n.e.
+nonZero		PUSHJ		last,:Alloc
+		SET		tmp,last
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'/'<<8+' '
+		STO		:t,tmp,:node:INFO
+		SET		:t,:node:TYPE:DIV
+		STO		:t,tmp,:node:TYPE	tmp <- node("/")
+		SET		(last+1),P1
+		PUSHJ		last,:CopyBinaryTree
+		SET		tmp2,last		tmp2 <- COPY(P1)
+		;last is copy(P1)
+		SET		(last+1),tmp
+		SET		(last+2),Q
+		SET		(last+3),tmp2
+		PUSHJ		last,:Tree2
+		SET		Q,last			Q <- TREE("/",Q,COPY(P1))
+		SET		(last+1),tmp
+		PUSHJ		last,:Dealloc		delete "/"
 		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffNeg:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+last		IS		$7
 :DiffNeg 	GET		retaddr,:rJ
+		LDO		tmp,Q,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,nonZero
+		LDO		tmp,Q,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp	Is INFO(Q) = "0"?
+		BNZ		:t,nonZero
+		TRAP		0,:Halt,0	d(ln(0)) d.n.e.
+nonZero		PUSHJ		last,:Alloc
+		SET		tmp,last
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,'g'<<8+' '
+		INCH		:t,'n'<<8+'e'
+		STO		:t,tmp,:node:INFO
+		SET		:t,:node:TYPE:NEG
+		STO		:t,tmp,:node:TYPE	tmp <- node("neg")
+		SET		(last+1),tmp
+		SET		(last+2),Q
+		PUSHJ		last,:Tree1
+		SET		Q,last			Q <- TREE("neg",Q)
+		SET		(last+1),tmp
+		PUSHJ		last,:Dealloc		delete "neg"
 		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffAdd:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffAdd 	GET		retaddr,:rJ
-		PUT		:rJ,retaddr
+		LDO		tmp,Q1,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,1F
+		LDO		tmp,Q1,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp	Is INFO(Q1) = "0"?
+		BNZ		:t,1F
+;		Q1 = "0"
+		SET		(last+1),Q1
+		PUSHJ		last,:Dealloc	AVAIL <= Q1
+		SET		Q1,0
+		JMP		done
+1H		LDO		tmp,Q,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,1F
+		LDO		tmp,Q,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp	Is INFO(Q) = "0"?
+		BNZ		:t,1F
+;		Q = "0"
+		SET		(last+1),Q
+		PUSHJ		last,:Dealloc	AVAIL <= Q
+		SET		Q,Q1
+		SET		Q1,0
+		JMP		done
+1H		PUSHJ		last,:Alloc
+		SET		tmp,last
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'+'<<8+' '
+		STO		:t,tmp,:node:INFO
+		SET		:t,:node:TYPE:ADD
+		STO		:t,tmp,:node:TYPE	tmp <- node("+")
+		SET		(last+1),tmp
+		SET		(last+2),Q1
+		SET		(last+3),Q
+		PUSHJ		last,:Tree2
+		SET		Q,last			Q <- TREE("+",Q)
+		SET		(last+1),tmp
+		PUSHJ		last,:Dealloc		delete "+"
+done		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffSub:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffSub 	GET		retaddr,:rJ
-		PUT		:rJ,retaddr
+		LDO		tmp,Q,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,1F
+		LDO		tmp,Q,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp	Is INFO(Q) = "0"?
+		BNZ		:t,1F
+;		Q = "0"
+		SET		(last+1),Q
+		PUSHJ		last,:Dealloc	AVAIL <= Q
+		SET		Q,Q1		Q <- Q1
+		JMP		done
+1H		LDO		tmp,Q1,:node:TYPE
+		CMP		:t,tmp,:node:TYPE:CONSTANT
+		BNZ		:t,1F
+		LDO		tmp,Q1,:node:INFO
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'0'<<8+' '
+		CMP		:t,:t,tmp	Is INFO(Q1) = "0"?
+		BNZ		:t,1F
+;		Q1 = "0"
+		SET		(last+1),Q1
+		PUSHJ		last,:Dealloc	AVAIL <= Q1
+		PUSHJ		last,:Alloc
+		SET		tmp,last
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,'g'<<8+' '
+		INCH		:t,'n'<<8+'e'
+		STO		:t,tmp,:node:INFO
+		SET		:t,:node:TYPE:NEG
+		STO		:t,tmp,:node:TYPE	tmp <- node("neg")
+		SET		(last+1),tmp
+		SET		(last+2),Q
+		PUSHJ		last,:Tree1
+		SET		Q,last			Q <- TREE("neg",Q)
+		SET		(last+1),tmp
+		PUSHJ		last,:Dealloc		delete "neg"
+		JMP		done
+1H		PUSHJ		last,:Alloc
+		SET		tmp,last
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'-'<<8+' '
+		STO		:t,tmp,:node:INFO
+		SET		:t,:node:TYPE:SUB
+		STO		:t,tmp,:node:TYPE	tmp <- node("-")
+		SET		(last+1),tmp
+		SET		(last+2),Q1
+		SET		(last+3),Q
+		PUSHJ		last,:Tree2
+		SET		Q,last			Q <- TREE("-",Q)
+		SET		(last+1),tmp
+		PUSHJ		last,:Dealloc		delete "-"
+done		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffMult:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffMult 	GET		retaddr,:rJ
 		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffDiv:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffDiv 	GET		retaddr,:rJ
 		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 
 		PREFIX		DiffExp:
-Q1		IS		$0
-Q		IS		$1
-P		IS		$2
-P1		IS		$3
-P2		IS		$4
+P		IS		$0
+P1		IS		$1
+Q		IS		$2
+P2		IS		$3
+Q1		IS		$4
 retaddr		IS		$5
 tmp		IS		$6
-last		IS		$10
+tmp2		IS		$7
+last		IS		$8
 :DiffExp 	GET		retaddr,:rJ
 		PUT		:rJ,retaddr
+		SET		$0,Q1
+		SET		$1,Q
 		POP		2,0
 		PREFIX		:
 		
@@ -398,12 +580,14 @@ done		PUT		:rJ,retaddr
 
 		PREFIX		Tree2:
 x		IS		$0
-retaddr		IS		$1
-W		IS		$2
-U		IS		$3
-V		IS		$4
+U		IS		$1
+V		IS		$2
+retaddr		IS		$3
+W		IS		$4
 last		IS		$5
 :Tree2		GET		retaddr,:rJ
+		ANDNL		U,#0001
+		ANDNL		V,#0001
 		PUSHJ		last,:Alloc		W <= AVAIL
 		SET		W,last
 		LDO		:t,x,:node:TYPE
@@ -417,8 +601,8 @@ last		IS		$5
 		LDO		:t,U,:node:RLINK	RTAG(U) <- 0
 		STO		W,V,:node:RLINK		RLINK(V) <- W
 		LDO		:t,V,:node:RLINK
-		ANDNL		:t,#0001
-		LDO		:t,V,:node:RLINK	RTAG(V) <- 0
+		ORL		:t,#0001
+		STO		:t,V,:node:RLINK	RTAG(V) <- 1
 		PUT		:rJ,retaddr
 		SET		$0,W
 		POP		1,0
@@ -426,11 +610,12 @@ last		IS		$5
 
 		PREFIX		Tree1:
 x		IS		$0
-retaddr		IS		$1
-W		IS		$2
-U		IS		$3
+U		IS		$1
+retaddr		IS		$2
+W		IS		$3
 last		IS		$4
 :Tree1		GET		retaddr,:rJ
+		ANDNL		U,#0001
 		PUSHJ		last,:Alloc		W <= AVAIL
 		SET		W,last
 		LDO		:t,x,:node:TYPE
@@ -438,10 +623,10 @@ last		IS		$4
 		LDO		:t,x,:node:INFO
 		STO		:t,W,:node:INFO		INFO(W) <- x
 		STO		U,W,:node:LLINK		LLINK(W) <- U
-		STO		W,U,:node:RLINK		RLINK(U) <- V
+		STO		W,U,:node:RLINK		RLINK(U) <- W
 		LDO		:t,U,:node:RLINK
 		ORL		:t,#0001	
-		LDO		:t,U,:node:RLINK	RTAG(U) <- 0
+		STO		:t,U,:node:RLINK	RTAG(U) <- 1
 		PUT		:rJ,retaddr
 		SET		$0,W
 		POP		1,0
@@ -451,7 +636,7 @@ last		IS		$4
 x		IS		$0
 retaddr		IS		$1
 W		IS		$2
-last		IS		$4
+last		IS		$3
 :Tree0		GET		retaddr,:rJ
 		PUSHJ		last,:Alloc		W <= AVAIL
 		SET		W,last
@@ -905,6 +1090,306 @@ noRight		SET		(last+1),T
 		PUSHGO		last,fptr
 		PUT		:rJ,retaddr
 		POP		0,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     -				-
+;		    / \				|
+;		   6   x			6 --> x
+		PREFIX		ConstructTree10:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree10 GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'6'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:CONSTANT
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'-'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:SUB
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     -				-
+;		    / \				|
+;		   x   a			x --> a
+		PREFIX		ConstructTree9:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree9	GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'a'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'-'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:SUB
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     -				-
+;		    / \				|
+;		   x   x			x --> x
+		PREFIX		ConstructTree8:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree8	GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'-'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:SUB
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     +				+
+;		    / \				|
+;		   3   x			3 --> x
+		PREFIX		ConstructTree7:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree7	GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'3'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:CONSTANT
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'+'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:ADD
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     +				+
+;		    / \				|
+;		   x   a			x --> a
+		PREFIX		ConstructTree6:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree6	GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'a'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:RLINK
+		SET		tmp1,last
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'+'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:ADD
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
 		PREFIX		:
 
 ;		Stores a pointer to the root at T
