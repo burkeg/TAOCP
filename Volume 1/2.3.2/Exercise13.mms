@@ -39,6 +39,7 @@ Main		LDA	    	POOLMAX,L0
 		LDA		$1,T
 		PUSHJ		$0,:ThreadTree
 		LDA		$1,T
+		LDO		$1,$1,:node:LLINK
 		PUSHJ		$0,:CopyBinaryTree
 		TRAP	    	0,Halt,0
 
@@ -51,16 +52,30 @@ Q		IS		$4
 U		IS		$5
 R		IS		$6
 tmp		IS		$7
-last		IS		$8
+fakeHEAD	IS		$8
+tmp2		IS		$9
+last		IS		$10
 ;	  	C1	    	[Initialize.]
 :CopyBinaryTree GET		retaddr,:rJ
+		SET		tmp,HEAD
+1H		SET		(last+1),tmp
+		PUSHJ		last,:HasRightChild
+		BZ		last,2F
+		LDO		tmp,tmp,:node:RLINK
+		JMP		1B
+2H		LDO		tmp,tmp,:node:RLINK
+		SET		fakeHEAD,tmp	Set fakeHEAD to the last node in $ (preorder/postorder)
+		PUSHJ		last,:Alloc
+		SET		tmp2,last
+		STO		HEAD,tmp2,:node:LLINK
+		STO		tmp2,tmp2,:node:RLINK
 		PUSHJ		last,:Alloc
 		SET		U,last		Allocate NODE(U)
 		STO		U,U,:node:RLINK
 		SET		:t,U
 		ORL		:t,#0001
 		STO		:t,U,:node:LLINK
-		SET		P,HEAD		P <- HEAD
+		SET		P,tmp2		P <- HEAD
 		SET		Q,U		Q <- U
 		JMP		4F
 ;	  	C2	    	[Anything to right?]
@@ -74,7 +89,9 @@ last		IS		$8
 		PUSHJ		last,:AttachAsRightChild
 ;	  	C3	    	[Copy INFO]
 3H		LDO		:t,P,:node:INFO
-		STO		:t,Q,:node:INFO		INFO(Q) <- INFO(P)
+		STO		:t,Q,:node:INFO
+;		LDO		:t,P,:node:TYPE
+;		STO		:t,Q,:node:TYPE 	INFO(Q) <- INFO(P)
 ;	  	C4	    	[Anything to left?]
 4H		SET		(last+1),P
 		PUSHJ		last,:HasLeftChild
@@ -92,13 +109,15 @@ last		IS		$8
 		PUSHJ		last,:PreorderSuccessor
 		SET		Q,last		Q <- Q*
 ;	  	C6	    	[Test if complete.]
-6H		LDO		:t,U,:node:RLINK
-		ANDNL		:t,#0001
-		SET		tmp,Q
-		ANDNL		tmp,#0001
-		CMP		:t,Q,:t		Compare Q = RLINK(U)
+6H		ANDNL		P,#0001
+		ANDNL		fakeHEAD,#0001
+		CMP		:t,P,fakeHEAD	Compare P = fakeHEAD
 		BNZ		:t,2B		if true, terminate otherwise go to C2
-		SET		$0,U
+		SET		(last+1),tmp2
+		PUSHJ		last,:Dealloc
+		LDO		$0,U,:node:LLINK
+		SET		(last+1),U
+		PUSHJ		last,:Dealloc
 		PUT		:rJ,retaddr
 		POP		1,0
 		PREFIX		:

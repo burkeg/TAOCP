@@ -42,7 +42,7 @@ last		IS		$2
 		LOC		#100
 Main		LDA	    	POOLMAX,L0
 		LDA	    	SEQMIN,Linf
-		PUSHJ	    	T,:ConstructTree11
+		PUSHJ	    	T,:ConstructTree14
 		SET		(last+1),T
 		PUSHJ		last,:ThreadTree
 		SET		(last+1),T
@@ -78,9 +78,10 @@ last		IS		$10
 		SET		P,last			P <- Y$
 ;		D2		[Differentiate.]
 2H		LDO		P1,P,:node:LLINK	P1 <- LLINK(P)
-		BZ		P1,1F
+		SL		:t,P1,63
+		BNZ		:t,1F
 		LDO		Q1,P1,:node:RLINK	Q1 <- RLINK(P1)
-		SET		(last+1),Q1
+1H		SET		(last+1),Q1
 		SET		(last+2),Q
 		SET		(last+3),P
 		SET		(last+4),P1
@@ -592,6 +593,11 @@ retaddr		IS		$5
 tmp		IS		$6
 last		IS		$10
 :ApplyRule 	GET		retaddr,:rJ
+		ANDNL		Q1,#0001
+		ANDNL		Q,#0001
+		ANDNL		P,#0001
+		ANDNL		P1,#0001
+		ANDNL		P2,#0001
 		LDO		tmp,P,:node:TYPE
 		CMP		:t,tmp,:node:TYPE:CONSTANT
 		BNZ		:t,1F
@@ -761,16 +767,30 @@ Q		IS		$4
 U		IS		$5
 R		IS		$6
 tmp		IS		$7
-last		IS		$8
+fakeHEAD	IS		$8
+tmp2		IS		$9
+last		IS		$10
 ;	  	C1	    	[Initialize.]
 :CopyBinaryTree GET		retaddr,:rJ
+		SET		tmp,HEAD
+1H		SET		(last+1),tmp
+		PUSHJ		last,:HasRightChild
+		BZ		last,2F
+		LDO		tmp,tmp,:node:RLINK
+		JMP		1B
+2H		LDO		tmp,tmp,:node:RLINK
+		SET		fakeHEAD,tmp	Set fakeHEAD to the last node in $ (preorder/postorder)
+		PUSHJ		last,:Alloc
+		SET		tmp2,last
+		STO		HEAD,tmp2,:node:LLINK
+		STO		tmp2,tmp2,:node:RLINK
 		PUSHJ		last,:Alloc
 		SET		U,last		Allocate NODE(U)
 		STO		U,U,:node:RLINK
 		SET		:t,U
 		ORL		:t,#0001
 		STO		:t,U,:node:LLINK
-		SET		P,HEAD		P <- HEAD
+		SET		P,tmp2		P <- HEAD
 		SET		Q,U		Q <- U
 		JMP		4F
 ;	  	C2	    	[Anything to right?]
@@ -804,13 +824,15 @@ last		IS		$8
 		PUSHJ		last,:PreorderSuccessor
 		SET		Q,last		Q <- Q*
 ;	  	C6	    	[Test if complete.]
-6H		LDO		:t,U,:node:RLINK
-		ANDNL		:t,#0001
-		SET		tmp,Q
-		ANDNL		tmp,#0001
-		CMP		:t,Q,:t		Compare Q = RLINK(U)
+6H		ANDNL		P,#0001
+		ANDNL		fakeHEAD,#0001
+		CMP		:t,P,fakeHEAD	Compare P = fakeHEAD
 		BNZ		:t,2B		if true, terminate otherwise go to C2
-		SET		$0,U
+		SET		(last+1),tmp2
+		PUSHJ		last,:Dealloc
+		LDO		$0,U,:node:LLINK
+		SET		(last+1),U
+		PUSHJ		last,:Dealloc
 		PUT		:rJ,retaddr
 		POP		1,0
 		PREFIX		:
@@ -1191,6 +1213,55 @@ noRight		SET		(last+1),T
 		PUSHGO		last,fptr
 		PUT		:rJ,retaddr
 		POP		0,0
+		PREFIX		:
+
+;		Stores a pointer to the root at T
+;		       	 	    	     	y>
+;                  				|
+;		     ln				ln
+;		    /				|
+;		   x				x
+		PREFIX		ConstructTree14:
+retaddr		IS		$0
+tmp1		IS		$1
+last		IS		$2
+:ConstructTree14 GET		retaddr,:rJ
+;
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'x'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'l'<<8+'n'
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:LN
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		SET		tmp1,last
+;		
+		PUSHJ		last,:Alloc
+		SETL		:t,' '<<8+' '
+		INCML		:t,' '<<8+' '
+		INCMH		:t,' '<<8+' '
+		INCH		:t,'y'<<8+' '
+		STO		:t,last,:node:INFO
+		SET		:t,:node:TYPE:VARIABLE
+		STO		:t,last,:node:TYPE
+		STO		tmp1,last,:node:LLINK
+		STO		last,last,:node:RLINK
+;
+		PUT	    	:rJ,retaddr
+		SET		$0,last
+		POP		1,0
 		PREFIX		:
 
 ;		Stores a pointer to the root at T
