@@ -63,8 +63,12 @@ last		IS		$10
 		BZ		last,2F
 		LDO		tmp,tmp,:node:RLINK
 		JMP		1B
-2H		LDO		tmp,tmp,:node:RLINK
-		SET		fakeHEAD,tmp	Set fakeHEAD to the last node in $ (preorder/postorder)
+2H		SET		(last+1),tmp
+		PUSHJ		last,:HasLeftChild
+		BZ		last,3F
+		LDO		tmp,tmp,:node:LLINK
+		JMP		1B
+3H		LDO		fakeHEAD,tmp,:node:RLINK	Set fakeHEAD to P$ (as a thread) where P is the last node in the subtree in preorder
 		PUSHJ		last,:Alloc
 		SET		tmp2,last
 		STO		HEAD,tmp2,:node:LLINK
@@ -95,24 +99,16 @@ last		IS		$10
 ;	  	C4	    	[Anything to left?]
 4H		SET		(last+1),P
 		PUSHJ		last,:HasLeftChild
-		BZ		last,5F			If P doesn't have a left subtree, skip to C5
+		BZ		last,6F			If P doesn't have a left subtree, skip to C6
 		PUSHJ		last,:Alloc
 		SET		R,last		R <= AVAIL
 		SET		(last+1),Q
 		SET		(last+2),R
 		PUSHJ		last,:AttachAsLeftChild
-;	  	C5	    	[Advance.]
-5H		SET		(last+1),P
-		PUSHJ		last,:PreorderSuccessor
-		SET		P,last		P <- P*
-		SET		(last+1),Q
-		PUSHJ		last,:PreorderSuccessor
-		SET		Q,last		Q <- Q*
 ;	  	C6	    	[Test if complete.]
-6H		ANDNL		P,#0001
-		ANDNL		fakeHEAD,#0001
-		CMP		:t,P,fakeHEAD	Compare P = fakeHEAD
-		BNZ		:t,2B		if true, terminate otherwise go to C2
+6H		LDO		:t,P,:node:RLINK
+		CMP		:t,:t,fakeHEAD
+		BNZ		:t,5F		if true, terminate otherwise go to C2
 		SET		(last+1),tmp2
 		PUSHJ		last,:Dealloc
 		LDO		$0,U,:node:LLINK
@@ -120,6 +116,14 @@ last		IS		$10
 		PUSHJ		last,:Dealloc
 		PUT		:rJ,retaddr
 		POP		1,0
+;	  	C5	    	[Advance.]
+5H		SET		(last+1),P
+		PUSHJ		last,:PreorderSuccessor
+		SET		P,last		P <- P*
+		SET		(last+1),Q
+		PUSHJ		last,:PreorderSuccessor
+		SET		Q,last		Q <- Q*
+		JMP		2B
 		PREFIX		:
 
 		PREFIX		AttachAsRightChild:
