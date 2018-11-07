@@ -16,8 +16,8 @@ nodeSize 	GREG	    	_nodeSize*octaSize
 		PREFIX    	nodeGarbage:
 ALINK		IS	    	8*0
 BLINK		IS	    	8*1
-MARK		IS	    	8*2-0
-ATOM		IS	    	8*2-1
+MARK		IS	    	8*2+0
+ATOM		IS	    	8*2+1
 INFO		IS	    	8*3
 		PREFIX    	:
 
@@ -68,22 +68,34 @@ last		IS		$7
 		STB		:t,b,:nodeGarbage:ATOM
 		SET		:t,0
 ;		a
+		SET		:t,'a'
+		STO		:t,a,:node:INFO
 		STO		b,a,:node:LLINK
 		STO		c,a,:node:RLINK
 ;		b
-		STO		:t,a,:node:LLINK
-		STO		:t,a,:node:RLINK
+		SET		:t,'b'
+		STO		:t,b,:node:INFO
+		SET		:t,0
+		STO		:t,b,:node:LLINK
+		STO		:t,b,:node:RLINK
 ;		c
-		STO		b,a,:node:LLINK
-		STO		d,a,:node:RLINK
+		SET		:t,'c'
+		STO		:t,c,:node:INFO
+		STO		b,c,:node:LLINK
+		STO		d,c,:node:RLINK
 ;		d
-		STO		e,a,:node:LLINK
-		STO		d,a,:node:RLINK
+		SET		:t,'d'
+		STO		:t,d,:node:INFO
+		STO		e,d,:node:LLINK
+		STO		d,d,:node:RLINK
 ;		e
-		STO		:t,a,:node:LLINK
-		STO		c,a,:node:RLINK
-		SET		$0,a
+		SET		:t,'e'
+		STO		:t,e,:node:INFO
+		SET		:t,0
+		STO		:t,e,:node:LLINK
+		STO		c,e,:node:RLINK
 		PUT		:rJ,retaddr
+		SET		$0,a
 		POP		1,0
 		PREFIX		:
 
@@ -120,7 +132,7 @@ last 		IS		$6
 5H		LDO		Q,P,:nodeGarbage:BLINK
 		BZ		Q,6F	if Q = Λ skip to E6
 		LDB		:t,Q,:nodeGarbage:MARK
-		BNZ		:t,6F	if MARK(Q) = 0 skip to E6
+		BNZ		:t,6F	if MARK(Q) != 0 skip to E6
 		STO		T,P,:nodeGarbage:BLINK	BLINK(P) <- T
 		SET		T,P			T <- P
 		SET		P,Q			P <- Q
@@ -128,8 +140,8 @@ last 		IS		$6
 ;	  	E6	    	[Up.]
 6H		BZ		T,done	if T = Λ, terminate
 		SET		Q,T	Q <- T
-3H		LDB		:t,P,:nodeGarbage:ATOM
-		BZ		:t,doB	if ATOM(P) = 0, do B again
+3H		LDB		:t,Q,:nodeGarbage:ATOM
+		BZ		:t,doB	if ATOM(Q) = 0, do B again
 		SET		:t,0
 		STB		:t,Q,:nodeGarbage:ATOM	ATOM(Q) <- 0
 		LDO		T,Q,:nodeGarbage:ALINK T <- ALINK(Q)
