@@ -20,6 +20,12 @@ SIZE		IS		8*0
 LINK		IS		8*1
 		PREFIX		:
 
+		PREFIX		strategy:
+first		IS		0
+best		IS		1
+worst		IS		2
+		PREFIX		:
+
 		LOC       	Data_Segment
 		GREG	    	@
 AVAIL		OCTA		0,@+8*2
@@ -31,6 +37,13 @@ Linf		OCTA	    	0
 		LOC		#100
 Main		PUSHJ		$0,:allocateSomeStuff
 		TRAP	    	0,Halt,0
+
+		PREFIX		testStrategy:
+strategy	IS		$0
+retaddr		IS		$1
+:testStrategy	GET		retaddr,:rJ
+		PUT		:rJ,retaddr
+		PREFIX		:
 
 		PREFIX		allocateSomeStuff:
 retaddr		IS		$0
