@@ -6,13 +6,11 @@ ZERO		GREG
 t 		IS	    	$255
 octaSize	IS		8
 capacity 	IS	    	8		max number of 8-byte nodes for allocation
-LINK		IS 	    	0
-INFO		IS	    	8
+seed	  	IS	    	1
 
 		PREFIX    	node:
-LLINK		IS	    	8*0
-RLINK		IS	    	8*1
-INFO		IS	    	8*2
+LINK		IS	    	8*0
+INFO		IS	    	8*1
 		PREFIX    	:
 
 		PREFIX		dynNode:
@@ -26,6 +24,12 @@ best		IS		1
 worst		IS		2
 		PREFIX		:
 
+		PREFIX		f:
+one		GREG		#3FF0000000000000
+negone		GREG		#BFF0000000000000 
+zero		GREG		#0000000000000000
+		PREFIX		:
+
 		LOC       	Data_Segment
 		GREG	    	@
 AVAIL		OCTA		0,@+8*2
@@ -33,6 +37,7 @@ L0		OCTA      	octaSize*capacity,0
 		LOC	    	L0+octaSize*capacity
 		GREG	    	@
 Linf		OCTA	    	0
+schedule	OCTA		0
 
 		LOC		#100
 Main		PUSHJ		$0,:allocateSomeStuff
@@ -45,6 +50,23 @@ retaddr		IS		$1
 		PUT		:rJ,retaddr
 		PREFIX		:
 
+		PREFIX		scheduleAllocations:
+retaddr		IS		$0
+tmp 		IS		$9
+last 		IS		$10
+:scheduleAllocations GET	retaddr,:rJ
+		PUT  		:rJ,retaddr
+		PREFIX		:
+
+;		Exponential distrobution Quantile: −ln(1 − F) / λ
+		PREFIX	        randExp:
+retaddr		IS		$0
+tmp 		IS		$9
+last 		IS		$10
+:randExp 	GET		retaddr,:rJ
+
+		PUT  		:rJ,retaddr
+		PREFIX		:
 		PREFIX		allocateSomeStuff:
 retaddr		IS		$0
 a		IS		$1
@@ -107,8 +129,8 @@ c		IS		2<<3
 		SET		Q,worstLocQ		
 		JMP		4F
 failed		SET		$0,0			Unsuccessfully allocated space
-;		POP		1,0
-		TRAP		0,:Halt,0
+		POP		1,0
+;		TRAP		0,:Halt,0
 ;	  	A3	    	[Is SIZE enough?]
 3H		LDO		tmp,P,:dynNode:SIZE	get SIZE(P)
 		CMPU		:t,tmp,N
@@ -163,8 +185,8 @@ bestSizeDefault	OCTA		#7FFFFFFFFFFFFFFF
 		SET		Q,bestLocQ		
 		JMP		4F
 failed		SET		$0,0			Unsuccessfully allocated space
-;		POP		1,0
-		TRAP		0,:Halt,0
+		POP		1,0
+;		TRAP		0,:Halt,0
 ;	  	A3	    	[Is SIZE enough?]
 3H		LDO		tmp,P,:dynNode:SIZE	get SIZE(P)
 		CMPU		:t,tmp,N
@@ -208,8 +230,8 @@ c		IS		2<<3
 2H		LDO		P,Q,:dynNode:LINK	P <- LINK(Q)
 		BNZ		P,3F			If P = Λ, terminate
 		SET		$0,0			Unsuccessfully allocated space
-;		POP		1,0
-		TRAP		0,:Halt,0
+		POP		1,0
+;		TRAP		0,:Halt,0
 ;	  	A3	    	[Is SIZE enough?]
 3H		LDO		tmp,P,:dynNode:SIZE	get SIZE(P)
 		CMPU		:t,tmp,N
@@ -270,3 +292,28 @@ noMergeDown	STO		P0,Q,:dynNode:LINK	LINK(Q) ← P0
 		STO		N,P0,:dynNode:SIZE	SIZE(P0) ← N
 	  	POP	    	0,0
 	  	PREFIX   	:
+
+	  	PREFIX    	rand:
+X	  	IS	    	$0
+a	  	IS	    	$1
+c	  	IS	    	$2
+last	  	IS	    	$3
+:rand	  	GETA	    	last,X_
+	  	LDO	    	X,last
+	  	GETA	    	:t,a_
+	  	LDO	    	a,:t
+	  	GETA	    	:t,c_
+	  	LDO	    	c,:t
+	 	MUL	    	:t,a,X
+	  	ADD	    	X,:t,c
+	  	STO	    	X,last
+	  	FLOT	    	X,X
+	  	SET	    	:t,:f:negone
+	  	ANDNH	    	:t,#8000
+	  	FLOT	    	:t,:t
+	  	FDIV	    	X,X,:t
+	  	POP	    	1,0
+a_	  	OCTA	    	#5851F42D4C957F2D
+c_	  	OCTA	    	#14057B7EF767814F
+X_	  	OCTA	    	:seed
+	  	PREFIX      	:
