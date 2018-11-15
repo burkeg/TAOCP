@@ -5,7 +5,7 @@ ZERO		GREG
 
 t 		IS	    	$255
 octaSize	IS		8
-capacity 	IS	    	8		max number of 8-byte nodes for allocation
+capacity 	IS	    	76		max number of 8-byte nodes for allocation
 seed	  	IS	    	1
 
 		PREFIX    	node:
@@ -40,33 +40,132 @@ Linf		OCTA	    	0
 schedule	OCTA		0
 
 		LOC		#100
-Main		PUSHJ		$0,:allocateSomeStuff
+Main		SET		$1,:strategy:first
+		PUSHJ		$0,:scheduleAllocations
 		TRAP	    	0,Halt,0
+
+		PREFIX		previewRand:
+:previewRand	LDA		$0,:Data_Segment
+1H		SET		$2,0
+		SET		$3,255
+		PUSHJ		$1,:randintAtoB
+		STO		$1,$0
+		ADD		$0,$0,8
+		JMP		1B
+		PREFIX		:
 
 		PREFIX		testStrategy:
 strategy	IS		$0
 retaddr		IS		$1
+last		IS		$2
+minSize		IS		1
+maxSize		IS		2
 :testStrategy	GET		retaddr,:rJ
-		PUT		:rJ,retaddr
+		SET		(last+1),minSize
+		SET		(last+2),maxSize
+		PUSHJ		last,:randintAtoB
+		SET		(last+1),last
+		CMP		:t,strategy,:strategy:first
+		BNZ		:t,1F
+		PUSHJ		last,:firstFit
+		JMP		done
+1H		CMP		:t,strategy,:strategy:best
+		BNZ		:t,1F
+		PUSHJ		last,:bestFit
+		JMP		done
+1H		CMP		:t,strategy,:strategy:worst
+		BNZ		:t,1F
+		PUSHJ		last,:worstFit
+		JMP		done
+1H		TRAP		0,:Halt,0  Unknown strategy
+done		PUT		:rJ,retaddr
+		SET		$0,last
+		POP		1,0
 		PREFIX		:
 
 		PREFIX		scheduleAllocations:
-retaddr		IS		$0
+strategy	IS		$0
+retaddr		IS		$1
+time		IS		$2
+numEvents	IS		$3
+currEvent	IS		$4
+currEventPtr	IS		$5
+twoK		IS		$6
 tmp 		IS		$9
 last 		IS		$10
 :scheduleAllocations GET	retaddr,:rJ
-		PUT  		:rJ,retaddr
+		SET  		time,0
+		SET		numEvents,0
+		SETL		twoK,(2000>>(16*0))%(1<<16)
+		INCML		twoK,(2000>>(16*1))%(1<<16)
+		INCMH		twoK,(2000>>(16*2))%(1<<16)
+		INCH		twoK,(2000>>(16*3))%(1<<16)
+timeLoop	CMPU		:t,time,twoK				for (time=0; time<2000;time++) {
+		BP		:t,timeLoopExit
+		LDA		currEventPtr,:schedule
+		SET		currEvent,0
+eventLoop	CMPU		:t,currEvent,numEvents				for (event=0; event<numEvents; numEvents++) {
+		BNN		:t,eventLoopExit
+		LDO		:t,currEventPtr,:node:INFO
+		CMP		:t,:t,time					
+		BNZ		:t,notNow						if (events[currEvent].expireTime == time) {
+		LDO		(last+1),currEventPtr,:node:LINK
+		PUSHJ		last,:liberate							free(events[currEvent].nodePtr);
+		SET		:t,0
+		SUB		:t,:t,1
+		STO		:t,currEventPtr,:node:INFO
+notNow		ADD		currEventPtr,currEventPtr,16
+		ADD		currEvent,currEvent,1
+		JMP		eventLoop					}
+eventLoopExit	SET		(last+1),strategy
+		PUSHJ		last,:testStrategy
+		SET		tmp,last
+		BNZ		last,allocSuccess				if (alloc failed) {return time;}
+		SET		$0,time
+		JMP		done
+allocSuccess	STO		tmp,currEventPtr,:node:LINK
+		PUSHJ		last,:randExp
+		ADD		:t,time,last
+		STO		:t,currEventPtr,:node:INFO
+		ADD		numEvents,numEvents,1
+		ADD		time,time,1
+		JMP		timeLoop				}
+timeLoopExit	SET		$0,twoK							
+done		PUT  		:rJ,retaddr
+		POP		1,0
 		PREFIX		:
 
 ;		Exponential distrobution Quantile: −ln(1 − F) / λ
 		PREFIX	        randExp:
 retaddr		IS		$0
+idx		IS		$1
 tmp 		IS		$9
 last 		IS		$10
+table		BYTE		1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+		BYTE		2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+		BYTE		2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3
+		BYTE		3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4
+		BYTE		4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5
+		BYTE		5,5,6,6,6,6,6,7,7,7,7,8,9,9,11
+;		Generated using "testDist.m"
+tableEnd	BYTE		11
+numItems	IS		(tableEnd+1-table)
 :randExp 	GET		retaddr,:rJ
-
+		SET		tmp,numItems
+		SETL		tmp,(numItems>>(8*0))%(1<<8)
+		INCML		tmp,(numItems>>(8*1))%(1<<8)
+		INCMH		tmp,(numItems>>(8*2))%(1<<8)
+		INCH		tmp,(numItems>>(8*3))%(1<<8)
+		SET		(last+1),0
+		SET		(last+2),tmp
+		PUSHJ		last,:randintAtoB
+		SET		idx,last
+		GETA		:t,table
 		PUT  		:rJ,retaddr
+		LDB		$0,:t,idx
+		POP		1,0
 		PREFIX		:
+
 		PREFIX		allocateSomeStuff:
 retaddr		IS		$0
 a		IS		$1
@@ -276,6 +375,8 @@ tmp		IS		$4
 		BZ		P,noMergeUp		and P ≠ Λ
 		LDO		:t,P,:dynNode:SIZE	
 		ADD		N,N,:t			N ← N + SIZE(P)
+		LDO		:t,P,:dynNode:LINK
+		STO		:t,P0,:dynNode:LINK	LINK(P0) ← LINK(P)
 		JMP		4F
 noMergeUp	STO		P,P0,:dynNode:LINK	otherwise LINK(P0) ← P
 ;	  	B4	    	[Check lower bound.]
@@ -307,13 +408,29 @@ last	  	IS	    	$3
 	 	MUL	    	:t,a,X
 	  	ADD	    	X,:t,c
 	  	STO	    	X,last
-	  	FLOT	    	X,X
-	  	SET	    	:t,:f:negone
-	  	ANDNH	    	:t,#8000
-	  	FLOT	    	:t,:t
+	  	FLOTU	    	X,X
+	  	SET	    	:t,0
+		SUB		:t,:t,1
+	  	FLOTU	    	:t,:t
 	  	FDIV	    	X,X,:t
 	  	POP	    	1,0
 a_	  	OCTA	    	#5851F42D4C957F2D
 c_	  	OCTA	    	#14057B7EF767814F
 X_	  	OCTA	    	:seed
+	  	PREFIX      	:
+
+	  	PREFIX    	randintAtoB:
+A	  	IS	    	$0
+B	  	IS	    	$1
+retaddr		IS		$2
+last	  	IS	    	$3
+:randintAtoB  	GET		retaddr,:rJ
+		PUSHJ		last,:rand
+		SUB		:t,B,A
+		FLOTU		:t,:t
+		FMUL		:t,:t,last
+		FIXU		:t,:t
+		ADD		$0,:t,A
+	  	PUT		:rJ,retaddr
+		POP		1,0
 	  	PREFIX      	:
