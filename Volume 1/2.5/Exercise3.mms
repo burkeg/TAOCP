@@ -178,27 +178,27 @@ g		IS		$7
 tmp 		IS		$8
 last 		IS		$9		
 :allocateSomeStuff GET		retaddr,:rJ
-		SET		(last+1),6
-		PUSHJ		last,:worstFit
+		SET		(last+1),1
+		PUSHJ		last,:firstFit
 		SET		a,last
 		SET		(last+1),1
-		PUSHJ		last,:worstFit
+		PUSHJ		last,:firstFit
 		SET		b,last
 		SET		(last+1),a
 		PUSHJ		last,:liberate
 		SET		(last+1),2
-		PUSHJ		last,:worstFit
+		PUSHJ		last,:firstFit
 		SET		c,last
 		SET		(last+1),1
-		PUSHJ		last,:worstFit
+		PUSHJ		last,:firstFit
 		SET		d,last
 		SET		(last+1),c
 		PUSHJ		last,:liberate
 		SET		(last+1),1
-		PUSHJ		last,:worstFit
+		PUSHJ		last,:firstFit
 		SET		e,last
 ;		SET		(last+1),4
-;		PUSHJ		last,:worstFit		fail here
+;		PUSHJ		last,:firstFit		fail here
 ;		SET		f,last
 		PUT		:rJ,retaddr
 		POP		0,0
