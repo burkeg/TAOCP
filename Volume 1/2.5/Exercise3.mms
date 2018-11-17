@@ -4,8 +4,8 @@ POOLMAX 	GREG
 ZERO		GREG
 
 t 		IS	    	$255
-octaSize	IS		8
-capacity 	IS	    	76		max number of 8-byte nodes for allocation
+wordSize	IS		#10
+capacity 	IS	    	150		max number of 8-byte nodes for allocation
 seed	  	IS	    	1
 
 		PREFIX    	node:
@@ -33,14 +33,14 @@ zero		GREG		#0000000000000000
 		LOC       	Data_Segment
 		GREG	    	@
 AVAIL		OCTA		0,@+8*2
-L0		OCTA      	octaSize*capacity,0
-		LOC	    	L0+octaSize*capacity
+L0		OCTA      	wordSize*capacity,0
+		LOC	    	L0+wordSize*capacity
 		GREG	    	@
 Linf		OCTA	    	0
 schedule	OCTA		0
 
 		LOC		#100
-Main		SET		$1,:strategy:first
+Main		SET		$1,:strategy:worst
 		PUSHJ		$0,:scheduleAllocations
 		TRAP	    	0,Halt,0
 
@@ -59,7 +59,7 @@ strategy	IS		$0
 retaddr		IS		$1
 last		IS		$2
 minSize		IS		1
-maxSize		IS		2
+maxSize		IS		20
 :testStrategy	GET		retaddr,:rJ
 		SET		(last+1),minSize
 		SET		(last+2),maxSize
@@ -83,6 +83,23 @@ done		PUT		:rJ,retaddr
 		POP		1,0
 		PREFIX		:
 
+		PREFIX		resetHeap:
+tmpAVAIL	IS		$0
+default		OCTA		0,@+8*2
+		OCTA      	:wordSize*:capacity,0
+:resetHeap	GETA		:t,default
+		LDA		tmpAVAIL,:AVAIL
+		LDO		$1,tmpAVAIL,#0
+		STO		$1,:t,#0
+		LDO		$1,tmpAVAIL,#8
+		STO		$1,:t,#8
+		LDO		$1,tmpAVAIL,#10
+		STO		$1,:t,#10
+		LDO		$1,tmpAVAIL,#18
+		STO		$1,:t,#18
+		POP		0,0
+		PREFIX		:
+
 		PREFIX		scheduleAllocations:
 strategy	IS		$0
 retaddr		IS		$1
@@ -94,6 +111,7 @@ twoK		IS		$6
 tmp 		IS		$9
 last 		IS		$10
 :scheduleAllocations GET	retaddr,:rJ
+		PUSHJ		last,:resetHeap
 		SET  		time,0
 		SET		numEvents,0
 		SETL		twoK,(2000>>(16*0))%(1<<16)
@@ -217,7 +235,7 @@ worstSize	IS		$8
 last		IS		$9
 c		IS		2<<3
 ;	  	A1	    	[Initialize.]
-:worstFit	SL		N,N,3
+:worstFit	SL		N,N,4
 		SET		worstSize,0
 		LDA		Q,:AVAIL	Q <- LOC(AVAIL)
 ;	  	A2	    	[End of list?]
@@ -271,7 +289,7 @@ last		IS		$9
 c		IS		2<<3
 bestSizeDefault	OCTA		#7FFFFFFFFFFFFFFF
 ;	  	A1	    	[Initialize.]
-:bestFit	SL		N,N,3
+:bestFit	SL		N,N,4
 		GETA		bestSize,bestSizeDefault
 		LDO		bestSize,bestSize
 		LDA		Q,:AVAIL	Q <- LOC(AVAIL)
@@ -321,9 +339,9 @@ K		IS		$3
 tmp		IS		$4
 L		IS		$5
 last		IS		$6
-c		IS		2<<3
+c		IS		2*:wordSize
 ;	  	A1	    	[Initialize.]
-:firstFit	SL		N,N,3
+:firstFit	SL		N,N,4
 		LDA		Q,:AVAIL	Q <- LOC(AVAIL)
 ;	  	A2	    	[End of list?]
 2H		LDO		P,Q,:dynNode:LINK	P <- LINK(Q)
