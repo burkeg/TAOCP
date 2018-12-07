@@ -6,7 +6,7 @@ ZERO		GREG
 t 		IS	    	$255
 wordSize	IS		#10
 m		IS		3
-capacity 	IS	    	1<<(m+4)	max number of 8-byte nodes for allocation
+capacity 	IS	    	1<<(m+5)	max number of 8-byte nodes for allocation
 seed	  	IS	    	1
 
 		PREFIX    	node:
@@ -18,8 +18,12 @@ INFO		IS	    	8*2
 TAG		IS		0
 KVAL		IS		1
 LINKF		IS		8*1
-LINKB		IS		8*2
+LINKB		IS		8*2 
+		PREFIX		:
 
+		PREFIX		availNode:
+AVAILF		IS		8*0
+AVAILB		IS		8*1 
 		PREFIX		:
 
 		PREFIX		f:
@@ -30,12 +34,12 @@ zero		GREG		#0000000000000000
 
 		LOC       	Data_Segment
 		GREG	    	@
-AVAIL		OCTA		0,@+8*2
 L0		OCTA      	0
 		LOC	    	L0+capacity
 		GREG	    	@
 Linf		OCTA	    	0
-schedule	OCTA		0
+AVAIL		OCTA		0
+		LOC		AVAIL+m*8
 
 		LOC		#100
 Main		PUSHJ		$0,:allocateSomeStuff
