@@ -6,7 +6,8 @@ ZERO		GREG
 t 		IS	    	$255
 wordSize	IS		#10
 m		IS		3
-capacity 	IS	    	1<<(m+5)	max number of 8-byte nodes for allocation
+mOffset		IS		5		Each node is of size 2^mOffset bytes
+capacity 	IS	    	1<<(m+mOffset)	max number of bytes for allocation
 seed	  	IS	    	1
 
 		PREFIX    	node:
@@ -37,30 +38,92 @@ zero		GREG		#0000000000000000
 L0		OCTA      	0
 		LOC	    	L0+capacity
 		GREG	    	@
-Linf		OCTA	    	0
+;Linf		OCTA	    	0
 AVAIL		OCTA		0
 		LOC		AVAIL+m*8
 
 		LOC		#100
-Main		PUSHJ		$0,:allocateSomeStuff
+Main		SET		$1,:m
+		PUSHJ		$0,:initMemory
+		PUSHJ		$0,:allocateSomeStuff
 		TRAP	    	0,Halt,0
+
+		
+	  	PREFIX    	initMemory:
+m	  	IS	    	$0
+retaddr		IS		$1
+AVAILhead	IS		$2
+AVAIL		IS		$3
+i		IS		$4
+last		IS		$10
+:initMemory  	GET		retaddr,:rJ
+		LDA		AVAILhead,:AVAIL
+		SET		AVAIL,AVAILhead
+		SET		i,m
+1H		BZ		i,2F				AVAILF[k]=LINKF(LOC(AVAIL[k]))=link to rear of AVAIL[k] list
+		STO		AVAIL,AVAIL			AVAILB[k]=LINKB(LOC(AVAIL[k]))=link to front of AVAIL[k] list
+		STO		AVAIL,AVAIL,8
+		SUB		i,i,1
+		ADD		AVAIL,AVAIL,16
+		JMP		1B
+2H		SUB		AVAIL,AVAIL,16			Bring back AVAIL to point to LOC(AVAIL[m])
+		LDA		:t,:L0				Loop ends before k=m so AVAILF[m]=AVAILF[m]=0
+		STO		AVAIL,:t,:dynNode:LINKF	     	
+		STO		AVAIL,:t,:dynNode:LINKB	     	LINKF(0)=LINKB(0)=LOC(AVAIL[m])
+		SET		last,1
+		STB		last,:t,:dynNode:TAG		TAG(0)=1
+		STB		m,:t,:dynNode:KVAL		KVAL(0)=m
+		PUT		:rJ,retaddr
+	  	POP	    	1,0
+	  	PREFIX      	:
 
 	  	PREFIX    	reserve:
 k	  	IS	    	$0
-retaddr		IS		$1
+j		IS		$1
+P		IS		$2
+L		IS		$3
+delta		IS		$4
+AVAILj		IS		$5
+AVAILk		IS		$6
+AVAILm		IS		$7
 last		IS		$10
-:reserve  	GET		retaddr,:rJ
-		PUT		:rJ,retaddr
+:reserve  	SET		j,k
+		SET		delta,1<<:mOffset
+		LDA		AVAILk,:AVAIL
+		MUL		:t,k,16
+		ADD		AVAILk,:t,AVAILk	AVAILk = LOC(AVAIL[k])
+		LDA		AVAILm,:AVAIL
+		SET		:t,:m
+		MUL		:t,:t,16
+		ADD		AVAILm,:t,AVAILm	AVAILm = LOC(AVAIL[m])
+		SET		AVAILj,AVAILk
+;	  	R1	    	[Find block.]
+1H		CMPU		:t,AVAILj,AVAILm
+		BP		:t,5F			for k ≤ j ≤ m
+		LDO		:t,AVAILj,:availNode:AVAILF
+		CMPU		:t,:t,AVAILj		if AVAILF[j] ≠ LOC(AVAIL[j])
+		BNZ		:t,2F
+		ADD		j,j,1
+		ADD		AVAILj,AVAILj,16
+		JMP		1B
+5H		TRAP		0,:Halt,0	Insufficient memory
+;	  	R2	    	[Remove from list.]
+2H		POP	    	1,0
+	  	PREFIX      	:
+
+	  	PREFIX    	buddyk:
+k	  	IS	    	$0
+x		IS		$1
+:buddyk  	SET		:t,1
+		SL		:t,:t,k
+		XOR		$0,x,:t
 	  	POP	    	1,0
 	  	PREFIX      	:
 
 	  	PREFIX    	liberate:
 k	  	IS	    	$0
-retaddr		IS		$1
 last		IS		$10
-:liberate  	GET		retaddr,:rJ
-		PUT		:rJ,retaddr
-	  	POP	    	1,0
+:liberate  	POP	    	1,0
 	  	PREFIX      	:
 
 		PREFIX		allocateSomeStuff:
