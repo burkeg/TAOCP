@@ -19,7 +19,7 @@ INFO		IS	    	8*2
 TAG		IS		0
 KVAL		IS		1
 LINKF		IS		8*1
-LINKB		IS		8*2 
+LINKB		IS		8*2
 		PREFIX		:
 
 		PREFIX		availNode:
@@ -66,8 +66,10 @@ last		IS		$10
 		SUB		i,i,1
 		ADD		AVAIL,AVAIL,16
 		JMP		1B
-2H		SUB		AVAIL,AVAIL,16			Bring back AVAIL to point to LOC(AVAIL[m])
-		LDA		:t,:L0				Loop ends before k=m so AVAILF[m]=AVAILF[m]=0
+2H		LDA		:t,:L0
+		STO		:t,AVAIL,:availNode:AVAILF
+		STO		:t,AVAIL,:availNode:AVAILB		AVAILF[m]=AVAILF[m]=0 (actually #2000000000000000)
+		LDA		:t,:L0
 		STO		AVAIL,:t,:dynNode:LINKF	     	
 		STO		AVAIL,:t,:dynNode:LINKB	     	LINKF(0)=LINKB(0)=LOC(AVAIL[m])
 		SET		last,1
@@ -79,15 +81,17 @@ last		IS		$10
 
 	  	PREFIX    	reserve:
 k	  	IS	    	$0
-j		IS		$1
-P		IS		$2
-L		IS		$3
-delta		IS		$4
-AVAILj		IS		$5
-AVAILk		IS		$6
-AVAILm		IS		$7
-last		IS		$10
-:reserve  	SET		j,k
+retaddr		IS		$1
+j		IS		$2
+P		IS		$3
+L		IS		$4
+delta		IS		$5
+AVAILj		IS		$6
+AVAILk		IS		$7
+AVAILm		IS		$8
+last		IS		$9
+:reserve  	GET		retaddr,:rJ
+		SET		j,k
 		SET		delta,1<<:mOffset
 		LDA		AVAILk,:AVAIL
 		MUL		:t,k,16
@@ -108,7 +112,35 @@ last		IS		$10
 		JMP		1B
 5H		TRAP		0,:Halt,0	Insufficient memory
 ;	  	R2	    	[Remove from list.]
-2H		POP	    	1,0
+2H		LDO		L,AVAILj,:availNode:AVAILB	L <- AVAILB[j]
+		LDO		P,L,:dynNode:LINKB		P <- LINKB(L)
+		STO		P,AVAILj,:availNode:AVAILB	AVAILB[j] <- P
+		STO		AVAILj,P,:dynNode:LINKF
+		SET		:t,0
+		STB		:t,L,:dynNode:TAG
+;	  	R3	    	[Split required?]
+3H		CMP		:t,j,k			If j=k algorithm successful
+		BNZ		:t,4F
+		PUT		:rJ,retaddr
+		SET		$0,L
+		POP	    	1,0
+;	  	R4	    	[Split.]
+4H		SUB		j,j,1
+		LDA		AVAILj,:AVAIL
+		MUL		:t,j,16
+		ADD		AVAILj,:t,AVAILj	AVAILj = LOC(AVAIL[j])
+		SET		:t,1
+		SL		:t,:t,j			2^j
+		SL		:t,:t,:mOffset		account for size of nodes.
+		ADD		P,L,:t			P <- L + 2^j
+		SET		:t,1
+		STB		:t,P,:dynNode:TAG	TAG(P) <- 1
+		STB		j,P,:dynNode:KVAL	KVAL(P) <- j
+		STO		AVAILj,P,:dynNode:LINKB
+		STO		AVAILj,P,:dynNode:LINKF		LINKF(P) <- LINKB(P) <- LOC(AVAIL[j])
+		STO		P,AVAILj,:availNode:AVAILB
+		STO		P,AVAILj,:availNode:AVAILF	AVAILF[j] <- AVAILB[j] <- P
+		JMP		3B
 	  	PREFIX      	:
 
 	  	PREFIX    	buddyk:
@@ -138,7 +170,7 @@ g		IS		$7
 tmp 		IS		$8
 last 		IS		$9		
 :allocateSomeStuff GET		retaddr,:rJ
-		SET		(last+1),1
+		SET		(last+1),0
 		PUSHJ		last,:reserve
 		SET		a,last
 		SET		(last+1),1
