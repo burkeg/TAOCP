@@ -1,3 +1,5 @@
+# Written by bwconrad
+# https://github.com/bwconrad/DPLL-SAT-Solver
 # SAT Solver using the DPLL algorithm
 
 import random
