@@ -4,15 +4,17 @@ import numpy as np
 import pprint as pp
 import collections
 class McGregor:
-    def  __init__(self, n, d):
+    def  __init__(self, n, d, all=False):
         if (n < 3):
             raise ValueError()
         self.fname = "McGregorAssignments_" + str(n) + ".txt"
         self.n = n
+        self.doAll = all
         self.d = d
         self.nodeDict = dict()
         self.assignments = []
         self.clauses = []
+        self.allAssignments = []
         self.adjM = np.zeros((n*(n+1), n*(n+1)))#, dtype=int)
         for i in range(n+1):
             for j in range(n):
@@ -197,7 +199,7 @@ class McGregor:
             for j in range(i+1, self.adjM.shape[0]):
                 if self.adjM[i][j]:
                     for k in range(self.d):
-                        self.clauses.append([-self.getLiteral((self.getNode(i)), k), -self.getLiteral((self.getNode(j)), k)])
+                        self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
 
         pp.pprint(self.clauses)
@@ -240,7 +242,11 @@ class McGregor:
     def solve(self):
         self.genClauses()
         self.assignments = pycosat.solve(self.clauses)
-        return self.assignments != 'UNSAT'
+        if self.assignments == 'UNSAT':
+            return False
+        if self.doAll:
+            self.allAssignments = list(pycosat.itersolve(self.clauses))
+        return True
 
     def viewAssignments(self):
         validColors = dict()
@@ -254,13 +260,15 @@ class McGregor:
 
 if __name__ == "__main__":
     #solve('small_instances.txt')
-    n=3
+    n=5
     d=4
-    mg = McGregor(n=n, d=d)
+    mg = McGregor(n=n, d=d, all=True)
     if mg.solve():
-        #pp.pprint(mg.nodeDict)
+        pp.pprint(mg.nodeDict)
         print(mg.verifyCorrectness())
         print(len(mg.clauses))
         print(mg.viewAssignments())
+        print(mg.assignments)
+        print(len(mg.allAssignments))
     else:
         print('UNSAT')
