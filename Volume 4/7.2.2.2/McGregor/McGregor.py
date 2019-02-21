@@ -1,19 +1,26 @@
 from dpll import solve
 import math
+import numpy as np
 import pprint as pp
 
 class McGregor:
-    def  __init__(self, n):
+    def  __init__(self, n, d):
         if (n < 3):
             raise ValueError()
+        self.fname = "McGregorAssignments_" + str(n) + ".txt"
         self.n = n
+        self.d = d
         self.nodeDict = dict()
+        self.clauses = []
+        self.adjM = np.zeros((n*(n+1), n*(n+1)))#, dtype=int)
         for i in range(n+1):
             for j in range(n):
                 self.nodeDict[(i,j)] = set()
-        self.populateConnections()
-        pp.pprint(self.nodeDict)
-
+        self.nodeToClauseDict = dict()
+        for i in range(n+1):
+            for j in range(n):
+                self.nodeToClauseDict[(i,j)] = i*n+j
+        self.clauses = []
 
     def populateConnections(self):
         n=self.n
@@ -167,20 +174,81 @@ class McGregor:
         for k, v in self.nodeDict.items():
             self.nodeDict[k]=sorted(v)
 
+    def getLiteral(self, node, d):
+        return float(d*(n*(n+1))+self.nodeToClauseDict[node])
+
+    def getNode(self, literal):
+        l=int(abs(literal)%(self.n*(self.n+1)))
+        return (math.floor(l/n), l%n)
+
+    def getColor(self, literal):
+        return math.floor(int(abs(literal)/(self.n*(self.n+1))))
+
+    def genClauses(self):
+        self.populateConnections()
+        self.generateAdjacencyMatrix()
+        # (15) Every vertex has at least one color
+        for vertex in self.nodeDict.keys():
+            self.clauses.append([self.getLiteral(vertex, k) for k in range(d)])
+
+        # (16) adjacent vertices have different colors
+        for i in range(0,self.adjM.shape[0]):
+            for j in range(i+1, self.adjM.shape[0]):
+                if self.adjM[i][j]:
+                    for k in range(self.d):
+                        self.clauses.append([-self.getLiteral((self.getNode(i)), k), -self.getLiteral((self.getNode(j)), k)])
+
+
+        pp.pprint(self.clauses)
+        #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
+        #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
+
+    def generateAdjacencyMatrix(self):
+        for k,v in self.nodeDict.items():
+            for edge in v:
+                #self.adjM[k[0] * n + k[1]][edge[0] * n + edge[1]] = 1
+                self.adjM[edge[0] * n + edge[1]][k[0] * n + k[1]] = 1
+
+    def verifyCorrectness(self):
+        N=self.n*(self.n + 1)
+        regions = 0
+        edges = 0
+        edgesSoFar = set()
+        for k, v in self.nodeDict.items():
+            regions+=1
+            edges+=len(v)
+            for edge in v:
+                edgesSoFar.add(frozenset([k[0]*(n+1)+k[1], edge[0]*(n+1)+edge[1]]))
+        edgesSoFar = [(math.floor(tuple(x)[0]/(n+1)),tuple(x)[0]%(n+1)) for x in edgesSoFar]
+        # check that number of edges is correct
+        if int(edges/2) is not 3*N-6:
+            return False
+        # check that number of unique edges is correct
+        elif len(edgesSoFar) is not 3*N-6:
+            return False
+        # check that number of vertices is correct
+        elif regions is not N:
+            return False
+        # check that adjacency matrix is symmetric
+        for i in range(n+1):
+            for j in range(n):
+                if self.adjM[i][j] != self.adjM[j][i]:
+                    return False
+        return True
+
+    def createSATInstance(self):
+        self.genClauses()
+        with open(self.fname, "w") as output_file:
+            for clause in self.clauses:
+                output_file.write(" ".join(['{0:g}'.format(x) for x in clause])+'\n')
 
 if __name__ == "__main__":
     #solve('small_instances.txt')
-    n=10
-    mg = McGregor(n)
-    regions = 0
-    edges = 0
-    edgesSoFar = set()
-    for k, v in mg.nodeDict.items():
-        regions+=1
-        edges+=len(v)
-        for edge in v:
-            edgesSoFar.add(frozenset([k[0]*(n+1)+k[1], edge[0]*(n+1)+edge[1]]))
-    edgesSoFar = [(math.floor(tuple(x)[0]/(n+1)),tuple(x)[0]%(n+1)) for x in edgesSoFar]
-    pp.pprint(sorted(edgesSoFar))
-    print(len(edgesSoFar))
-    print(int(edges/2))
+    n=3
+    d=4
+    mg = McGregor(n=n, d=d)
+    mg.createSATInstance()
+    #pp.pprint(mg.nodeDict)
+    print(mg.verifyCorrectness())
+    print(len(mg.clauses))
+    solve("test_set.txt")
