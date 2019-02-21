@@ -4,6 +4,11 @@
     <list default="true" id="5c80e66f-8a09-49a6-b3ed-b32d99d4ec83" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/McGregor/McGregor.py" beforeDir="false" afterPath="$PROJECT_DIR$/McGregor/McGregor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/McGregor/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/McGregor/big_instances.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/McGregor/dpll.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/McGregor/small_instances.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/McGregor/test_set.txt" beforeDir="false" afterPath="$PROJECT_DIR$/McGregor/test_set.txt" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -25,84 +30,75 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="py" value="5" />
-          <entry key="txt" value="9" />
+          <entry key="py" value="6" />
+          <entry key="txt" value="12" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="PLAIN_TEXT" value="9" />
-          <entry key="Python" value="5" />
+          <entry key="PLAIN_TEXT" value="12" />
+          <entry key="Python" value="6" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="Python Console" value="80" />
+          <entry key="Python Console" value="116" />
           <entry key="dummy" value="7" />
-          <entry key="py" value="5307" />
-          <entry key="txt" value="2" />
+          <entry key="py" value="5798" />
+          <entry key="txt" value="44" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="9" />
-          <entry key="Python" value="5387" />
+          <entry key="PLAIN_TEXT" value="51" />
+          <entry key="Python" value="5914" />
         </counts>
       </usages-collector>
     </session>
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/McGregor/McGregor.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="519">
-              <caret line="253" column="23" selection-start-line="253" selection-start-column="23" selection-end-line="253" selection-end-column="23" />
+            <state relative-caret-position="422">
+              <caret line="261" selection-start-line="261" selection-end-line="261" />
               <folding>
-                <element signature="e#0#22#0" expanded="true" />
-                <marker date="1550719049639" expanded="true" signature="90:13089" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="10660:10669" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="10660:10704" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="10797:10803" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="10824:10833" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="11655:11865" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="11865:13089" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="11929:11938" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="12850:12856" ph="..." />
-                <marker date="1550719049639" expanded="true" signature="12884:12893" ph="..." />
+                <element signature="e#0#14#0" expanded="true" />
+                <marker date="1550721440329" expanded="true" signature="100:13455" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="10699:10708" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="10699:10743" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="10840:10846" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="10867:10876" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="11698:11908" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="11908:13455" ph="..." />
+                <marker date="1550721440329" expanded="true" signature="11972:11981" ph="..." />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/McGregor/dpll.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="111">
-              <caret line="218" column="52" selection-start-line="218" selection-start-column="41" selection-end-line="218" selection-end-column="52" />
-              <folding>
-                <element signature="e#107#120#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/McGregor/test_set.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="187">
-              <caret line="11" column="11" selection-start-line="11" selection-start-column="11" selection-end-line="11" selection-end-column="11" />
+            <state relative-caret-position="17">
+              <caret line="1" lean-forward="true" selection-start-line="1" selection-end-line="1" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/McGregor/assignments.txt">
+        <entry file="file://$PROJECT_DIR$/McGregor/McGregorAssignments_3.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="17">
-              <caret line="1" column="128" selection-start-line="1" selection-start-column="128" selection-end-line="1" selection-end-column="130" />
+            <state relative-caret-position="-272">
+              <caret line="11" column="5" lean-forward="true" selection-start-line="11" selection-start-column="5" selection-end-line="11" selection-end-column="5" />
             </state>
           </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/McGregor/McGregorAssignments_4.txt">
+          <provider selected="true" editor-type-id="text-editor" />
         </entry>
       </file>
     </leaf>
@@ -137,8 +133,8 @@
         <option value="$PROJECT_DIR$/McGregor/dpll.py" />
         <option value="$PROJECT_DIR$/McGregor/small_instances.txt" />
         <option value="$PROJECT_DIR$/McGregor/McGregorAssignments_3.txt" />
-        <option value="$PROJECT_DIR$/McGregor/McGregor.py" />
         <option value="$PROJECT_DIR$/McGregor/test_set.txt" />
+        <option value="$PROJECT_DIR$/McGregor/McGregor.py" />
       </list>
     </option>
   </component>
@@ -235,15 +231,14 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="14" y="29" width="2327" height="1131" extended-state="0" />
-    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.20227173" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32898697" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32898697" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.39819458" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.32898697" />
+      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.39819458" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -268,14 +263,14 @@
           <option name="timeStamp" value="1" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/McGregor/dpll.py</url>
-          <line>224</line>
-          <option name="timeStamp" value="3" />
+          <url>file://$PROJECT_DIR$/McGregor/McGregor.py</url>
+          <line>248</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/McGregor/McGregor.py</url>
-          <line>223</line>
-          <option name="timeStamp" value="4" />
+          <line>242</line>
+          <option name="timeStamp" value="11" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -292,13 +287,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="17" selection-start-line="17" selection-end-line="17" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/McGregor/dpll.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="111">
@@ -309,37 +297,48 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/McGregor/McGregor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="519">
-          <caret line="253" column="23" selection-start-line="253" selection-start-column="23" selection-end-line="253" selection-end-column="23" />
-          <folding>
-            <element signature="e#0#22#0" expanded="true" />
-            <marker date="1550719049639" expanded="true" signature="90:13089" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="10660:10669" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="10660:10704" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="10797:10803" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="10824:10833" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="11655:11865" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="11865:13089" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="11929:11938" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="12850:12856" ph="..." />
-            <marker date="1550719049639" expanded="true" signature="12884:12893" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/McGregor/assignments.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="1" column="128" selection-start-line="1" selection-start-column="128" selection-end-line="1" selection-end-column="130" />
-        </state>
-      </provider>
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/McGregor/test_set.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="187">
-          <caret line="11" column="11" selection-start-line="11" selection-start-column="11" selection-end-line="11" selection-end-column="11" />
+        <state relative-caret-position="17">
+          <caret line="1" lean-forward="true" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="289">
+          <caret line="17" selection-start-line="17" selection-end-line="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/McGregor/McGregorAssignments_3.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-272">
+          <caret line="11" column="5" lean-forward="true" selection-start-line="11" selection-start-column="5" selection-end-line="11" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/McGregor/McGregorAssignments_4.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/McGregor/McGregor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="422">
+          <caret line="261" selection-start-line="261" selection-end-line="261" />
+          <folding>
+            <element signature="e#0#14#0" expanded="true" />
+            <marker date="1550721440329" expanded="true" signature="100:13455" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="10699:10708" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="10699:10743" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="10840:10846" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="10867:10876" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="11698:11908" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="11908:13455" ph="..." />
+            <marker date="1550721440329" expanded="true" signature="11972:11981" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>

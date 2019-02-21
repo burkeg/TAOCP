@@ -1,8 +1,8 @@
-from dpll import solve
+import pycosat
 import math
 import numpy as np
 import pprint as pp
-
+import collections
 class McGregor:
     def  __init__(self, n, d):
         if (n < 3):
@@ -11,6 +11,7 @@ class McGregor:
         self.n = n
         self.d = d
         self.nodeDict = dict()
+        self.assignments = []
         self.clauses = []
         self.adjM = np.zeros((n*(n+1), n*(n+1)))#, dtype=int)
         for i in range(n+1):
@@ -175,14 +176,14 @@ class McGregor:
             self.nodeDict[k]=sorted(v)
 
     def getLiteral(self, node, d):
-        return float(d*(n*(n+1))+self.nodeToClauseDict[node])
+        return d*(n*(n+1))+self.nodeToClauseDict[node]+1
 
     def getNode(self, literal):
-        l=int(abs(literal)%(self.n*(self.n+1)))
+        l=int((abs(literal)-1)%(self.n*(self.n+1)))
         return (math.floor(l/n), l%n)
 
     def getColor(self, literal):
-        return math.floor(int(abs(literal)/(self.n*(self.n+1))))
+        return math.floor(int((abs(literal)-1)/(self.n*(self.n+1))))
 
     def genClauses(self):
         self.populateConnections()
@@ -236,19 +237,30 @@ class McGregor:
                     return False
         return True
 
-    def createSATInstance(self):
+    def solve(self):
         self.genClauses()
-        with open(self.fname, "w") as output_file:
-            for clause in self.clauses:
-                output_file.write(" ".join(['{0:g}'.format(x) for x in clause])+'\n')
+        self.assignments = pycosat.solve(self.clauses)
+        return self.assignments != 'UNSAT'
+
+    def viewAssignments(self):
+        validColors = dict()
+        for literal in self.assignments:
+            if literal > 0:
+                if self.getNode(literal) not in validColors:
+                    validColors[self.getNode(literal)] = set([self.getColor(literal)])
+                else:
+                    validColors[self.getNode(literal)].add(self.getColor(literal))
+        return validColors
 
 if __name__ == "__main__":
     #solve('small_instances.txt')
     n=3
     d=4
     mg = McGregor(n=n, d=d)
-    mg.createSATInstance()
-    #pp.pprint(mg.nodeDict)
-    print(mg.verifyCorrectness())
-    print(len(mg.clauses))
-    solve("test_set.txt")
+    if mg.solve():
+        #pp.pprint(mg.nodeDict)
+        print(mg.verifyCorrectness())
+        print(len(mg.clauses))
+        print(mg.viewAssignments())
+    else:
+        print('UNSAT')
