@@ -4,6 +4,7 @@ import numpy as np
 import pprint as pp
 import sys
 import collections
+from SATUtils import SATUtils
 
 class McGregor:
     def  __init__(self, n, d, all=False):
@@ -181,11 +182,11 @@ class McGregor:
             self.nodeDict[k]=sorted(v)
 
     def getLiteral(self, node, d):
-        return d*(n*(n+1))+self.nodeToClauseDict[node]+1
+        return d*(self.n*(self.n+1))+self.nodeToClauseDict[node]+1
 
     def getNode(self, literal):
         l=int((abs(literal)-1)%(self.n*(self.n+1)))
-        return (math.floor(l/n), l%n)
+        return (math.floor(l/self.n), l%self.n)
 
     def getColor(self, literal):
         return math.floor(int((abs(literal)-1)/(self.n*(self.n+1))))
@@ -195,7 +196,7 @@ class McGregor:
         self.generateAdjacencyMatrix()
         # (15) Every vertex has at least one color
         for vertex in self.nodeDict.keys():
-            self.clauses.append([self.getLiteral(vertex, k) for k in range(d)])
+            self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
         # (16) adjacent vertices have different colors
         for i in range(0,self.adjM.shape[0]):
@@ -205,7 +206,7 @@ class McGregor:
                         self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
 
-        pp.pprint(self.clauses)
+        #pp.pprint(self.clauses)
         #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
         #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
 
@@ -213,10 +214,11 @@ class McGregor:
         for k,v in self.nodeDict.items():
             for edge in v:
                 #self.adjM[k[0] * n + k[1]][edge[0] * n + edge[1]] = 1
-                self.adjM[edge[0] * n + edge[1]][k[0] * n + k[1]] = 1
+                self.adjM[edge[0] * self.n + edge[1]][k[0] * self.n + k[1]] = 1
 
     def verifyCorrectness(self):
         N=self.n*(self.n + 1)
+        n=self.n
         regions = 0
         edges = 0
         edgesSoFar = set()
@@ -262,136 +264,101 @@ class McGregor:
                     validColors[self.getNode(literal)].add(self.getColor(literal))
         return validColors
 
-    def testLimits(self):
-        originalClauses = self.clauses
-        
-
-class SATUtils:
-    # applies a mapping from one literal to another
     @staticmethod
-    def applyLiteralMapping(clauses, mapping, oldToNew=True):
-        tmp_map = mapping
-        if oldToNew:
-            tmp_map = {v: k for k, v in mapping.items()}
-        return [[int(x/abs(x))*tmp_map[abs(x)] for x in clause] for clause in clauses]
+    def viewMinAssignments(n):
+        mg = McGregor(n, 4)
+        singleColorLiterals = list(filter(lambda x: mg.getColor(x) == 0, SATUtils.getUsedLiterals(mg.clauses)))
+        newClauses = mg.clauses + SATUtils.atMost(inLiterals=singleColorLiterals,
+                                                  r=McGregor.getBounds()[n][0],
+                                                  startLiteral=len(SATUtils.getUsedLiterals(mg.clauses))+1)[0]
+        #print(newClauses)
+        return len(list(pycosat.itersolve(newClauses)))
 
-    #returns a tuple containing:
-    # an equivalent list of clauses with literals 1-n
-    # the mapping from old literals to new literals
+
+    # f(n) smallest value of r that graph of order n can have some color r times.
+    # g(n) largest value of r that graph of order n can have some color r times.
+    # Problem 17
     @staticmethod
-    def rewriteFrom1toN(clauses):
-        usedLiterals = SATUtils.getUsedLiterals(clauses)
-        literalMapping = dict()
-        count = 1
-        for literal in usedLiterals:
-            literalMapping[abs(literal)] = count
-            count += 1
-        return([[int(x/abs(x))*literalMapping[abs(x)] for x in clause] for clause in clauses], literalMapping)
-
-    # returns the set of literals used in the clauses
-    @staticmethod
-    def getUsedLiterals(clauses):
-        usedLiterals = set()
-        for clause in clauses:
-            for literal in clause:
-                usedLiterals.add(abs(literal))
-        return usedLiterals
-
-    # given a set of literals and r, this produces a set of clauses that is
-    # only SAT when exactly r terms are true. Auxiliary literals start at
-    # 1+max(map(abs,literals)) or at the specified startLiteral
-    @staticmethod
-    def exactly(inLiterals, r, startLiteral = None):
-        geResult = SATUtils.atLeast(inLiterals, 2, startLiteral)
-        clauses = geResult[0]
-        ltResult = SATUtils.atMost(inLiterals, 2, geResult[1] + 1)
-        clauses = clauses + ltResult[0]
-        return (clauses, ltResult[1])
-
-    # given a set of literals and r, this produces a set of clauses that is
-    # only SAT when at least r terms are true. Auxiliary literals start at
-    # 1+max(map(abs,literals)) or at the specified startLiteral
-    @staticmethod
-    def atLeast(inLiterals, r, startLiteral = None):
-        inLiterals = [-x for x in inLiterals]
-        return SATUtils.atMost(inLiterals, len(inLiterals) - r, startLiteral)
-
-    # given a set of literals and r, this produces a set of clauses that is
-    # only SAT when at most r terms are true. Auxiliary literals start at
-    # 1+max(map(abs,literals)) or at the specified startLiteral
-    @staticmethod
-    def atMost(inLiterals, r, startLiteral = None):
-        if startLiteral == None:
-            startLiteral = max([abs(x) for x in inLiterals]) + 1
-        n=len(inLiterals)
-        clauses = []
-        # format:
-        # 2-tuple means use x[tuple[1]] with polarity tuple[0]
-        # 3-tuple means create variable tuple[0]*s^tuple[2]_tuple[1]
-
-        for k in range(1, r+1):
-            for j in range(1, n-r):
-                clauses.append([(-1, j, k), (1, j+1, k)])
-
-        for k in range(0, r+1):
-            for j in range(1, n-r+1):
-                if k == 0:
-                    clauses.append([(-1, j+k), (1, j, k+1)])
-                elif k == r:
-                    clauses.append([(-1, j+k), (-1, j, k)])
+    def testLimits(bounds, viewProgress=False):
+        limits = dict()
+        for n in range(bounds[0], bounds[1]+1):
+            if n == bounds[0]:
+                r = 1
+            else:
+                r = limits[n-1][0]-1
+            isF = True
+            mg = McGregor(n, 4)
+            # filter out all literals that are not color 0
+            singleColorLiterals = list(filter(lambda x: mg.getColor(x) == 0, SATUtils.getUsedLiterals(mg.clauses)))
+            while True: #repeat until upper bound is found
+                if viewProgress:
+                    print(r)
+                if isF:
+                    newClauses = SATUtils.atMost(singleColorLiterals, r, len(SATUtils.getUsedLiterals(mg.clauses))+1)[0]
+                    newClauses = mg.clauses + newClauses
+                    if (pycosat.solve(newClauses) != 'UNSAT'):
+                        limits[n] = [r, -1]
+                        if n != bounds[0]:
+                            r = limits[n-1][1]-1
+                        isF = False
                 else:
-                    clauses.append([(-1, j+k), (-1, j, k), (1, j, k+1)])
+                    newClauses = SATUtils.atLeast(singleColorLiterals, r, len(SATUtils.getUsedLiterals(mg.clauses))+1)[0]
+                    newClauses = mg.clauses + newClauses
+                    if (pycosat.solve(newClauses) == 'UNSAT'):
+                        limits[n][1] = r-1
+                        if viewProgress:
+                            print(n, limits[n])
+                        break
+                r += 1
+        return limits
 
-        # determine max j
-        maxSubscript = -sys.maxsize - 1
-        minSubscript = sys.maxsize
-        maxSuperscript = -sys.maxsize - 1
-        minSuperscript = sys.maxsize
-        for clause in clauses:
-            for literal in clause:
-                # only look at new variables
-                if len(literal) != 2:
-                    maxSubscript = literal[1] if literal[1] > maxSubscript else maxSubscript
-                    minSubscript = literal[1] if literal[1] < minSubscript else minSubscript
-                    maxSuperscript = literal[2] if literal[2] > maxSuperscript else maxSuperscript
-                    minSuperscript = literal[2] if literal[2] < minSuperscript else minSuperscript
-
-        # rewrite new variables from tuples to literals
-        for i in range(len(clauses)):
-            for j in range(len(clauses[i])):
-                # don't process x's yet, only handle s's
-                if len(clauses[i][j]) != 2:
-                                                #sign of literal
-                    clauses[i][j] = clauses[i][j][0]*( \
-                                    # Offset from input set of literals
-                                startLiteral + \
-                                    # Convert the subscript and superscripts into the index of a flattened
-                                    # 2d array. Adjusted so each dimension is 0-indexed
-                                (clauses[i][j][2]-minSuperscript)*(maxSubscript-minSubscript+1) + \
-                                (clauses[i][j][1]-minSubscript))
-                else:
-                    clauses[i][j] = clauses[i][j][0]*inLiterals[clauses[i][j][1]-1]
-        #print(maxSubscript)
-        largestLiteral = max([max([abs(x) for x in clause]) for clause in clauses])
-        return (clauses, largestLiteral)
+    @staticmethod
+    def getBounds():
+        bounds = {3: [2, 4],
+                  4: [2, 6],
+                  5: [3, 10],
+                  6: [4, 13],
+                  7: [5, 17],
+                  8: [7, 23],
+                  9: [7, 28],
+                  10: [7, 35],
+                  11: [8, 42],
+                  12: [9, 50],
+                  13: [10, 58],
+                  14: [12, 68],
+                  15: [12, 77],
+                  16: [12, 88],
+                  17: [13, 99],
+                  18: [14, 111],
+                  19: [15, 123],
+                  20: [17, 137],
+                  21: [17, 150],
+                  22: [17, 165],
+                  23: [18, 180],
+                  24: [19, 196]
+                  }
+        return bounds
 
 
 
 if __name__ == "__main__":
-    n=10
-    d=4
-    mg = McGregor(n=n, d=d, all=False)
-    if mg.solve():
-        pp.pprint(mg.nodeDict)
-        print(mg.verifyCorrectness())
+    mGreg = McGregor(n=3, d=4, all=False)
+    # McGregor.testLimits([17, 26])
+
+    if mGreg.solve():
+        pp.pprint(mGreg.nodeDict)
+        print(mGreg.verifyCorrectness())
         #print(len(mg.clauses))
         #print(mg.viewAssignments())
         #print(mg.assignments)
         #print(len(mg.allAssignments))
     else:
         print('UNSAT')
-    # literals = [x+0 for x in [1, 2, 3, 4]]
-    # su = SATUtils.exactly(literals, 2, 1000)
+
+    # literals = [x+0 for x in range(1, 10+1)]
+    # su = SATUtils.atMost(literals, 7)
+    # pp.pprint(pycosat.solve(su[0] + [[-1], [-2], [-3], [-4], [-5]]))
+    # print(su)
     # clauses, mapping = SATUtils.rewriteFrom1toN(su[0])
     # pp.pprint(clauses)
     # allSolutions = list(pycosat.itersolve(clauses+[[1], [-2], [-3] ]))
