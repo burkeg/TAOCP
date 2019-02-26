@@ -8,5 +8,9 @@ def Exercise18():
     for i in range(3,20):
         print(i, int(McGregor.viewMinAssignments(i) / 6))
 
+def Exercise19():
+    tst = McGregor(4,4,variant='maxTwo')
+    pass
+
 if __name__ == "__main__":
-    Exercise18()
+    Exercise19()

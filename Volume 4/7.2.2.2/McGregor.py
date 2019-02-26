@@ -7,10 +7,10 @@ import collections
 from SATUtils import SATUtils
 
 class McGregor:
-    def  __init__(self, n, d, all=False):
+    def  __init__(self, n, d, variant='default', all=False):
         if (n < 3):
             raise ValueError()
-        self.fname = "McGregorAssignments_" + str(n) + ".txt"
+        self.variant = variant
         self.n = n
         self.doAll = all
         self.d = d
@@ -194,9 +194,6 @@ class McGregor:
     def genClauses(self):
         self.populateConnections()
         self.generateAdjacencyMatrix()
-        # (15) Every vertex has at least one color
-        for vertex in self.nodeDict.keys():
-            self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
         # (16) adjacent vertices have different colors
         for i in range(0,self.adjM.shape[0]):
@@ -205,8 +202,18 @@ class McGregor:
                     for k in range(self.d):
                         self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
+        if ('maxTwo' in self.variant):
+            startLiteral = max([abs(x) for x in SATUtils.getUsedLiterals(self.clauses)]) + 1
+            for vertex in self.nodeDict.keys():
+                atLeastResults = SATUtils.atLeast([self.getLiteral(vertex, k) for k in range(self.d)], 2, startLiteral=startLiteral)
+                self.clauses += atLeastResults[0]
+                startLiteral = atLeastResults[1] + 1
+        else:
+            # (15) Every vertex has at least one color
+            for vertex in self.nodeDict.keys():
+                self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
-        #pp.pprint(self.clauses)
+        pp.pprint(self.clauses)
         #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
         #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
 
@@ -274,10 +281,45 @@ class McGregor:
         #print(newClauses)
         return len(list(pycosat.itersolve(newClauses)))
 
-
     # f(n) smallest value of r that graph of order n can have some color r times.
     # g(n) largest value of r that graph of order n can have some color r times.
     # Problem 17
+    @staticmethod
+    def testLimits(bounds, viewProgress=False):
+        limits = dict()
+        for n in range(bounds[0], bounds[1]+1):
+            if n == bounds[0]:
+                r = 1
+            else:
+                r = limits[n-1][0]-1
+            isF = True
+            mg = McGregor(n, 4)
+            # filter out all literals that are not color 0
+            singleColorLiterals = list(filter(lambda x: mg.getColor(x) == 0, SATUtils.getUsedLiterals(mg.clauses)))
+            while True: #repeat until upper bound is found
+                if viewProgress:
+                    print(r)
+                if isF:
+                    newClauses = SATUtils.atMost(singleColorLiterals, r, len(SATUtils.getUsedLiterals(mg.clauses))+1)[0]
+                    newClauses = mg.clauses + newClauses
+                    if (pycosat.solve(newClauses) != 'UNSAT'):
+                        limits[n] = [r, -1]
+                        if n != bounds[0]:
+                            r = limits[n-1][1]-1
+                        isF = False
+                else:
+                    newClauses = SATUtils.atLeast(singleColorLiterals, r, len(SATUtils.getUsedLiterals(mg.clauses))+1)[0]
+                    newClauses = mg.clauses + newClauses
+                    if (pycosat.solve(newClauses) == 'UNSAT'):
+                        limits[n][1] = r-1
+                        if viewProgress:
+                            print(n, limits[n])
+                        break
+                r += 1
+        return limits
+
+    # h(n) largest number of regions that can be colored in 2 ways
+    # Problem 19
     @staticmethod
     def testLimits(bounds, viewProgress=False):
         limits = dict()
