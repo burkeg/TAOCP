@@ -48,6 +48,7 @@ class SATUtils:
     # because they aren't actually the same.
     @staticmethod
     def exactly(inLiterals, r, startLiteral = None):
+        raise NotImplementedError()
         geResult = SATUtils.atLeast(inLiterals, 2, startLiteral)
         clauses = geResult[0]
         ltResult = SATUtils.atMost(inLiterals, 2, geResult[1] + 1)
@@ -59,6 +60,8 @@ class SATUtils:
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
     def atLeast(inLiterals, r, startLiteral = None):
+        if r == len(inLiterals):
+            return ([[x] for x in inLiterals], max([abs(x) for x in inLiterals]) + 1)
         inLiterals = [-x for x in inLiterals]
         return SATUtils.atMost(inLiterals, len(inLiterals) - r, startLiteral)
 
@@ -120,3 +123,17 @@ class SATUtils:
         #print(maxSubscript)
         largestLiteral = max([max([abs(x) for x in clause]) for clause in clauses])
         return (clauses, largestLiteral)
+
+    @staticmethod
+    def atLeastRsub(groups, r, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max([max([max([abs(literal) for literal in clause]) for clause in group]) for group in groups]) + 1
+        # create a new literal for each group passed in
+        newVars = range(startLiteral, startLiteral + len(groups))
+        # add each negated literal to its associated group
+        groups = [[x + [-newVars[i]] for x in group] for i, group in enumerate(groups)]
+        # assert at least r of those groups are SAT
+        geResult = SATUtils.atLeast(newVars, r)
+        #flatten the groups into one set of clauses then add the new clauses
+        return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1])
+

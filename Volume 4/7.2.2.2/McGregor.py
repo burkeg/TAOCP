@@ -202,18 +202,28 @@ class McGregor:
                     for k in range(self.d):
                         self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
+        # (15) Every vertex has at least one color
+        for vertex in self.nodeDict.keys():
+            self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
+
         if ('maxTwo' in self.variant):
             startLiteral = max([abs(x) for x in SATUtils.getUsedLiterals(self.clauses)]) + 1
+            groups = []
+            geResult = None
             for vertex in self.nodeDict.keys():
-                atLeastResults = SATUtils.atLeast([self.getLiteral(vertex, k) for k in range(self.d)], 2, startLiteral=startLiteral)
-                self.clauses += atLeastResults[0]
-                startLiteral = atLeastResults[1] + 1
-        else:
-            # (15) Every vertex has at least one color
-            for vertex in self.nodeDict.keys():
-                self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
+                # For each vertex, generate clauses that assert at least 2 colors are true
+                geResult = SATUtils.atLeast([self.getLiteral(vertex, color) for color in range(self.d)], 2, startLiteral)
+                groups.append(geResult[0])
+                startLiteral = geResult[1]+1
+            # pp.pprint(groups)
+            maximized = SATUtils.atLeastRsub(groups, 1, startLiteral)
+            # pp.pprint(maximized)
+            self.clauses = maximized[0]
 
-        pp.pprint(self.clauses)
+
+
+
+        # pp.pprint(self.clauses)
         #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
         #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
 
