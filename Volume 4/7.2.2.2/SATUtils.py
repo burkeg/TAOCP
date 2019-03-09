@@ -40,14 +40,53 @@ class SATUtils:
                 usedLiterals.add(abs(literal))
         return usedLiterals
 
-    # given a set of literals and r, this produces a set of clauses that is
+    # Given a set of literals, this produces a set of clauses that is
+    # only SAT when exactly one literal is true. Auxiliary literals start at
+    # 1+max(map(abs,literals)) or at the specified startLiteral
+    @staticmethod
+    def exactlyOne(inLiterals, startLiteral = None):
+        # S=1(y_1,...y_p) = S<=1(y_1,...y_p) /\ (y_1 \/ y_2) \/ ... \/ y_p)
+        leOne = SATUtils.oneOrLess(inLiterals, startLiteral)
+        leOne[0].append(inLiterals)
+        return leOne
+
+    # Given a set of literals, this produces a set of clauses that is
+    # only SAT when one or less literals are true. Auxiliary literals start at
+    # 1+max(map(abs,literals)) or at the specified startLiteral
+    @staticmethod
+    def oneOrLess(inLiterals, startLiteral = None):
+        clauses = []
+        if startLiteral == None:
+            startLiteral = max([abs(x) for x in inLiterals]) + 1
+        if len(inLiterals) <= 1: # in hindsight, this case isn't needed
+            # A set of one literals always has 1 or less true literals
+            # so an empty set of clauses is returned (Always SAT)
+            return ([], inLiterals[0])
+        if len(inLiterals) <= 4:
+            # for each pair of inLiterals, ensure no two are True
+            for k in range(2, len(inLiterals)+1):
+                for j in range(1, k):
+                    clauses.append([-inLiterals[j-1], -inLiterals[k-1]])
+            return (clauses, max([abs(x) for x in inLiterals]))
+        else:
+            # Recursively defined S(y_1,...,y_p)=
+            # S(y_1,y_2,y_3,t) /\ S(^t,y_4,...y_p)
+
+            # lhs = S(y_1,y_2,y_3,t)
+            lhs = SATUtils.oneOrLess(inLiterals[0:3] + [startLiteral])
+            # rhs = S(^t,y_4,...y_p)
+            rhs = SATUtils.oneOrLess([-startLiteral] + inLiterals[3:])
+            # return lhs /\ rhs
+            return (lhs[0] + rhs[0], rhs[1])
+
+    # Given a set of literals and r, this produces a set of clauses that is
     # only SAT when exactly r terms are true. Auxiliary literals start at
     # 1+max(map(abs,literals)) or at the specified startLiteral
     # IMPORTANT! After some additional testing I don't think this works
     # I don't think it's valid to mix inLiterals from atLeast and atMost
     # because they aren't actually the same.
     @staticmethod
-    def exactly(inLiterals, r, startLiteral = None):
+    def exactlyR(inLiterals, r, startLiteral = None):
         raise NotImplementedError()
         geResult = SATUtils.atLeast(inLiterals, 2, startLiteral)
         clauses = geResult[0]
@@ -55,23 +94,29 @@ class SATUtils:
         clauses = clauses + ltResult[0]
         return (clauses, ltResult[1])
 
-    # given a set of literals and r, this produces a set of clauses that is
+    # Given a set of literals and r, this produces a set of clauses that is
     # only SAT when at least r terms are true. Auxiliary literals start at
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
     def atLeast(inLiterals, r, startLiteral = None):
         if r == len(inLiterals):
             return ([[x] for x in inLiterals], max([abs(x) for x in inLiterals]) + 1)
+        elif r == 0:
+            return ([], max([abs(x) for x in inLiterals]))
         inLiterals = [-x for x in inLiterals]
         return SATUtils.atMost(inLiterals, len(inLiterals) - r, startLiteral)
 
-    # given a set of literals and r, this produces a set of clauses that is
+    # Given a set of literals and r, this produces a set of clauses that is
     # only SAT when at most r terms are true. Auxiliary literals start at
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
     def atMost(inLiterals, r, startLiteral = None):
         if startLiteral == None:
             startLiteral = max([abs(x) for x in inLiterals]) + 1
+        if r == 0:
+            return ([[inLiterals[0]], [inLiterals[1]]], max([abs(x) for x in inLiterals]))
+        elif r == len(inLiterals):
+            return ([], max([abs(x) for x in inLiterals]))
         n=len(inLiterals)
         clauses = []
         # format:
@@ -124,6 +169,10 @@ class SATUtils:
         largestLiteral = max([max([abs(x) for x in clause]) for clause in clauses])
         return (clauses, largestLiteral)
 
+    # Given a set of a set of clauses and r, this produces a set of clauses
+    # that is only SAT when at least r sets of clauses (from the original set of sets)
+    # is SAT. Auxiliary literals start at 1+max(map(abs,literals)) or at the specified
+    # startLiteral
     @staticmethod
     def atLeastRsub(groups, r, startLiteral = None):
         if startLiteral == None:
@@ -134,6 +183,7 @@ class SATUtils:
         groups = [[x + [-newVars[i]] for x in group] for i, group in enumerate(groups)]
         # assert at least r of those groups are SAT
         geResult = SATUtils.atLeast(newVars, r)
+        # print(geResult[0])
         #flatten the groups into one set of clauses then add the new clauses
-        return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1])
+        return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1], geResult[0])
 

@@ -65,10 +65,26 @@ def Exercise19ScratchPad():
 
 def Exercise19():
     # Exercise19ScratchPad()
-    tst = McGregor(4,4,variant='maxTwo')
-    tst.solve()
-    pp.pprint(tst.assignments)
+    for i in range(8, 30):
+        print('i: ', i)
+        tst = McGregor(i,4)
+        tst.maximize2ColoredRegions([0, 100000])
+        print('________')
+    # tst.solve()
+    # pp.pprint(tst.assignments)
+    # pp.pprint([(tst.getNode(x), tst.getColor(x), x)  for x in tst.assignments])
     pass
 
+def Exercise21ScratchPad():
+    result = SATUtils.exactlyOne([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], )
+    pp.pprint(result)
+    print(list(pycosat.itersolve(result[0] + [ ])))
+
+
+def Exercise21():
+    MGGraph = McGregor(3, 2)
+    print(MGGraph.minimizeKernel([0, 10]))
+
+
 if __name__ == "__main__":
-    Exercise19()
+    Exercise21()

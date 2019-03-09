@@ -185,15 +185,25 @@ class McGregor:
         return d*(self.n*(self.n+1))+self.nodeToClauseDict[node]+1
 
     def getNode(self, literal):
-        l=int((abs(literal)-1)%(self.n*(self.n+1)))
-        return (math.floor(l/self.n), l%self.n)
+        if abs(literal) <= (self.n*(self.n+1)*self.d):
+            l=int((abs(literal)-1)%(self.n*(self.n+1)))
+            return (math.floor(l/self.n), l%self.n)
+        else:
+            return (-1, -1)
 
     def getColor(self, literal):
-        return math.floor(int((abs(literal)-1)/(self.n*(self.n+1))))
+        if abs(literal) <= (self.n*(self.n+1)*self.d):
+            return math.floor(int((abs(literal)-1)/(self.n*(self.n+1))))
+        else:
+            return -1
 
     def genClauses(self):
         self.populateConnections()
         self.generateAdjacencyMatrix()
+
+        # (15) Every vertex has at least one color
+        for vertex in self.nodeDict.keys():
+            self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
         # (16) adjacent vertices have different colors
         for i in range(0,self.adjM.shape[0]):
@@ -202,11 +212,44 @@ class McGregor:
                     for k in range(self.d):
                         self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
-        # (15) Every vertex has at least one color
-        for vertex in self.nodeDict.keys():
-            self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
-        if ('maxTwo' in self.variant):
+
+
+
+        # pp.pprint(self.clauses)
+        #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
+        #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
+
+    def minimizeKernel(self, bounds):
+        for r in range(*bounds):
+            clauses = []
+            # determine largest used literal
+            # same as smallest literal with 1 higher color
+            auxLiteralCounter = self.getLiteral((0, 0), 1)
+            for k,v in self.nodeDict.items():
+                # a single k,v may look like this:
+                # k = (7, 8)
+                # v = [(6, 7), (6, 8), (7, 7), (7, 9), (8, 8), (8, 9)]
+                # I want to produce the list of literals each of these nodes correspond with
+                # and then ensure exactly one of them is True.
+                # Use currying to apply a partial version of getLiteral that always uses 0 for the color, map this onto v
+                # Next, don't forget that k's literal also needs to be in the list, so append that too!
+                # Lastly, produce a set of clauses that are only SAT when exactly one literal is True.
+                spannedNodes = SATUtils.exactlyOne(list(map(lambda x: self.getLiteral(x, 0), v)) + [self.getLiteral(k,0)], auxLiteralCounter)
+                auxLiteralCounter = spannedNodes[1] + 1
+                clauses = clauses + spannedNodes[0]
+            # assert at most r nodes are true
+            leResult = SATUtils.atMost(range(1,self.getLiteral((0, 0), 1)), r, auxLiteralCounter)
+            # geResult = SATUtils.atLeastRsub(groupings, r)
+            if 'UNSAT' != pycosat.solve(leResult[0] + clauses):
+                return r
+        return -1
+
+
+
+    def maximize2ColoredRegions(self, bounds):
+        maxRegions = 0;
+        for i in range(bounds[0], bounds[1]+1):
             startLiteral = max([abs(x) for x in SATUtils.getUsedLiterals(self.clauses)]) + 1
             groups = []
             geResult = None
@@ -215,17 +258,13 @@ class McGregor:
                 geResult = SATUtils.atLeast([self.getLiteral(vertex, color) for color in range(self.d)], 2, startLiteral)
                 groups.append(geResult[0])
                 startLiteral = geResult[1]+1
-            # pp.pprint(groups)
-            maximized = SATUtils.atLeastRsub(groups, 1, startLiteral)
-            # pp.pprint(maximized)
-            self.clauses = maximized[0]
-
-
-
-
-        # pp.pprint(self.clauses)
-        #pp.pprint([[self.getNode(x) for x in y] for y in self.clauses])
-        #pp.pprint([[self.getColor(x) for x in y] for y in self.clauses])
+            maximized = SATUtils.atLeastRsub(groups, i, startLiteral)
+            solution = pycosat.solve(self.clauses + maximized[0])
+            # print(solution)
+            if (solution == 'UNSAT'):
+                maxRegions = i - 1;
+                break
+        print(maxRegions)
 
     def generateAdjacencyMatrix(self):
         for k,v in self.nodeDict.items():
