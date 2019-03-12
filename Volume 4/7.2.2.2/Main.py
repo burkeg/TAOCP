@@ -76,14 +76,18 @@ def Exercise19():
     pass
 
 def Exercise21ScratchPad():
-    result = SATUtils.exactlyOne([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], )
+    result = SATUtils.exactlyOne([2, 3, 4, 5, 6, 7, 8, 9, 10, 11], )
     pp.pprint(result)
-    print(list(pycosat.itersolve(result[0] + [ ])))
+    result = result[0] + []
+    result = SATUtils.rewriteFrom1toN(result)
+    # pp.pprint(result)
+    pp.pprint(list(pycosat.itersolve(result[0])))
 
 
 def Exercise21():
-    MGGraph = McGregor(3, 2)
-    print(MGGraph.minimizeKernel([0, 10]))
+    MGGraph = McGregor(10, 2)
+    MGGraph.minimizeKernel([17, 18])
+    pp.pprint([MGGraph.getNode(x) for x in MGGraph.assignments if x>0 and abs(x) <= MGGraph.n*(MGGraph.n+1)])
 
 
 if __name__ == "__main__":

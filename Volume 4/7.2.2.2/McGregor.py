@@ -226,6 +226,7 @@ class McGregor:
             # determine largest used literal
             # same as smallest literal with 1 higher color
             auxLiteralCounter = self.getLiteral((0, 0), 1)
+            groups = []
             for k,v in self.nodeDict.items():
                 # a single k,v may look like this:
                 # k = (7, 8)
@@ -235,13 +236,21 @@ class McGregor:
                 # Use currying to apply a partial version of getLiteral that always uses 0 for the color, map this onto v
                 # Next, don't forget that k's literal also needs to be in the list, so append that too!
                 # Lastly, produce a set of clauses that are only SAT when exactly one literal is True.
-                spannedNodes = SATUtils.exactlyOne(list(map(lambda x: self.getLiteral(x, 0), v)) + [self.getLiteral(k,0)], auxLiteralCounter)
-                auxLiteralCounter = spannedNodes[1] + 1
-                clauses = clauses + spannedNodes[0]
-            # assert at most r nodes are true
-            leResult = SATUtils.atMost(range(1,self.getLiteral((0, 0), 1)), r, auxLiteralCounter)
-            # geResult = SATUtils.atLeastRsub(groupings, r)
-            if 'UNSAT' != pycosat.solve(leResult[0] + clauses):
+                # spannedNodes = SATUtils.exactlyOne(list(map(lambda x: self.getLiteral(x, 0), v)) + [self.getLiteral(k,0)], auxLiteralCounter)
+                edges = list(map(lambda x: self.getLiteral(x, 0), v))
+                kLiteral = self.getLiteral(k,0)
+                for edge in edges:
+                    clauses.append([-kLiteral, -edge])
+                clauses.append([kLiteral] + edges)
+            geResult = SATUtils.atMost(range(1,auxLiteralCounter), r)
+            clauses+= geResult[0]
+            solution = pycosat.solve(clauses)
+            print(r)
+            if 'UNSAT' != solution:
+                pp.pprint(clauses)
+                print(solution)
+                self.clauses = clauses
+                self.assignments = solution
                 return r
         return -1
 

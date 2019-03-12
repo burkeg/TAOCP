@@ -99,10 +99,6 @@ class SATUtils:
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
     def atLeast(inLiterals, r, startLiteral = None):
-        if r == len(inLiterals):
-            return ([[x] for x in inLiterals], max([abs(x) for x in inLiterals]) + 1)
-        elif r == 0:
-            return ([], max([abs(x) for x in inLiterals]))
         inLiterals = [-x for x in inLiterals]
         return SATUtils.atMost(inLiterals, len(inLiterals) - r, startLiteral)
 
@@ -114,9 +110,9 @@ class SATUtils:
         if startLiteral == None:
             startLiteral = max([abs(x) for x in inLiterals]) + 1
         if r == 0:
-            return ([[inLiterals[0]], [inLiterals[1]]], max([abs(x) for x in inLiterals]))
+            return ([[1], [-1]], max([abs(x) for x in inLiterals]))
         elif r == len(inLiterals):
-            return ([], max([abs(x) for x in inLiterals]))
+            return ([[x for x in inLiterals]], max([abs(x) for x in inLiterals]))
         n=len(inLiterals)
         clauses = []
         # format:
