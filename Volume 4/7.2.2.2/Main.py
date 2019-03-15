@@ -90,5 +90,20 @@ def Exercise21():
     pp.pprint([MGGraph.getNode(x) for x in MGGraph.assignments if x>0 and abs(x) <= MGGraph.n*(MGGraph.n+1)])
 
 
+def Exercise22ScratchPad():
+    neighbors = dict()
+    for i in range(5):
+        for j in range(5):
+            key = (i, j)
+            neighbors[key] = [((i + 1) % 5, (j + 1) % 5),
+             ((i + 1) % 5, (j + 0) % 5),
+             ((i + 1) % 5, (j - 1) % 5),
+             ((i - 1) % 5, (j + 1) % 5),
+             ((i - 1) % 5, (j + 0) % 5),
+             ((i - 1) % 5, (j - 1) % 5),
+             ((i + 0) % 5, (j + 1) % 5),
+             ((i + 0) % 5, (j - 1) % 5)]
+    pp.pprint(neighbors)
+
 if __name__ == "__main__":
-    Exercise21()
+    Exercise17()

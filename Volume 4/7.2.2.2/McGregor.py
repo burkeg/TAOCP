@@ -206,9 +206,9 @@ class McGregor:
             self.clauses.append([self.getLiteral(vertex, k) for k in range(self.d)])
 
         # (16) adjacent vertices have different colors
-        for i in range(0,self.adjM.shape[0]):
-            for j in range(i+1, self.adjM.shape[0]):
-                if self.adjM[i][j]:
+        for i in [self.getLiteral(x, 0) for x in self.nodeDict]:
+            for j in [self.getLiteral(x, 0) for x in self.nodeDict]:
+                if self.getNode(i) in self.nodeDict[self.getNode(j)]:
                     for k in range(self.d):
                         self.clauses.append([-self.getLiteral((self.getNode(i+1)), k), -self.getLiteral((self.getNode(j+1)), k)])
 
