@@ -4,6 +4,7 @@ import numpy as np
 import pprint as pp
 import sys
 import collections
+from functools import partial
 from SATUtils import SATUtils
 
 class McGregor:
@@ -183,6 +184,11 @@ class McGregor:
 
     def getLiteral(self, node, d):
         return d*(self.n*(self.n+1))+self.nodeToClauseDict[node]+1
+    def getNodeToLiteralFunc(self):
+        return partial(McGregor.NodeToLiteral___, self.n)
+    @staticmethod
+    def NodeToLiteral___(n, indexTuple, d):
+        return d*(n*(n+1))+indexTuple[0]*n+indexTuple[1]+1
 
     def getNode(self, literal):
         if abs(literal) <= (self.n*(self.n+1)*self.d):
@@ -190,10 +196,27 @@ class McGregor:
             return (math.floor(l/self.n), l%self.n)
         else:
             return (-1, -1)
+    def getLiteralToIndexTupleFunc(self):
+        return partial(McGregor.literalToIndexTuple__, self.n, self.d)
+    # @staticmethod
+    def literalToIndexTuple__(n, d, literal):
+        if abs(literal) <= (n*(n+1)*d):
+            l=int((abs(literal)-1)%(n*(n+1)))
+            return (math.floor(l/n), l%n)
+        else:
+            return (-1, -1)
 
     def getColor(self, literal):
         if abs(literal) <= (self.n*(self.n+1)*self.d):
             return math.floor(int((abs(literal)-1)/(self.n*(self.n+1))))
+        else:
+            return -1
+    def getLiteralToColorFunc(self):
+        return partial(McGregor.literalToColor__, self.n, self.d)
+    # @staticmethod
+    def literalToColor__(n, d, literal):
+        if abs(literal) <= (n*(n+1)*d):
+            return math.floor(int((abs(literal)-1)/(n*(n+1))))
         else:
             return -1
 

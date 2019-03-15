@@ -1,5 +1,6 @@
 from McGregor import McGregor
 from SATUtils import SATUtils
+from GraphColoring import GraphColoring
 import pycosat
 import math
 import numpy as np
@@ -91,19 +92,28 @@ def Exercise21():
 
 
 def Exercise22ScratchPad():
-    neighbors = dict()
-    for i in range(5):
-        for j in range(5):
-            key = (i, j)
-            neighbors[key] = [((i + 1) % 5, (j + 1) % 5),
-             ((i + 1) % 5, (j + 0) % 5),
-             ((i + 1) % 5, (j - 1) % 5),
-             ((i - 1) % 5, (j + 1) % 5),
-             ((i - 1) % 5, (j + 0) % 5),
-             ((i - 1) % 5, (j - 1) % 5),
-             ((i + 0) % 5, (j + 1) % 5),
-             ((i + 0) % 5, (j - 1) % 5)]
-    pp.pprint(neighbors)
+    # neighbors = dict()
+    # for i in range(5):
+    #     for j in range(5):
+    #         key = (i, j)
+    #         neighbors[key] = [((i + 1) % 5, (j + 1) % 5),
+    #          ((i + 1) % 5, (j + 0) % 5),
+    #          ((i + 1) % 5, (j - 1) % 5),
+    #          ((i - 1) % 5, (j + 1) % 5),
+    #          ((i - 1) % 5, (j + 0) % 5),
+    #          ((i - 1) % 5, (j - 1) % 5),
+    #          ((i + 0) % 5, (j + 1) % 5),
+    #          ((i + 0) % 5, (j - 1) % 5)]
+    # pp.pprint(neighbors)
+    n=4
+    d=4
+    MG = McGregor(n, d)
+    GC = GraphColoring(MG.nodeDict, d)
+    GC.defineNodeLiteralConversion(MG.getLiteralToIndexTupleFunc(), MG.getLiteralToColorFunc(), MG.getNodeToLiteralFunc())
+    GC.constraints |= GC.constraint_minOneColor | GC.constraint_adjacentDifColor
+    GC.generateClauses()
+    pp.pprint(GC.clauses)
+    pp.pprint(MG.clauses)
 
 if __name__ == "__main__":
-    Exercise17()
+    Exercise22ScratchPad()
