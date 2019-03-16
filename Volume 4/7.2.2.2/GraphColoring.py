@@ -35,12 +35,12 @@ class GraphColoring:
                 for j in [self.NodeToLiteral(x, 0) for x in self.nodeDict]:
                     if self.literalToIndexTuple(i) in self.nodeDict[self.literalToIndexTuple(j)]:
                         for k in range(self.d):
-                            self.clauses.append([-self.NodeToLiteral((self.literalToIndexTuple(i+1)), k),
-                                                 -self.NodeToLiteral((self.literalToIndexTuple(j+1)), k)])
+                            self.clauses.append([-self.NodeToLiteral((self.literalToIndexTuple(i)), k),
+                                                 -self.NodeToLiteral((self.literalToIndexTuple(j)), k)])
 
     def defineNodeLiteralConversion(self, literalToIndexTuple, literalToColor, NodeToLiteral):
         # test to make sure some literal actually work
-        for testLiteral in range(1,10):
+        for testLiteral in range(1,26):
             # print('testLiteral', testLiteral)
             # print('literalToIndexTuple', literalToIndexTuple(testLiteral))
             # print('literalToColor',literalToColor(testLiteral))

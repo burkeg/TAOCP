@@ -115,5 +115,46 @@ def Exercise22ScratchPad():
     pp.pprint(GC.clauses)
     pp.pprint(MG.clauses)
 
+def Exercise22():
+    neighbors = dict()
+    allElems = set([(x, y) for x in range(5) for y in range(5)])
+    # generate adjacency list that corresponds to a torus
+    for i in range(5):
+        for j in range(5):
+            key = (i, j)
+            excludedElems = set()
+            excludedElems.add(((i + 1) % 5, (j + 1) % 5))
+            excludedElems.add(((i + 1) % 5, (j + 0) % 5))
+            excludedElems.add(((i + 1) % 5, (j - 1) % 5))
+            excludedElems.add(((i - 1) % 5, (j + 1) % 5))
+            excludedElems.add(((i - 1) % 5, (j + 0) % 5))
+            excludedElems.add(((i - 1) % 5, (j - 1) % 5))
+            excludedElems.add(((i + 0) % 5, (j + 1) % 5))
+            excludedElems.add(((i + 0) % 5, (j + 0) % 5))
+            excludedElems.add(((i + 0) % 5, (j - 1) % 5))
+            neighbors[key] = list(allElems.difference(excludedElems))
+            # print(excludedElems)
+            # print(neighbors[key])
+            # print('---------------------')
+    pp.pprint(neighbors)
+    for maxColors in range(1, 26):
+        GC = GraphColoring(neighbors, maxColors)
+        GC.defineNodeLiteralConversion((lambda x: ((x-1) // 5, (x-1) % 5)),
+                                       (lambda x: (x-1) // 25),
+                                       (lambda indexTuple, color: indexTuple[0]*5+indexTuple[1]+25*color+1))
+        GC.constraints |= GC.constraint_minOneColor | GC.constraint_adjacentDifColor
+        GC.generateClauses()
+        solution = pycosat.solve(GC.clauses)
+        if 'UNSAT' != solution:
+            # pp.pprint(GC.clauses)
+            print(maxColors)
+            print(solution)
+            # print(list(pycosat.itersolve(GC.clauses)))
+            # print(len(list(pycosat.itersolve(GC.clauses))))
+            return
+        else:
+            print(solution)
+            print(maxColors)
+
 if __name__ == "__main__":
-    Exercise22ScratchPad()
+    Exercise22()
