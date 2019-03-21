@@ -87,10 +87,10 @@ class SATUtils:
     # because they aren't actually the same.
     @staticmethod
     def exactlyR(inLiterals, r, startLiteral = None):
-        raise NotImplementedError()
-        geResult = SATUtils.atLeast(inLiterals, 2, startLiteral)
+        # raise NotImplementedError()
+        geResult = SATUtils.atLeast(inLiterals, r, startLiteral)
         clauses = geResult[0]
-        ltResult = SATUtils.atMost(inLiterals, 2, geResult[1] + 1)
+        ltResult = SATUtils.atMost(inLiterals, r, geResult[1] + 1)
         clauses = clauses + ltResult[0]
         return (clauses, ltResult[1])
 

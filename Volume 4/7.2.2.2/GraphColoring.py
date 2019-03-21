@@ -51,3 +51,28 @@ class GraphColoring:
                 self.literalToIndexTuple = literalToIndexTuple
                 self.literalToColor = literalToColor
                 self.NodeToLiteral = NodeToLiteral
+
+    @staticmethod
+    def generateKClique(nodesInClique):
+        nodeDict = dict()
+        for i, a in enumerate(nodesInClique):
+            for b in nodesInClique[i + 1:]:
+                if a != b:
+                    if a not in nodeDict:
+                        nodeDict[a] = [b]
+                    else:
+                        nodeDict[a].append(b)
+                    if b not in nodeDict:
+                        nodeDict[b] = [a]
+                    else:
+                        nodeDict[b].append(a)
+        return nodeDict
+
+    @staticmethod
+    def mergeAintoB(adjListA, adjListB):
+        for k,v in adjListA.items():
+            if k not in adjListB:
+                adjListB[k] = v
+            else:
+                adjListB[k] += v
+

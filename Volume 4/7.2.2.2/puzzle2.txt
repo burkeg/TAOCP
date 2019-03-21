@@ -1,0 +1,17 @@
+7,7
+
+  +-+-+
+  | | |
+e-s-+ +
+| | | |
++-+-s-+
+| |   |
++-+-+-+
+
+hexagon, 0, 2,   0
+hexagon, 1, 6,   0
+hexagon, 2,4,   0
+hexagon, 4,0,   0
+hexagon,4,2,   0
+hexagon,6,4,   0
+hexagon,6, 6,   0
