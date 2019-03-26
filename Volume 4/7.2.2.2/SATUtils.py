@@ -110,7 +110,7 @@ class SATUtils:
         if startLiteral == None:
             startLiteral = max([abs(x) for x in inLiterals]) + 1
         if r == 0:
-            return ([[1], [-1]], max([abs(x) for x in inLiterals]))
+            return ([[-x] for x in inLiterals], max([abs(x) for x in inLiterals]))
         elif r == len(inLiterals):
             return ([[x for x in inLiterals]], max([abs(x) for x in inLiterals]))
         n=len(inLiterals)

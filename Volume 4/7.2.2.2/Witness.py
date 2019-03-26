@@ -18,8 +18,11 @@ class WitnessPuzzle:
         self.BaseConstraints = []
         self.literalMapping = dict()
         self.reverseLiteralMapping = dict()
-        self.auxLiteral = 0
+        self.auxLiteral = 1
         self.intepretPuzzle()
+        self.Vn = [] # Set of all normal nodes
+        self.Vs = [] # Set of all start nodes
+        self.Ve = [] # Set of all end nodes
 
     def intepretPuzzle(self):
         puzzleFile = []
@@ -68,6 +71,9 @@ class WitnessPuzzle:
 
         # Get the topology of the puzzle
         self.topology =  self.generatePuzzleTopology(symbolDict)
+        self.Vn = [x for x in self.topology if isinstance(x[0], int) and isinstance(x[1], int)]
+        self.Vs = [x for x in self.topology if 's' == x[0]]
+        self.Ve = [x for x in self.topology if 'e' == x[0]]
 
         # Filter out the symbol dict so only special rules are left
         del symbolDict['s']
@@ -75,12 +81,16 @@ class WitnessPuzzle:
         del symbolDict['+']
         del symbolDict['-']
         del symbolDict['e']
-        pp.pprint(self.topology)
-        pp.pprint(symbolDict)
+        # pp.pprint(self.topology)
+        # pp.pprint(symbolDict)
+        self.symbolDict = symbolDict
 
         self.getConstraints()
-        pp.pprint(self.StartNodeNeighborConstraints)
-        pp.pprint(self.EndNodeNeighborConstraints)
+        # pp.pprint(self.NormalNodeNeighborConstraints)
+        # pp.pprint(self.StartNodeNeighborConstraints)
+        # pp.pprint(self.EndNodeNeighborConstraints)
+        pp.pprint([y for y in [self.getSymbol(x) for x in pycosat.solve(self.clauses)] if y[1][0] != 'aux'])
+        # pp.pprint(pycosat.solve(self.clauses))
 
     def getConstraints(self):
         self.getBaseConstraints()
@@ -89,26 +99,53 @@ class WitnessPuzzle:
         self.getNormalNodeNeighborConstraints()
         self.getStartNodeNeighborConstraints()
         self.getEndNodeNeighborConstraints()
+        self.getHexagonalconstraints()
+
+    def getHexagonalconstraints(self):
+        for hex in self.symbolDict['hexagon']:
+            self.clauses.append([self.getLiteral((1, hex[0]))])
 
     def getNormalNodeNeighborConstraints(self):
-        pass
+        normalPoints = self.Vn
+        for normalPoint in normalPoints:
+            # Assert exactly 2 neighbors to a normal point are ever true
+            twoOfClauses = SATUtils.exactlyR([self.getLiteral((1, x)) for x in self.topology[normalPoint]], 2, self.auxLiteral)
+            self.auxLiteral = twoOfClauses[1] + 1 if twoOfClauses[1] >= self.auxLiteral else self.auxLiteral
+
+            # Only enforce the previous condition when the normal point is being used
+            self.NormalNodeNeighborConstraints += [x + [self.getLiteral((-1, normalPoint))] for x in twoOfClauses[0]]
+        self.clauses += self.NormalNodeNeighborConstraints
+        self.NormalNodeNeighborConstraints = [[self.getSymbol(literal) for literal in clause] for clause in self.NormalNodeNeighborConstraints]
+        self.BaseConstraints += self.NormalNodeNeighborConstraints
 
     def getStartNodeNeighborConstraints(self):
-        startPoints = [x[0] for x in self.topology.items() if x[0][0] == 's']
-        self.StartNodeNeighborConstraints = [[(1, x) for x in startPoints]]
+        startPoints = self.Vs
+        # assert at least 1 start point is true
+        self.StartNodeNeighborConstraints = [[self.getLiteral((1, x)) for x in startPoints]]
         for startPoint in startPoints:
-            self.StartNodeNeighborConstraints.append([(1, x) for x in self.topology[startPoint]] + [(-1, startPoint)])
+            # Assert exactly one neighbor to a startpoint is ever true
+            oneOfClauses = SATUtils.exactlyOne([self.getLiteral((1, x)) for x in self.topology[startPoint]], self.auxLiteral)
+            self.auxLiteral = oneOfClauses[1] + 1 if oneOfClauses[1] >= self.auxLiteral else self.auxLiteral
+
+            # Only enforce the previous condition when the startpoint is being used
+            self.StartNodeNeighborConstraints += [x + [self.getLiteral((-1, startPoint))] for x in oneOfClauses[0]]
+        self.clauses += self.StartNodeNeighborConstraints
+        self.StartNodeNeighborConstraints = [[self.getSymbol(literal) for literal in clause] for clause in self.StartNodeNeighborConstraints]
         self.BaseConstraints += self.StartNodeNeighborConstraints
 
     def getEndNodeNeighborConstraints(self):
-        endPoints = [x[0] for x in self.topology.items() if x[0][0] == 'e']
-        self.EndNodeNeighborConstraints = [[(1, x) for x in endPoints]]
+        endPoints = self.Ve
+        # assert at least 1 end point is true
+        self.EndNodeNeighborConstraints = [[self.getLiteral((1, x)) for x in endPoints]]
         for endPoint in endPoints:
-            exactlyOneOf = [self.literalMapping[x] for x in self.topology[endPoint]]
-            oneOfClauses = SATUtils.exactlyOne(exactlyOneOf, self.auxLiteral)
-            self.auxLiteral = oneOfClauses[1]
-            self.clauses
-            self.EndNodeNeighborConstraints.append([(1, x) for x in self.topology[endPoint]] + [(-1, endPoint)])
+            # Assert exactly one neighbor to an endpoint is ever true
+            oneOfClauses = SATUtils.exactlyOne([self.getLiteral((1, x)) for x in self.topology[endPoint]], self.auxLiteral)
+            self.auxLiteral = oneOfClauses[1] + 1 if oneOfClauses[1] >= self.auxLiteral else self.auxLiteral
+
+            # Only enforce the previous condition when the endpoint is being used
+            self.EndNodeNeighborConstraints += [x + [self.getLiteral((-1, endPoint))] for x in oneOfClauses[0]]
+        self.clauses += self.EndNodeNeighborConstraints
+        self.EndNodeNeighborConstraints = [[self.getSymbol(literal) for literal in clause] for clause in self.EndNodeNeighborConstraints]
         self.BaseConstraints += self.EndNodeNeighborConstraints
 
     def generatePuzzleTopology(self, symbolDict):
@@ -154,36 +191,35 @@ class WitnessPuzzle:
 
     def updateLiteralMapping(self, newSymbol):
         if newSymbol not in self.literalMapping:
-            self.literalMapping[newSymbol] = self.auxLiteral + 1
-            self.reverseLiteralMapping[self.auxLiteral + 1] = newSymbol
+            self.literalMapping[newSymbol] = self.auxLiteral
+            self.reverseLiteralMapping[self.auxLiteral] = newSymbol
             self.auxLiteral += 1
 
     def getSymbol(self, literal):
-        if literal not in self.reverseLiteralMapping:
-            if literal <= self.auxLiteral:
-                return ('aux', literal)
+        if abs(literal) not in self.reverseLiteralMapping:
+            if abs(literal) <= self.auxLiteral:
+                return (1 if literal > 0 else -1, ('aux', literal))
             else:
                 raise Exception('Unknown literal (SAT)')
         else:
-            tmp = self.reverseLiteralMapping[literal]
+            tmp = self.reverseLiteralMapping[abs(literal)]
             if literal > 0:
-                tmp[0] = 1
+                return (1, tmp)
             else:
-                tmp[0] = -1
-            return tmp
+                return (-1, tmp)
 
     def getLiteral(self, symbol):
-        if symbol not in self.literalMapping:
+        polarity = symbol[0]
+        name = symbol[1][0]
+        auxLiteral = symbol[1][1]
+        if symbol[1] not in self.literalMapping:
             raise Exception('Unknown symbol (SAT)')
         else:
-            if symbol[0] == 'aux':
-                return symbol[1]
-            tmp = self.reverseLiteralMapping[symbol]
-            if symbol > 0:
-                tmp[0] = 1
-            else:
-                tmp[0] = -1
-            return tmp
+            if name == 'aux':
+                return auxLiteral*polarity
+            tmp = self.literalMapping[symbol[1]]
+            return tmp*polarity
+
 if __name__ == "__main__":
     # main_n = 15
     # main_r = 7
