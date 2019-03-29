@@ -180,6 +180,6 @@ class SATUtils:
         # assert at least r of those groups are SAT
         geResult = SATUtils.atLeast(newVars, r)
         # print(geResult[0])
-        #flatten the groups into one set of clauses then add the new clauses
+        # flatten the groups into one set of clauses then add the new clauses
         return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1], geResult[0])
 
