@@ -171,14 +171,39 @@ class SATUtils:
     # startLiteral
     @staticmethod
     def atLeastRsub(groups, r, startLiteral = None):
+        return SATUtils.assertRsub(groups, r, SATUtils.atLeast, startLiteral)
+
+    # Given a set of a set of clauses and r, this produces a set of clauses
+    # that is only SAT when at most r sets of clauses (from the original set of sets)
+    # is SAT. Auxiliary literals start at 1+max(map(abs,literals)) or at the specified
+    # startLiteral
+    @staticmethod
+    def atMostRsub(groups, r, startLiteral = None):
+        return SATUtils.assertRsub(groups, r, SATUtils.atMost, startLiteral)
+
+    # Given a set of a set of clauses and r, this produces a set of clauses
+    # that is only SAT when at most r sets of clauses (from the original set of sets)
+    # is SAT. Auxiliary literals start at 1+max(map(abs,literals)) or at the specified
+    # startLiteral
+    @staticmethod
+    def exactlyRsub(groups, r, startLiteral = None):
+        return SATUtils.assertRsub(groups, r, SATUtils.exactlyR, startLiteral)
+
+
+    # Given a set of a set of clauses and r, this produces a set of clauses
+    # that is only SAT when r sets of clauses (from the original set of sets)
+    # satisfy the given constraint. Auxiliary literals start at 1+max(map(abs,literals)) or at the specified
+    # startLiteral
+    @staticmethod
+    def assertRsub(groups, r, constraint, startLiteral = None):
         if startLiteral == None:
             startLiteral = max([max([max([abs(literal) for literal in clause]) for clause in group]) for group in groups]) + 1
         # create a new literal for each group passed in
         newVars = range(startLiteral, startLiteral + len(groups))
         # add each negated literal to its associated group
         groups = [[x + [-newVars[i]] for x in group] for i, group in enumerate(groups)]
-        # assert at least r of those groups are SAT
-        geResult = SATUtils.atLeast(newVars, r)
+        # assert r of those groups are satisfy the constraint
+        geResult = constraint(newVars, r)
         # print(geResult[0])
         # flatten the groups into one set of clauses then add the new clauses
         return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1], geResult[0])

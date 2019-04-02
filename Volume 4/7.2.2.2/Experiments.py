@@ -119,7 +119,7 @@ class Experiments:
 
         # Assert adjacent blank spots have the same color if the edge is false
         blankSets = dict([(k, set(v)) for k, v in blankEdgeDict.items()])
-        print(blankSets)
+        # print(blankSets)
         for bi in list(blankSets.keys())[:-1]:
             for bj in list(blankSets.keys())[1:]:
                 sharedEdges = blankSets[bi].intersection(blankSets[bj])
@@ -129,11 +129,17 @@ class Experiments:
 
         # try to make one square a different color than the rest
         firstBlank = list(blankSets.keys())[0]
+        leResult = SATUtils.atMostRsub([self.clauses + \
+                             [[self.literalMapping[tuple(['b'] + list(bi))]], [-self.literalMapping[tuple(['b'] + list(x))]]] \
+                             for x in list(blankSets.keys())[1:]], \
+                            0, self.auxLiteral)
         # pp.pprint([self.literalMapping[tuple(['b'] + list(firstBlank))]] + [self.literalMapping[tuple(['b'] + list(x))] for x in list(blankSets.keys())[1:]])
-        self.clauses.append([self.literalMapping[tuple(['b'] + list(firstBlank))]])
-        self.clauses.append([-self.literalMapping[tuple(['b'] + list(x))] for x in list(blankSets.keys())[1:]])
+        # self.clauses.append([self.literalMapping[tuple(['b'] + list(firstBlank))]])
+        # self.clauses.append([-self.literalMapping[tuple(['b'] + list(x))] for x in list(blankSets.keys())[1:]])
 
-        pp.pprint(self.clauses)
+        # pp.pprint(self.clauses)
+        # pp.pprint(leResult)
+        self.clauses = leResult[0]
 
     @staticmethod
     def printGrid(height, width, symbolDict):
@@ -179,4 +185,4 @@ class Experiments:
 if __name__ == "__main__":
     exprmnts = Experiments()
     exprmnts.assertNoLoops(3, 3)
-    # pp.pprint(list(pycosat.itersolve(exprmnts.clauses)))
+    pp.pprint(list(pycosat.solve(exprmnts.clauses)))
