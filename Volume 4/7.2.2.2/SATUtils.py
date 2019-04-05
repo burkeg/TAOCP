@@ -1,5 +1,6 @@
 import sys
 import operator as op
+import pycosat
 from functools import reduce
 
 class SATUtils:
@@ -208,3 +209,34 @@ class SATUtils:
         # flatten the groups into one set of clauses then add the new clauses
         return (reduce((lambda x, y: x + y), groups) + geResult[0], geResult[1], geResult[0])
 
+    @staticmethod
+    def waerden(j, k, n):
+        clauses = []
+        # positive literals
+        d=1
+        keepGoing = True
+        while keepGoing:
+            keepGoing = False
+            for i in range(1, n - (j - 1) * d + 1):
+                clauses.append([i + j_idx * d for j_idx in range(j)])
+                keepGoing = True
+            d += 1
+
+        # negative literals
+        d=1
+        keepGoing = True
+        while keepGoing:
+            keepGoing = False
+            for i in range(1, n - (k - 1) * d + 1):
+                clauses.append([-(i + k_idx*d) for k_idx in range(k)])
+                keepGoing = True
+            d += 1
+        return clauses
+
+    @staticmethod
+    def W(j, k):
+        n = 0
+        while True:
+            if pycosat.solve(SATUtils.waerden(j,k,n)) == 'UNSAT':
+                return n
+            n += 1

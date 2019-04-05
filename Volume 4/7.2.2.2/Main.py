@@ -156,5 +156,22 @@ def Exercise22():
             print(solution)
             print(maxColors)
 
+def Exercise31():
+    def F(t, r):
+        n = r
+        firstTime = True
+        while True:
+            clauses = SATUtils.waerden(n+1,t,n) + SATUtils.exactlyR(range(1, n+1), r)[0]
+            if pycosat.solve(clauses) != 'UNSAT':
+                if firstTime:
+                    return n
+                return n
+            n += 1
+            firstTime = False
+    for t in range(3, 7):
+        for r in range(1, 28):
+            print(F(t, r))#, end=', ')
+        print('')
+
 if __name__ == "__main__":
-    Exercise22()
+    Exercise31()

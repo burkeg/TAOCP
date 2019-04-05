@@ -182,7 +182,18 @@ class Experiments:
             tmp = self.literalMapping[symbol[1]]
             return tmp*polarity
 
+    @staticmethod
+    def detectAcyclicGridsWithGraphColoring():
+        exprmnts = Experiments()
+        exprmnts.assertNoLoops(3, 3)
+        pp.pprint(list(pycosat.solve(exprmnts.clauses)))
+
+    @staticmethod
+    def testWaerden():
+        # clauses = SATUtils.waerden(3,3,8)
+        # pp.pprint(clauses)
+        for k in range(3, 20):
+            print(SATUtils.W(3,k))
+
 if __name__ == "__main__":
-    exprmnts = Experiments()
-    exprmnts.assertNoLoops(3, 3)
-    pp.pprint(list(pycosat.solve(exprmnts.clauses)))
+    Experiments.testWaerden()
