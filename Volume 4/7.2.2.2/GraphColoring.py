@@ -12,7 +12,7 @@ sign = lambda x: x and (1, -1)[x < 0]
 class GraphColoring:
     def  __init__(self, nodeDict, d,
                   minColors=1,# (15) Every vertex has at least one color
-                  adjacentDifColor=True # (16) adjacent vertices have different colors
+                  adjacentDifColor=1 # (16) adjacent vertices have different colors
                   ):
         self.d = d
         self.minColors = minColors
@@ -20,7 +20,7 @@ class GraphColoring:
         self.nodeDict = nodeDict
         self.literalToIndexTuple = None
         self.literalToColor = None
-        self.NodeToLiteral = None
+        self.nodeToLiteral = None
         self.clauses = []
         self.auxLiteral = -1
         self.origAuxLiteral = -1
@@ -31,19 +31,19 @@ class GraphColoring:
         #
         # (15) Every vertex has at least minColors color
         for vertex in self.nodeDict.keys():
-            literalsToAssertGEKtrue = [self.NodeToLiteral(vertex, k) for k in range(self.d)]
+            literalsToAssertGEKtrue = [self.nodeToLiteral(vertex, k) for k in range(self.d)]
             [subclauses, newHighestLiteral] = SATUtils.atLeast(literalsToAssertGEKtrue ,self.minColors, self.auxLiteral)
             self.auxLiteral = newHighestLiteral + 1
             self.clauses += subclauses
 
         # (16) adjacent vertices have different colors
         if self.adjacentDifColor:
-            for i in [self.NodeToLiteral(x, 0) for x in self.nodeDict]:
-                for j in [self.NodeToLiteral(x, 0) for x in self.nodeDict]:
+            for i in [self.nodeToLiteral(x, 0) for x in self.nodeDict]:
+                for j in [self.nodeToLiteral(x, 0) for x in self.nodeDict]:
                     if self.literalToIndexTuple(i) in self.nodeDict[self.literalToIndexTuple(j)]:
                         for k in range(self.d):
-                            self.clauses.append([-self.NodeToLiteral((self.literalToIndexTuple(i)), k),
-                                                 -self.NodeToLiteral((self.literalToIndexTuple(j)), k)])
+                            self.clauses.append([-self.nodeToLiteral((self.literalToIndexTuple(i)), k),
+                                                 -self.nodeToLiteral((self.literalToIndexTuple(j)), k)])
 
     def viewClauses(self):
         for clause in self.clauses:
@@ -61,10 +61,28 @@ class GraphColoring:
                 # print((nodeIdentifier, nodeColor))
         self.literalToIndexTuple = literalToIndexTuple
         self.literalToColor = literalToColor
-        self.NodeToLiteral = NodeToLiteral
+        self.nodeToLiteral = NodeToLiteral
         # initialize the auxLiteral to 1 larger than the largest node found during the verification process
-        self.auxLiteral = 1 + max([max([abs(self.NodeToLiteral(x,color)) for x in self.nodeDict.keys()]) for color in range(self.d)])
+        self.auxLiteral = 1 + max([max([abs(self.nodeToLiteral(x, color)) for x in self.nodeDict.keys()]) for color in range(self.d)])
         self.origAuxLiteral = self.auxLiteral
+
+    # given 2 vertices u, v, asserts those 2 vertices differ in at least r colors
+    def assertRdiffColors(self, u, v, r):
+        [subclauses, newHighestLiteral] = SATUtils.atLeastRsub(\
+            [[self.nodeToLiteral((u, color)), self.nodeToLiteral((v, color))] for color in range(0,self.d)],
+            r,
+            self.auxLiteral)
+        self.auxLiteral = newHighestLiteral + 1
+        self.clauses += subclauses
+
+    # returns whether or not u and v share a common neighbor
+    def sharesNeighbor(self, u, v):
+        # u and v share a neighbor if v is in the neighbor list of any of u's neighbors
+        for neighbor in self.nodeDict[u]:
+            if v in self.nodeDict[neighbor]:
+                return True
+        return False
+
 
     @staticmethod
     def generateKClique(nodesInClique):

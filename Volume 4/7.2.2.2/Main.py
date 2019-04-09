@@ -186,7 +186,7 @@ def Exercise33():
                 graphColorer = GraphColoring(nodeDict=GraphColoring.C(n),
                                              d=d,
                                              minColors=minColors,
-                                             adjacentDifColor=True)
+                                             adjacentDifColor=1)
                 graphColorer.defineNodeLiteralConversion(\
                                             literalToIndexTuple=(lambda x: ((x-1) % n)),
                                             literalToColor=     (lambda x: (x-1) // n),
@@ -216,6 +216,16 @@ def Exercise33():
     print('(n, minColors, d)')
     pp.pprint(list(solutions.keys()))
 
+    # A radio coloring is where each pair of verticies u-v have at least 2 colors that are different
+    # and where any u-v were there exists a vertex w s.t. w-u and w-v, u,v, and w have at least 1 color
+    # that differs
+def Exercise36():
+    # 2 parts: first of all, how do I assert 2 nodes differ by k colors?
+    # second, find all 3+cliques. For each u-v, if v is in a 3+clique with u, assert 1 diff, else assert 2 diff
+    d=16
+    graphColorer = GraphColoring(nodeDict=McGregor(10,d),
+                                 d=d,
+                                 adjacentDifColor=)
 
 if __name__ == "__main__":
     Exercise33()
