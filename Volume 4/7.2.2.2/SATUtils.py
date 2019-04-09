@@ -114,6 +114,8 @@ class SATUtils:
             return ([[-x] for x in inLiterals], max([abs(x) for x in inLiterals]))
         elif r == len(inLiterals):
             return ([[x for x in inLiterals]], max([abs(x) for x in inLiterals]))
+        elif r < 0:
+            return ()
         n=len(inLiterals)
         clauses = []
         # format:

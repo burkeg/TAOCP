@@ -137,20 +137,20 @@ def Exercise22():
             # print(neighbors[key])
             # print('---------------------')
     pp.pprint(neighbors)
+    # revisted after adding some new utilities
+
+    neighbors = GraphColoring.invert(GraphColoring.strongProduct(GraphColoring.C(5), GraphColoring.C(5)))
+    pp.pprint(neighbors)
     for maxColors in range(1, 26):
         GC = GraphColoring(neighbors, maxColors)
-        GC.defineNodeLiteralConversion((lambda x: ((x-1) // 5, (x-1) % 5)),
-                                       (lambda x: (x-1) // 25),
-                                       (lambda indexTuple, color: indexTuple[0]*5+indexTuple[1]+25*color+1))
-        GC.constraints |= GC.constraint_minOneColor | GC.constraint_adjacentDifColor
+        GC.defineNodeLiteralConversion(literalToIndexTuple=(lambda x: (((x-1)%25) // 5, (x-1) % 5)),
+                                       literalToColor=     (lambda x: (x-1) // 25),
+                                       NodeToLiteral=      (lambda indexTuple, color: indexTuple[0]*5+indexTuple[1]+25*color+1))
         GC.generateClauses()
         solution = pycosat.solve(GC.clauses)
         if 'UNSAT' != solution:
-            # pp.pprint(GC.clauses)
             print(maxColors)
             print(solution)
-            # print(list(pycosat.itersolve(GC.clauses)))
-            # print(len(list(pycosat.itersolve(GC.clauses))))
             return
         else:
             print(solution)
@@ -173,5 +173,49 @@ def Exercise31():
             print(F(t, r))#, end=', ')
         print('')
 
+    # A double coloring is where two distinct colors to every vertex so no two vertices
+    # that share an edge don't share a color. A q-tuple coloring assigns q distinct colors
+    # in the same way. Find double and triple colorings of cycle graphs C5, C7, ... using
+    # as few colors as possible
+def Exercise33():
+    solutions = dict()
+    dlim = 50
+    for minColors in range(2,7):
+        for n in range(3, 20, 2):
+            for d in range(minColors, dlim+1):
+                graphColorer = GraphColoring(nodeDict=GraphColoring.C(n),
+                                             d=d,
+                                             minColors=minColors,
+                                             adjacentDifColor=True)
+                graphColorer.defineNodeLiteralConversion(\
+                                            literalToIndexTuple=(lambda x: ((x-1) % n)),
+                                            literalToColor=     (lambda x: (x-1) // n),
+                                            NodeToLiteral=      (lambda indexTuple, color: indexTuple+n*color+1))
+                graphColorer.generateClauses()
+                solution = pycosat.solve(graphColorer.clauses)
+                # graphColorer.viewClauses()
+                if 'UNSAT' != solution:
+                    # pp.pprint(GC.clauses)
+                    print('--Success--')
+                    print('n: ' + str(n))
+                    print('minColors: ' + str(minColors))
+                    print('d: ' + str(d))
+                    solutions[(n, minColors, d)] = solution
+                    print('--------------------------------------------')
+                    break
+                else:
+                    print('--UNSAT--')
+                    print('n: ' + str(n))
+                    print('minColors: ' + str(minColors))
+                    print('d: ' + str(d))
+                    if d == dlim:
+                        print('Giving up!')
+                        solutions[(n, minColors, None)] = solution
+
+    # pp.pprint(list(solutions.values()))
+    print('(n, minColors, d)')
+    pp.pprint(list(solutions.keys()))
+
+
 if __name__ == "__main__":
-    Exercise31()
+    Exercise33()

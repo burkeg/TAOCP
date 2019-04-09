@@ -195,5 +195,33 @@ class Experiments:
         for k in range(3, 20):
             print(SATUtils.W(3,k))
 
+    @staticmethod
+    def testGraphGeneration():
+        pp.pprint(GraphColoring.P(5,zeroIndexed=True))
+        pp.pprint(GraphColoring.P(5,zeroIndexed=False))
+        print('')
+        pp.pprint(GraphColoring.C(5,zeroIndexed=True))
+        pp.pprint(GraphColoring.C(5,zeroIndexed=False))
+        print('')
+        pp.pprint(GraphColoring.K(5,zeroIndexed=True))
+        pp.pprint(GraphColoring.K(5,zeroIndexed=False))
+        print('')
+        pp.pprint(GraphColoring.invert(GraphColoring.C(5)))
+        pp.pprint(GraphColoring.invert(GraphColoring.P(5)))
+        pp.pprint(GraphColoring.invert(GraphColoring.K(5)))
+        # pp.pprint(GraphColoring.invert(GraphColoring.strongProduct(GraphColoring.P(5), GraphColoring.P(5))))
+
+    @staticmethod
+    def testGraphOperations():
+        A = GraphColoring.P(3)
+        B = GraphColoring.P(3)
+        cart = GraphColoring.cartesianProduct(A,B)
+        tens = GraphColoring.tensorProduct(A,B)
+        strong = GraphColoring.strongProduct(A, B)
+        strong2 = GraphColoring.merged(GraphColoring.cartesianProduct(A,B),GraphColoring.tensorProduct(A,B))
+        tmp = 0
+
+
+
 if __name__ == "__main__":
-    Experiments.testWaerden()
+    Experiments.testGraphOperations()
