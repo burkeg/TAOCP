@@ -37,7 +37,7 @@ class GraphColoring:
             self.clauses += subclauses
 
         # (16) adjacent vertices have different colors
-        if self.adjacentDifColor:
+        if self.adjacentDifColor != None:
             for i in [self.nodeToLiteral(x, 0) for x in self.nodeDict]:
                 for j in [self.nodeToLiteral(x, 0) for x in self.nodeDict]:
                     if self.literalToIndexTuple(i) in self.nodeDict[self.literalToIndexTuple(j)]:
@@ -68,10 +68,14 @@ class GraphColoring:
 
     # given 2 vertices u, v, asserts those 2 vertices differ in at least r colors
     def assertRdiffColors(self, u, v, r):
-        [subclauses, newHighestLiteral] = SATUtils.atLeastRsub(\
-            [[self.nodeToLiteral((u, color)), self.nodeToLiteral((v, color))] for color in range(0,self.d)],
-            r,
-            self.auxLiteral)
+        [subclauses, newHighestLiteral, cardinalityClauses] = SATUtils.atLeastRsub(\
+            [\
+                [\
+                    [self.nodeToLiteral(u, color), self.nodeToLiteral(v, color)],
+                    [-self.nodeToLiteral(u, color), -self.nodeToLiteral(v, color)]\
+                ] for color in range(0,self.d)],
+                r,
+                self.auxLiteral)
         self.auxLiteral = newHighestLiteral + 1
         self.clauses += subclauses
 
@@ -79,9 +83,13 @@ class GraphColoring:
     def sharesNeighbor(self, u, v):
         # u and v share a neighbor if v is in the neighbor list of any of u's neighbors
         for neighbor in self.nodeDict[u]:
-            if v in self.nodeDict[neighbor]:
+            if neighbor != v and v in self.nodeDict[neighbor]:
                 return True
         return False
+
+    # returns whether or not u and v are adjacent
+    def isAdjacent(self, u, v):
+        return u in self.nodeDict[v]
 
 
     @staticmethod
