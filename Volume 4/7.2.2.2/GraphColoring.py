@@ -22,6 +22,7 @@ class GraphColoring:
         self.literalToColor = None
         self.nodeToLiteral = None
         self.clauses = []
+        self.solution = []
         self.auxLiteral = -1
         self.origAuxLiteral = -1
 
@@ -30,11 +31,12 @@ class GraphColoring:
             raise TypeError()
         #
         # (15) Every vertex has at least minColors color
-        for vertex in self.nodeDict.keys():
-            literalsToAssertGEKtrue = [self.nodeToLiteral(vertex, k) for k in range(self.d)]
-            [subclauses, newHighestLiteral] = SATUtils.atLeast(literalsToAssertGEKtrue ,self.minColors, self.auxLiteral)
-            self.auxLiteral = newHighestLiteral + 1
-            self.clauses += subclauses
+        if self.minColors != None:
+            for vertex in self.nodeDict.keys():
+                literalsToAssertGEKtrue = [self.nodeToLiteral(vertex, k) for k in range(self.d)]
+                [subclauses, newHighestLiteral] = SATUtils.atLeast(literalsToAssertGEKtrue ,self.minColors, self.auxLiteral)
+                self.auxLiteral = newHighestLiteral + 1
+                self.clauses += subclauses
 
         # (16) adjacent vertices have different colors
         if self.adjacentDifColor != None:
@@ -48,6 +50,21 @@ class GraphColoring:
     def viewClauses(self):
         for clause in self.clauses:
             pp.pprint([(sign(literal), self.literalToIndexTuple(abs(literal)), self.literalToColor(abs(literal))) if literal<=self.origAuxLiteral else (sign(literal), 'aux') for literal in clause])
+
+    def viewSolution(self):
+        self.solution = list(pycosat.solve(self.clauses))
+        nodeColors = dict()
+        if self.solution == 'UNSAT':
+            print(self.solution)
+            return
+        for literal in self.solution:
+            if literal > 0 and literal<=self.origAuxLiteral:
+                identifier = self.literalToIndexTuple(literal)
+                if identifier not in nodeColors:
+                    nodeColors[identifier] = [self.literalToColor(literal)]
+                else:
+                    nodeColors[identifier].append(self.literalToColor(literal))
+        pp.pprint(nodeColors)
 
     def defineNodeLiteralConversion(self, literalToIndexTuple, literalToColor, NodeToLiteral):
         for color in range(self.d):

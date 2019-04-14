@@ -222,26 +222,29 @@ def Exercise33():
 def Exercise36():
     # 2 parts: first of all, how do I assert 2 nodes differ by k colors?
     # second, find all 3+cliques. For each u-v, if v is in a 3+clique with u, assert 1 diff, else assert 2 diff
-    d=16
-    n=11
+    d=8
+    n=4
     graphColorer = GraphColoring(nodeDict=McGregor(n-1,d).nodeDict,
                                  d=d,
-                                 adjacentDifColor=None)
+                                 adjacentDifColor=1,
+                                 minColors=1)
     graphColorer.defineNodeLiteralConversion(\
                                    literalToIndexTuple=(lambda x: (((x-1)%n**2) // n, (x-1) % n)),
                                    literalToColor=     (lambda x: (x-1) // n**2),
                                    NodeToLiteral=      (lambda indexTuple, color: indexTuple[0]*n+indexTuple[1]+(n**2)*color+1))
+    graphColorer.generateClauses()
     for i, A in enumerate(graphColorer.nodeDict):
         for j, B in enumerate(graphColorer.nodeDict):
             if j <= i:
                 continue
-            if graphColorer.sharesNeighbor(A,B):
+            if graphColorer.sharesNeighbor(A, B):
                 if graphColorer.isAdjacent(A, B):
                     graphColorer.assertRdiffColors(A,B,1)
                 else:
                     graphColorer.assertRdiffColors(A,B,2)
     pp.pprint(graphColorer.clauses)
     pp.pprint(list(pycosat.solve(graphColorer.clauses)))
+    graphColorer.viewSolution()
     tmp = 0
 
 
