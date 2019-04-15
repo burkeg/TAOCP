@@ -223,7 +223,7 @@ def Exercise36():
     # 2 parts: first of all, how do I assert 2 nodes differ by k colors?
     # second, find all 3+cliques. For each u-v, if v is in a 3+clique with u, assert 1 diff, else assert 2 diff
     d=8
-    n=4
+    n=11
     graphColorer = GraphColoring(nodeDict=McGregor(n-1,d).nodeDict,
                                  d=d,
                                  adjacentDifColor=1,

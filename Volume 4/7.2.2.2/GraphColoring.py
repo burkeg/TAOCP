@@ -85,12 +85,20 @@ class GraphColoring:
 
     # given 2 vertices u, v, asserts those 2 vertices differ in at least r colors
     def assertRdiffColors(self, u, v, r):
+        groups =[[[self.nodeToLiteral(u, color), -self.nodeToLiteral(v, color)]] for color in range(0,self.d)]
+
+        [subclauses, newHighestLiteral, cardinalityClauses] = SATUtils.atLeastRsub( \
+                groups,
+                r,
+                self.auxLiteral)
+        self.auxLiteral = newHighestLiteral + 1
+        self.clauses += subclauses
+
+        #repeat for positive literals
+        groups =[[[-self.nodeToLiteral(u, color), self.nodeToLiteral(v, color)]] for color in range(0,self.d)]
+
         [subclauses, newHighestLiteral, cardinalityClauses] = SATUtils.atLeastRsub(\
-            [\
-                [\
-                    [self.nodeToLiteral(u, color), self.nodeToLiteral(v, color)],
-                    [-self.nodeToLiteral(u, color), -self.nodeToLiteral(v, color)]\
-                ] for color in range(0,self.d)],
+                groups,
                 r,
                 self.auxLiteral)
         self.auxLiteral = newHighestLiteral + 1
