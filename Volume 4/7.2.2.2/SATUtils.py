@@ -1,8 +1,53 @@
 import sys
+import pprint as pp
 import operator as op
 import pycosat
 from functools import reduce
+import itertools
 
+sign = lambda x: x and (1, -1)[x < 0]
+
+class CNF:
+    def __init__(self, clauses):
+        self.clauses = clauses
+
+class Clause:
+    def __init__(self, literals, comment = '', groupComment = ''):
+        self.literals = literals
+        self.comment = comment
+        self.groupComment = groupComment
+
+class Literal:
+    def __init__(self, literal, comment = ''):
+        self.value = literal
+        self.comment = comment
+
+# class for debugging SAT problems
+class DSAT:
+    def __init__(self, cnf):
+        self.cnf = cnf
+
+    def printCNF(self):
+        sorted_input = sorted(self.cnf.clauses, key=lambda x: x.groupComment)
+        groups = itertools.groupby(sorted_input, key=lambda x: x.groupComment)
+        for k, v in groups:
+            print('Group Description: ' + k)
+            for clause in v:
+                print('\tClause Description: ' + clause.comment)
+                for literal in clause.literals:
+                    print('\t\t'+str(literal.value) + ': ' + literal.comment)
+
+    def rawCNF(self):
+        return [[literal.value for literal in clause.literals] for clause in self.cnf.clauses]
+
+    def checkAssignment(self, proposedAssignment):
+        remaped, literalMapping = SATUtils.rewriteFrom1toN(self.rawCNF())
+        remappedAssignment = [sign(x)*literalMapping[abs(x)] for x in proposedAssignment]
+        clausesNotSatisfied = []
+        for clause in remaped:
+            if not set([abs(x) for x in remappedAssignment]).isdisjoint(set([abs(x) for x in clause])):
+                pass
+        tst4 = 2
 class SATUtils:
     @staticmethod
     def nCr(n, r):
@@ -244,3 +289,16 @@ class SATUtils:
             if pycosat.solve(SATUtils.waerden(j,k,n)) == 'UNSAT':
                 return n
             n += 1
+
+def tst():
+    clause1 = Clause([Literal(1, 'abc'), Literal(3, 'a'), Literal(65, '3h'), Literal(2, 'sadfas')],'first', 'important')
+    clause2 = Clause([Literal(11, 'abc'), Literal(-33, 'a'), Literal(635, '3h'), Literal(42, 'sadfas')],'second', 'important')
+    clause3 = Clause([Literal(1, '3abc'), Literal(3, '4a'), Literal(65, '344h'), Literal(2, '123sadfas')],'third', 'not important')
+    cnf = CNF([clause1, clause2, clause3])
+    dSAT = DSAT(cnf)
+    pp.pprint(dSAT.rawCNF())
+    dSAT.printCNF()
+    dSAT.checkAssignment([1, 3, -65])
+
+if __name__ == '__main__':
+    tst()
