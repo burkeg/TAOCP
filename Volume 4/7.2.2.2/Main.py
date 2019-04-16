@@ -143,9 +143,9 @@ def Exercise22():
     pp.pprint(neighbors)
     for maxColors in range(1, 26):
         GC = GraphColoring(neighbors, maxColors)
-        GC.defineNodeLiteralConversion(literalToIndexTuple=(lambda x: (((x-1)%25) // 5, (x-1) % 5)),
+        GC.defineNodeLiteralConversion(literalToID=(lambda x: (((x - 1) % 25) // 5, (x - 1) % 5)),
                                        literalToColor=     (lambda x: (x-1) // 25),
-                                       NodeToLiteral=      (lambda indexTuple, color: indexTuple[0]*5+indexTuple[1]+25*color+1))
+                                       GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple[0] * 5 + indexTuple[1] + 25 * color + 1))
         GC.generateClauses()
         solution = pycosat.solve(GC.clauses)
         if 'UNSAT' != solution:
@@ -188,9 +188,9 @@ def Exercise33():
                                              minColors=minColors,
                                              adjacentDifColor=1)
                 graphColorer.defineNodeLiteralConversion(\
-                                            literalToIndexTuple=(lambda x: ((x-1) % n)),
+                                            literalToID=(lambda x: ((x - 1) % n)),
                                             literalToColor=     (lambda x: (x-1) // n),
-                                            NodeToLiteral=      (lambda indexTuple, color: indexTuple+n*color+1))
+                                            GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple + n * color + 1))
                 graphColorer.generateClauses()
                 solution = pycosat.solve(graphColorer.clauses)
                 # graphColorer.viewClauses()
@@ -219,19 +219,26 @@ def Exercise33():
     # A radio coloring is where each pair of verticies u-v have at least 2 colors that are different
     # and where any u-v were there exists a vertex w s.t. w-u and w-v, u,v, and w have at least 1 color
     # that differs
-def Exercise36():
+    #
+    # This solution solved a different problem than what Knuth intended. I misunderstood the problem.
+    # My understanding was that each node has multiple "channels", and each neighboring node had to have
+    # at least 2 unique "channels" that none of its neighbors shared. Likewise nodes that share a neighbor
+    # need at least 1 unique channel that none of its neighbor's neighbors had.
+    # The real world equivalent of that would be that each station would have at least 2 channels that
+    # had no strong interference and at least 1 channel that
+def Exercise36misunderstood():
     # 2 parts: first of all, how do I assert 2 nodes differ by k colors?
     # second, find all 3+cliques. For each u-v, if v is in a 3+clique with u, assert 1 diff, else assert 2 diff
-    d=8
-    n=11
-    graphColorer = GraphColoring(nodeDict=McGregor(n-1,d).nodeDict,
+    d=10
+    n=3
+    graphColorer = GraphColoring(nodeDict=McGregor(n,d).nodeDict,
                                  d=d,
-                                 adjacentDifColor=1,
+                                 adjacentDifColor=0,
                                  minColors=1)
     graphColorer.defineNodeLiteralConversion(\
-                                   literalToIndexTuple=(lambda x: (((x-1)%n**2) // n, (x-1) % n)),
-                                   literalToColor=     (lambda x: (x-1) // n**2),
-                                   NodeToLiteral=      (lambda indexTuple, color: indexTuple[0]*n+indexTuple[1]+(n**2)*color+1))
+                                   literalToID=(lambda x: (((x - 1) % (n + 1) ** 2) // (n + 1), (x - 1) % (n + 1))),
+                                   literalToColor=     (lambda x: (x-1) // (n+1)**2),
+                                   GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple[0] * (n + 1) + indexTuple[1] + ((n + 1) ** 2) * color + 1))
     graphColorer.generateClauses()
     for i, A in enumerate(graphColorer.nodeDict):
         for j, B in enumerate(graphColorer.nodeDict):
@@ -245,7 +252,29 @@ def Exercise36():
     pp.pprint(graphColorer.clauses)
     pp.pprint(list(pycosat.solve(graphColorer.clauses)))
     graphColorer.viewSolution()
-    tmp = 0
+
+    # A radio coloring is where each pair of verticies u-v have at least 2 colors that are different
+    # and where any u-v were there exists a vertex w s.t. w-u and w-v, u,v, and w have at least 1 color
+    # that differs
+def Exercise36():
+    d=10
+    n=3
+    graphColorer = GraphColoring(nodeDict=McGregor(n,d).nodeDict,
+                                 d=d,
+                                 adjacentDifColor=None,
+                                 minColors=1)
+    graphColorer.defineNodeLiteralConversion()
+        #                            literalToID=(lambda x: (((x - 1) % (n + 1) ** 2) // (n + 1), (x - 1) % (n + 1))),
+        #                            literalToColor=     (lambda x: (x-1) // (n+1)**2),
+        #                            GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple[0] * (n + 1) + indexTuple[1] + ((n + 1) ** 2) * color + 1))
+    graphColorer.generateClauses()
+    graphColorer.L(2, 1)
+    pp.pprint(graphColorer.clauses)
+    pp.pprint(list(pycosat.solve(graphColorer.clauses)))
+    graphColorer.viewSolution()
+
+
+
 
 
 if __name__ == "__main__":
