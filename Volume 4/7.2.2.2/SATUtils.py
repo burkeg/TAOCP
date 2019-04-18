@@ -1,5 +1,6 @@
 import sys
 import pprint as pp
+import copy
 import operator as op
 import pycosat
 from functools import reduce
@@ -48,6 +49,34 @@ class DSAT:
             if not set([abs(x) for x in remappedAssignment]).isdisjoint(set([abs(x) for x in clause])):
                 pass
         tst4 = 2
+
+    def viewClausesAfterPartialAssignment(self, partialAssignment, propagateUnitClauses = False, cnf=None):
+        if cnf == None:
+            cnf = copy.deepcopy(self.cnf)
+        # prune clauses containing matching polarity literals to the partal assignment
+        for i in range(len(cnf.clauses)-1, -1, -1):
+            clauseDeleted=False
+            for literal in partialAssignment:
+                if clauseDeleted:
+                    break
+                for j in range(len(cnf.clauses[i].literals)-1, -1, -1):
+                    if literal == cnf.clauses[i].literals[j].value:
+                        del cnf.clauses[i]
+                        clauseDeleted = True
+                        break
+                    if -literal == cnf.clauses[i].literals[j].value:
+                        del cnf.clauses[i].literals[j]
+        if propagateUnitClauses:
+            for clause in cnf.clauses:
+                if len(clause.literals) == 1:
+                    return self.viewClausesAfterPartialAssignment([x.value for x in clause.literals],
+                                                                  propagateUnitClauses = True,
+                                                                  cnf=cnf)
+            DSAT(cnf).printCNF()
+        else:
+            DSAT(cnf).printCNF()
+
+
 class SATUtils:
     @staticmethod
     def nCr(n, r):
@@ -293,12 +322,14 @@ class SATUtils:
 def tst():
     clause1 = Clause([Literal(1, 'abc'), Literal(3, 'a'), Literal(65, '3h'), Literal(2, 'sadfas')],'first', 'important')
     clause2 = Clause([Literal(11, 'abc'), Literal(-33, 'a'), Literal(635, '3h'), Literal(42, 'sadfas')],'second', 'important')
-    clause3 = Clause([Literal(1, '3abc'), Literal(3, '4a'), Literal(65, '344h'), Literal(2, '123sadfas')],'third', 'not important')
+    clause3 = Clause([Literal(1, '3abc'), Literal(4, '4a'), Literal(65, '344h'), Literal(2, '123sadfas')],'third', 'not important')
     cnf = CNF([clause1, clause2, clause3])
     dSAT = DSAT(cnf)
     pp.pprint(dSAT.rawCNF())
     dSAT.printCNF()
     dSAT.checkAssignment([1, 3, -65])
+    print('------------------------------------------')
+    dSAT.viewClausesAfterPartialAssignment([33, -1, -2, -3], propagateUnitClauses=True)
 
 if __name__ == '__main__':
     tst()
