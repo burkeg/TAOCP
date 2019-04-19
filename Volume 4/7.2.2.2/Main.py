@@ -1,5 +1,5 @@
 from McGregor import McGregor
-from SATUtils import SATUtils
+from SATUtils import SATUtils, CNF, Clause, Literal, DSAT
 from GraphColoring import GraphColoring
 import pycosat
 import math
@@ -257,8 +257,8 @@ def Exercise36misunderstood():
     # and where any u-v were there exists a vertex w s.t. w-u and w-v, u,v, and w have at least 1 color
     # that differs
 def Exercise36():
-    d=10
-    n=3
+    d=16
+    n=10
     graphColorer = GraphColoring(nodeDict=McGregor(n,d).nodeDict,
                                  d=d,
                                  adjacentDifColor=None,
@@ -269,13 +269,63 @@ def Exercise36():
         #                            GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple[0] * (n + 1) + indexTuple[1] + ((n + 1) ** 2) * color + 1))
     graphColorer.generateClauses()
     graphColorer.L(2, 1)
-    pp.pprint(graphColorer.clauses)
-    pp.pprint(list(pycosat.solve(graphColorer.clauses)))
+    # pp.pprint(graphColorer.clauses)
+    # pp.pprint(list(pycosat.solve(graphColorer.clauses)))
+    # # graphColorer.viewSolution()
+    # graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+    # DSAT(graphColorer.cnf).printCNF()
     graphColorer.viewSolution()
 
 
+def Exercise36ScratchPad():
+    d=4
+    n=2
+    graphColorer = GraphColoring(nodeDict=GraphColoring.cartesianProduct(GraphColoring.C(n), GraphColoring.C(n)),
+                                 d=d,
+                                 adjacentDifColor=None,
+                                 minColors=1,
+                                 maxColors=1)
+    graphColorer.defineNodeLiteralConversion()
+        #                            literalToID=(lambda x: (((x - 1) % (n + 1) ** 2) // (n + 1), (x - 1) % (n + 1))),
+        #                            literalToColor=     (lambda x: (x-1) // (n+1)**2),
+        #                            GraphNodeToLiteral=      (lambda indexTuple, color: indexTuple[0] * (n + 1) + indexTuple[1] + ((n + 1) ** 2) * color + 1))
+    graphColorer.generateClauses()
+    graphColorer.L(2, 1)
+    # pp.pprint(graphColorer.clauses)
+    # pp.pprint(list(pycosat.solve(graphColorer.clauses)))
+    graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+    DSAT(graphColorer.cnf).printCNF()
+    graphColorer.viewSolutions()
 
+    # Find the optimum radio coloring of the contiguous USA graph
+def Exercise37():
+    d=10 #10 is the minimum number of colors that is still SAT
+    graphColorer = GraphColoring(nodeDict=GraphColoring.US(contiguous=True),
+                                 d=d,
+                                 adjacentDifColor=None,
+                                 minColors=1,)
+    graphColorer.defineNodeLiteralConversion()
+    graphColorer.generateClauses()
+    graphColorer.L(2, 1)
+    graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+    DSAT(graphColorer.cnf).printCNF()
+    graphColorer.viewSolution()
 
+    # Find the optimum radio coloring
+    # a) P_n [] P_n
+def Exercise38a():
+    d=7 #10 is the minimum number of colors that is still SAT
+    n=8
+    graphColorer = GraphColoring(nodeDict=GraphColoring.cartesianProduct(GraphColoring.P(n), GraphColoring.P(n)),
+                                 d=d,
+                                 adjacentDifColor=None,
+                                 minColors=1,)
+    graphColorer.defineNodeLiteralConversion()
+    graphColorer.generateClauses()
+    graphColorer.L(2, 1)
+    graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+    DSAT(graphColorer.cnf).printCNF()
+    graphColorer.viewSolution()
 
 if __name__ == "__main__":
-    Exercise36()
+    Exercise38a()

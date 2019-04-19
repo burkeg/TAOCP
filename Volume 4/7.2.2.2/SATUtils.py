@@ -9,17 +9,43 @@ import itertools
 sign = lambda x: x and (1, -1)[x < 0]
 
 class CNF:
-    def __init__(self, clauses):
-        self.clauses = clauses
+    def __init__(self, clauses=[]):
+        # Make sure the incoming clauses are all Clause objects. If a list of integers
+        # is passed in, this should create a list of Clause objects with the same values
+        # and empty comments
+        self.clauses = [x if type(x) is Clause else Clause(x) for x in clauses]
+
+    def rawCNF(self):
+        return [[literal.value for literal in clause.literals] for clause in self.clauses]
+
+    def addClause(self, clause):
+        self.clauses.append(clause)
+
+    def mergeWithRaw(self, newCNF):
+        currentCNF = self.rawCNF()
+        for clause in newCNF:
+            if set(clause) not in [set(x) for x in currentCNF]:
+                newClause = Clause([])
+                for literal in clause:
+                    newClause.addLiteral(Literal(literal))
+                self.addClause(newClause)
+
 
 class Clause:
-    def __init__(self, literals, comment = '', groupComment = ''):
-        self.literals = literals
+    def __init__(self, literals=[], comment = '_', groupComment = '_'):
         self.comment = comment
         self.groupComment = groupComment
+        # Make sure the incoming literals are all Literal objects. If a list of integers
+        # is passed in, this should create a list of Literal objects with the same values
+        # and empty comments
+        self.literals = [x if type(x) is Literal else Literal(x) for x in literals]
+
+    def addLiteral(self, literal):
+        self.literals.append(literal)
+
 
 class Literal:
-    def __init__(self, literal, comment = ''):
+    def __init__(self, literal, comment = '_'):
         self.value = literal
         self.comment = comment
 
@@ -39,20 +65,18 @@ class DSAT:
                     print('\t\t'+str(literal.value) + ': ' + literal.comment)
 
     def rawCNF(self):
-        return [[literal.value for literal in clause.literals] for clause in self.cnf.clauses]
+        self.cnf.rawCNF()
 
-    def checkAssignment(self, proposedAssignment):
-        remaped, literalMapping = SATUtils.rewriteFrom1toN(self.rawCNF())
-        remappedAssignment = [sign(x)*literalMapping[abs(x)] for x in proposedAssignment]
-        clausesNotSatisfied = []
-        for clause in remaped:
-            if not set([abs(x) for x in remappedAssignment]).isdisjoint(set([abs(x) for x in clause])):
-                pass
-        tst4 = 2
-
-    def viewClausesAfterPartialAssignment(self, partialAssignment, propagateUnitClauses = False, cnf=None):
+    # View a new set of clauses based on a partial assignment. You can optionally propagate unit clauses
+    # recursively to see if any trivial contradictions arise.
+    def viewClausesAfterPartialAssignment(self, partialAssignment, propagateUnitClauses = True, cnf=None, verbose = False):
         if cnf == None:
             cnf = copy.deepcopy(self.cnf)
+
+        if verbose:
+            DSAT(cnf).printCNF()
+            print('-------------------------\nAssigning:' + str(partialAssignment) + '\n')
+
         # prune clauses containing matching polarity literals to the partal assignment
         for i in range(len(cnf.clauses)-1, -1, -1):
             clauseDeleted=False
@@ -60,18 +84,27 @@ class DSAT:
                 if clauseDeleted:
                     break
                 for j in range(len(cnf.clauses[i].literals)-1, -1, -1):
+                    # delete clauses when the literal matches, since that clause is now satisfied
                     if literal == cnf.clauses[i].literals[j].value:
                         del cnf.clauses[i]
                         clauseDeleted = True
                         break
+                    # delete literals of opposite polarity since that literal can no longer satisfy that clause
                     if -literal == cnf.clauses[i].literals[j].value:
                         del cnf.clauses[i].literals[j]
         if propagateUnitClauses:
             for clause in cnf.clauses:
+                # If an empty clause exists, that means the partial assignment is UNSAT
+                if len(clause.literals) == 0:
+                    print('Partial assignment forces UNSAT!')
+                    return
+                # If a unit clause exists, recursively compute
                 if len(clause.literals) == 1:
-                    return self.viewClausesAfterPartialAssignment([x.value for x in clause.literals],
-                                                                  propagateUnitClauses = True,
-                                                                  cnf=cnf)
+                    self.viewClausesAfterPartialAssignment(partialAssignment + [clause.literals[0].value],
+                                                           propagateUnitClauses = True,
+                                                           cnf=cnf,
+                                                           verbose=verbose)
+                    return
             DSAT(cnf).printCNF()
         else:
             DSAT(cnf).printCNF()
@@ -319,17 +352,24 @@ class SATUtils:
                 return n
             n += 1
 
+def tst2():
+    cnf = CNF([[1, 2], [3, 4]])
+    print(cnf.rawCNF())
+    DSAT(cnf).printCNF()
+
 def tst():
     clause1 = Clause([Literal(1, 'abc'), Literal(3, 'a'), Literal(65, '3h'), Literal(2, 'sadfas')],'first', 'important')
     clause2 = Clause([Literal(11, 'abc'), Literal(-33, 'a'), Literal(635, '3h'), Literal(42, 'sadfas')],'second', 'important')
-    clause3 = Clause([Literal(1, '3abc'), Literal(4, '4a'), Literal(65, '344h'), Literal(2, '123sadfas')],'third', 'not important')
+    clause3 = Clause([Literal(-1, '3abc'), Literal(4, '4a'), Literal(65, '344h'), Literal(2, '123sadfas')],'third', 'not important')
     cnf = CNF([clause1, clause2, clause3])
     dSAT = DSAT(cnf)
-    pp.pprint(dSAT.rawCNF())
-    dSAT.printCNF()
-    dSAT.checkAssignment([1, 3, -65])
+    #pp.pprint(dSAT.rawCNF())
     print('------------------------------------------')
-    dSAT.viewClausesAfterPartialAssignment([33, -1, -2, -3], propagateUnitClauses=True)
+    # dSAT.viewClausesAfterPartialAssignment([-2, -4, -65])
+    dSAT.printCNF()
+    print('------------------------------------------')
+    dSAT.cnf.mergeWithRaw([[1,3,3, 65, 2, 2]])
+    dSAT.printCNF()
 
 if __name__ == '__main__':
-    tst()
+    tst2()

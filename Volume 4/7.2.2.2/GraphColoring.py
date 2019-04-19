@@ -5,9 +5,10 @@ import numpy as np
 import pprint as pp
 import sys
 import collections
-from SATUtils import SATUtils
+from SATUtils import SATUtils, CNF, Clause, Literal, DSAT
 
 sign = lambda x: x and (1, -1)[x < 0]
+verboseExpressions = False
 
 class GraphNode:
     def __init__(self, id, color):
@@ -18,10 +19,12 @@ class GraphColoring:
 
     def  __init__(self, nodeDict, d,
                   minColors=1,# (15) Every vertex has at least one color
-                  adjacentDifColor=0 # (16) adjacent vertices have different colors
+                  adjacentDifColor=0, # (16) adjacent vertices have different colors
+                  maxColors=None #Maximum unique colors per node
                   ):
         self.d = d
         self.minColors = minColors
+        self.maxColors = maxColors
         self.adjacentDifColor = adjacentDifColor
         self.nodeDict = nodeDict
         self.literalToIndexTuple = None
@@ -33,35 +36,78 @@ class GraphColoring:
         self.origAuxLiteral = -1
         self.nodeToLiteralDict = dict()
         self.literaToNodeDict = dict()
+        self.cnf = CNF()
 
     def generateClauses(self):
         if self.auxLiteral == -1:
             raise TypeError()
         #
-        # (15) Every vertex has at least minColors color
+        # (15) Every vertex has at least minColors colors
         if self.minColors != None:
-            for vertex in self.nodeDict.keys():
-                literalsToAssertGEKtrue = [self.nodeToLiteral(GraphNode(vertex, k)) for k in range(self.d)]
-                [subclauses, newHighestLiteral] = SATUtils.atLeast(literalsToAssertGEKtrue ,self.minColors, self.auxLiteral)
-                self.auxLiteral = newHighestLiteral + 1
-                self.clauses += subclauses
+            self.enforceMinColors()
+
+        # Every vertex has at most maxColors colors
+        if self.maxColors != None:
+            self.enforceMaxColors()
 
         # (16) adjacent vertices have different colors
         if self.adjacentDifColor != None:
-            nodes = []
-            for i in self.nodeDict:
-                for j in self.nodeDict:
-                    if self.isAdjacent(i, j):
-                        self.assertNodesDifferInColorByR(i,j,self.adjacentDifColor)
+            self.enforceAdjacentDifColor()
 
-    def assertNodesDifferInColorByR(self, nodeA, nodeB, n):
+    def enforceAdjacentDifColor(self):
+        for i in self.nodeDict:
+            for j in self.nodeDict:
+                if self.isAdjacent(i, j):
+                    self.assertNodesDifferInColorByR(i,j,self.adjacentDifColor)
+
+    def enforceMinColors(self):
+        for vertex in self.nodeDict.keys():
+            literalsToAssertGEKtrue = [self.nodeToLiteral(GraphNode(vertex, k)) for k in range(self.d)]
+            [subclauses, newHighestLiteral] = SATUtils.atLeast(literalsToAssertGEKtrue ,self.minColors, self.auxLiteral)
+            if verboseExpressions:
+                for clause in subclauses:
+                    self.cnf.addClause(Clause(clause,
+                                              groupComment=str(vertex) + ' has at least ' + str(self.minColors) + ' colors'))
+            self.auxLiteral = newHighestLiteral + 1
+            self.clauses += subclauses
+
+    def enforceMaxColors(self):
+        for vertex in self.nodeDict.keys():
+            literalsToAssertLEKtrue = [self.nodeToLiteral(GraphNode(vertex, k)) for k in range(self.d)]
+            [subclauses, newHighestLiteral] = SATUtils.atMost(literalsToAssertLEKtrue ,self.minColors, self.auxLiteral)
+            if verboseExpressions:
+                for clause in subclauses:
+                    self.cnf.addClause(Clause(clause,
+                                              groupComment=str(vertex) + ' has at most ' + str(self.minColors) + ' colors'))
+            self.auxLiteral = newHighestLiteral + 1
+            self.clauses += subclauses
+
+    def assertNodesDifferInColorByR(self, nodeA, nodeB, rVal):
         newClauses = []
         print([-self.nodeToLiteral(GraphNode(nodeA, 0)), -self.nodeToLiteral(GraphNode(nodeB, 0))], [nodeA, nodeB])
-        for r in range(n+1):
+        for r in range(rVal):
             for k in range(self.d):
                 if k+r < self.d:
-                    newClauses.append([-self.nodeToLiteral(GraphNode(nodeA, k)),
-                                         -self.nodeToLiteral(GraphNode(nodeB, k+r))])
+                    newClause = [-self.nodeToLiteral(GraphNode(nodeA, k)),
+                                         -self.nodeToLiteral(GraphNode(nodeB, k+r))]
+                    newClauses.append(newClause)
+                    if verboseExpressions:
+                        self.cnf.addClause(Clause(newClause,
+                                                  comment='not ' + str(k) + ' and ' + str(k+r) + ' at the same time',
+                                                  groupComment=str(nodeA) + ' and ' + str(nodeB) +
+                                                               ' differ in color by ' + str(rVal)
+                                                  ))
+                    # make sure to assert the other way too when it's not symmetrical
+                    if r != 0:
+                        newClause = [-self.nodeToLiteral(GraphNode(nodeA, k+r)),
+                                             -self.nodeToLiteral(GraphNode(nodeB, k))]
+                        newClauses.append(newClause)
+                        if verboseExpressions:
+                            self.cnf.addClause(Clause(newClause,
+                                                      comment='not ' + str(k+r) + ' and ' + str(k) + ' at the same time',
+                                                      groupComment=str(nodeA) + ' and ' + str(nodeB) +
+                                                                   ' differ in color by ' + str(rVal)
+                                                      ))
         self.clauses += newClauses
 
     # https://en.wikipedia.org/wiki/L(h,_k)-coloring
@@ -83,7 +129,7 @@ class GraphColoring:
     def viewSolution(self):
         self.solution = list(pycosat.solve(self.clauses))
         nodeColors = dict()
-        if self.solution == 'UNSAT':
+        if self.solution == list('UNSAT'):
             print(self.solution)
             return
         for literal in self.solution:
@@ -94,6 +140,22 @@ class GraphColoring:
                 else:
                     nodeColors[identifier].append(self.literalToColor(literal))
         pp.pprint(nodeColors)
+
+    def viewSolutions(self):
+        self.solution = list(pycosat.solve(self.clauses))
+        if self.solution == list('UNSAT'):
+            print(self.solution)
+            return
+        for solution in list(pycosat.itersolve(self.clauses)):
+            nodeColors = dict()
+            for literal in solution:
+                if literal > 0 and literal<self.origAuxLiteral:
+                    identifier = self.literalToIndexTuple(literal)
+                    if identifier not in nodeColors:
+                        nodeColors[identifier] = [self.literalToColor(literal)]
+                    else:
+                        nodeColors[identifier].append(self.literalToColor(literal))
+            pp.pprint(nodeColors)
 
     def defineNodeLiteralConversion(self, literalToID = None, literalToColor = None, GraphNodeToLiteral = None):
         if literalToID == None or literalToColor == None or GraphNodeToLiteral == None:
@@ -402,4 +464,67 @@ class GraphColoring:
                         nodeDict[vertexB] = [vertexA]
                     else:
                         nodeDict[vertexB] += [vertexA]
+        return nodeDict
+
+    # Graph corresponding to the United States state border connections
+    # https://writeonly.wordpress.com/2009/03/20/adjacency-list-of-states-of-the-united-states-us/
+    # which disagrees with http://mathworld.wolfram.com/ContiguousUSAGraph.html
+    @staticmethod
+    def US(contiguous=False):
+        nodeDict = {
+            ('AK',): (),\
+            ('AL',): (('MS',),('TN',),('GA',),('FL',),),\
+            ('AR',): (('MO',),('TN',),('MS',),('LA',),('TX',),('OK',),),\
+            ('AZ',): (('CA',),('NV',),('UT',),('NM',),),\
+            ('CA',): (('OR',),('NV',),('AZ',),),\
+            ('CO',): (('WY',),('NE',),('KS',),('OK',),('NM',),('UT',),),\
+            ('CT',): (('NY',),('MA',),('RI',),),\
+            ('DC',): (('MD',),('VA',),),\
+            ('DE',): (('MD',),('PA',),('NJ',),),\
+            ('FL',): (('AL',),('GA',),),\
+            ('GA',): (('FL',),('AL',),('TN',),('NC',),('SC',),),\
+            ('HI',): (),\
+            ('IA',): (('MN',),('WI',),('IL',),('MO',),('NE',),('SD',),),\
+            ('ID',): (('MT',),('WY',),('UT',),('NV',),('OR',),('WA',),),\
+            ('IL',): (('IN',),('KY',),('MO',),('IA',),('WI',),),\
+            ('IN',): (('MI',),('OH',),('KY',),('IL',),),\
+            ('KS',): (('NE',),('MO',),('OK',),('CO',),),\
+            ('KY',): (('IN',),('OH',),('WV',),('VA',),('TN',),('MO',),('IL',),),\
+            ('LA',): (('TX',),('AR',),('MS',),),\
+            ('MA',): (('RI',),('CT',),('NY',),('NH',),('VT',),),\
+            ('MD',): (('VA',),('WV',),('PA',),('DC',),('DE',),),\
+            ('ME',): (('NH',),),\
+            ('MI',): (('WI',),('IN',),('OH',),),\
+            ('MN',): (('WI',),('IA',),('SD',),('ND',),),\
+            ('MO',): (('IA',),('IL',),('KY',),('TN',),('AR',),('OK',),('KS',),('NE',),),\
+            ('MS',): (('LA',),('AR',),('TN',),('AL',),),\
+            ('MT',): (('ND',),('SD',),('WY',),('ID',),),\
+            ('NC',): (('VA',),('TN',),('GA',),('SC',),),\
+            ('ND',): (('MN',),('SD',),('MT',),),\
+            ('NE',): (('SD',),('IA',),('MO',),('KS',),('CO',),('WY',),),\
+            ('NH',): (('VT',),('ME',),('MA',),),\
+            ('NJ',): (('DE',),('PA',),('NY',),),\
+            ('NM',): (('AZ',),('CO',),('OK',),('TX',),),\
+            ('NV',): (('ID',),('UT',),('AZ',),('CA',),('OR',),),\
+            ('NY',): (('NJ',),('PA',),('VT',),('MA',),('CT',),),\
+            ('OH',): (('PA',),('WV',),('KY',),('IN',),('MI',),),\
+            ('OK',): (('KS',),('MO',),('AR',),('TX',),('NM',),('CO',),),\
+            ('OR',): (('CA',),('NV',),('ID',),('WA',),),\
+            ('PA',): (('NY',),('NJ',),('DE',),('MD',),('WV',),('OH',),),\
+            ('RI',): (('CT',),('MA',),),\
+            ('SC',): (('GA',),('NC',),),\
+            ('SD',): (('ND',),('MN',),('IA',),('NE',),('WY',),('MT',),),\
+            ('TN',): (('KY',),('VA',),('NC',),('GA',),('AL',),('MS',),('AR',),('MO',),),\
+            ('TX',): (('NM',),('OK',),('AR',),('LA',),),\
+            ('UT',): (('ID',),('WY',),('CO',),('AZ',),('NV',),),\
+            ('VA',): (('NC',),('TN',),('KY',),('WV',),('MD',),('DC',),),\
+            ('VT',): (('NY',),('NH',),('MA',),),\
+            ('WA',): (('ID',),('OR',),),\
+            ('WI',): (('MI',),('MN',),('IA',),('IL',),),\
+            ('WV',): (('OH',),('PA',),('MD',),('VA',),('KY',),),\
+            ('WY',): (('MT',),('SD',),('NE',),('CO',),('UT',),('ID',),)\
+        }
+        if contiguous:
+            del nodeDict[('AK',)]
+            del nodeDict[('HI',)]
         return nodeDict
