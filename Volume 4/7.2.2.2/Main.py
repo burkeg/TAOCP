@@ -1,4 +1,5 @@
 from McGregor import McGregor
+import sys
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT
 from GraphColoring import GraphColoring
 import pycosat
@@ -314,7 +315,7 @@ def Exercise37():
     # Find the optimum radio coloring
     # a) P_n [] P_n
 def Exercise38a():
-    d=7 #10 is the minimum number of colors that is still SAT
+    d=7
     n=8
     graphColorer = GraphColoring(nodeDict=GraphColoring.cartesianProduct(GraphColoring.P(n), GraphColoring.P(n)),
                                  d=d,
@@ -327,5 +328,68 @@ def Exercise38a():
     DSAT(graphColorer.cnf).printCNF()
     graphColorer.viewSolution()
 
+    # Find the optimum radio coloring
+    # b) the vertices {(x,y,z) | x,y,z >= 0, x+y+z=n}
+def Exercise38b():
+    d=9
+    n=8
+    points = set()
+    for x in range(0,n+1):
+        for y in range(0,n+1):
+            for z in range(0,n+1):
+                if x + y + z == n:
+                    points.add((x,y,z))
+
+    nodeDict = dict()
+    for pointA in points:
+        nodeDict[pointA]=[]
+        for pointB in points:
+            if abs(pointA[0]-pointB[0]) == 1 and abs(pointA[1]-pointB[1]) == 1 and abs(pointA[2]-pointB[2]) == 0:
+                nodeDict[pointA].append(pointB)
+            if abs(pointA[0]-pointB[0]) == 1 and abs(pointA[1]-pointB[1]) == 0 and abs(pointA[2]-pointB[2]) == 1:
+                nodeDict[pointA].append(pointB)
+            if abs(pointA[0]-pointB[0]) == 0 and abs(pointA[1]-pointB[1]) == 1 and abs(pointA[2]-pointB[2]) == 1:
+                nodeDict[pointA].append(pointB)
+    pp.pprint(nodeDict)
+
+    graphColorer = GraphColoring(nodeDict=nodeDict,
+                                 d=d,
+                                 adjacentDifColor=None,
+                                 minColors=1,
+                                 maxColors=1)
+    graphColorer.defineNodeLiteralConversion()
+    graphColorer.generateClauses()
+    graphColorer.L(2, 1)
+    graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+    DSAT(graphColorer.cnf).printCNF()
+    graphColorer.viewSolution()
+
+    # Find the optimum radio coloring of the n-cube
+def Exercise39():
+    if len(sys.argv) != 2:
+        print("Error, no number entered.")
+        return
+    n=int(sys.argv[1])
+    nodeDict = GraphColoring.cartesianProduct(GraphColoring.P(2), GraphColoring.P(2))
+    for dimension in range(2,n):
+        nodeDict = GraphColoring.cartesianProduct(GraphColoring.P(2), nodeDict)
+    for d in range(4,1000):
+        graphColorer = GraphColoring(nodeDict=nodeDict,
+                                     d=d,
+                                     adjacentDifColor=None,
+                                     minColors=1,)
+        graphColorer.defineNodeLiteralConversion()
+        graphColorer.generateClauses()
+        graphColorer.L(2, 1)
+        # graphColorer.cnf.mergeWithRaw(graphColorer.clauses)
+        # DSAT(graphColorer.cnf).printCNF()
+        print('Attempting ' + str(d))
+        if graphColorer.viewSolution():
+            print(str(d) + ' Success!')
+            break
+
+
+
+
 if __name__ == "__main__":
-    Exercise38a()
+    Exercise39()

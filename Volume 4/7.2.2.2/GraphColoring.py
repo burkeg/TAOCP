@@ -84,7 +84,7 @@ class GraphColoring:
 
     def assertNodesDifferInColorByR(self, nodeA, nodeB, rVal):
         newClauses = []
-        print([-self.nodeToLiteral(GraphNode(nodeA, 0)), -self.nodeToLiteral(GraphNode(nodeB, 0))], [nodeA, nodeB])
+        #print([-self.nodeToLiteral(GraphNode(nodeA, 0)), -self.nodeToLiteral(GraphNode(nodeB, 0))], [nodeA, nodeB])
         for r in range(rVal):
             for k in range(self.d):
                 if k+r < self.d:
@@ -131,7 +131,7 @@ class GraphColoring:
         nodeColors = dict()
         if self.solution == list('UNSAT'):
             print(self.solution)
-            return
+            return False
         for literal in self.solution:
             if literal > 0 and literal<self.origAuxLiteral:
                 identifier = self.literalToIndexTuple(literal)
@@ -140,7 +140,7 @@ class GraphColoring:
                 else:
                     nodeColors[identifier].append(self.literalToColor(literal))
         pp.pprint(nodeColors)
-
+        return True
     def viewSolutions(self):
         self.solution = list(pycosat.solve(self.clauses))
         if self.solution == list('UNSAT'):
