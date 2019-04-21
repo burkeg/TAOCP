@@ -352,6 +352,43 @@ class SATUtils:
                 return n
             n += 1
 
+class Tseytin:
+    @staticmethod
+    def conj(u, v, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(u, v) + 1
+        t = startLiteral
+        return ([[u, -t], [v, -t], [-u, -v, t]], t)
+
+    @staticmethod
+    def disj(u, v, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(u, v) + 1
+        t = startLiteral
+        return ([[-u, t], [-v, t], [u, v, -t]], t)
+
+    @staticmethod
+    def xor(u, v, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(u, v) + 1
+        t = startLiteral
+        return ([[-u, v, t], [u, -v, t], [u, v, -t], [-u, -v, -t]], t)
+
+    @staticmethod
+    def conjSym(u, v):
+        t = (u, v)
+        return ([[(1, u), (-1, t)], [(1, v), (-1, t)], [(-1, u), (-1, v), (1, t)]], (1, t))
+
+    @staticmethod
+    def disjSym(u, v):
+        t = (u, v)
+        return ([[(-1, u), (1, t)], [(-1, v), (1, t)], [(1, u), (1, v), (-1, t)]], (1, t))
+
+    @staticmethod
+    def xorSym(u, v):
+        t = (u, v)
+        return ([[(-1, u), (1, v), (1, t)], [(1, u), (-1, v), (1, t)], [(1, u), (1, v), (-1, t)], [(-1, u), (-1, v), (-1, t)]], (1, t))
+
 def tst2():
     cnf = CNF([[1, 2], [3, 4]])
     print(cnf.rawCNF())

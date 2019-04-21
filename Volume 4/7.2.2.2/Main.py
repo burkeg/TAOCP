@@ -2,6 +2,7 @@ from McGregor import McGregor
 import sys
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT
 from GraphColoring import GraphColoring
+from Circuits import Multiplier
 import pycosat
 import math
 import numpy as np
@@ -366,10 +367,7 @@ def Exercise38b():
 
     # Find the optimum radio coloring of the n-cube
 def Exercise39():
-    if len(sys.argv) != 2:
-        print("Error, no number entered.")
-        return
-    n=int(sys.argv[1])
+    n=5
     nodeDict = GraphColoring.cartesianProduct(GraphColoring.P(2), GraphColoring.P(2))
     for dimension in range(2,n):
         nodeDict = GraphColoring.cartesianProduct(GraphColoring.P(2), nodeDict)
@@ -388,8 +386,16 @@ def Exercise39():
             print(str(d) + ' Success!')
             break
 
+    # Determine the number of boolean operations /\, \/, and xor
+    # needed to multiply m-bit numbers by n-bit numbers with Dadda's scheme,
+    # when 2 <= m <= n.
+def Exercise41():
+    ckt = Multiplier(3, 4)
+    ckt.createInitialTerms()
+    ckt.createBins()
+
 
 
 
 if __name__ == "__main__":
-    Exercise39()
+    Exercise41()
