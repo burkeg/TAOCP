@@ -12,7 +12,7 @@ class Circuit:
         self.terms=[]
 
 class Term:
-    def __init__(self, ID, inputs=(), funct=None):
+    def __init__(self, ID, inputs=[], funct=None):
         self.inputs=inputs
         self.funct=funct
         self.ID = ID
@@ -68,3 +68,27 @@ class Multiplier(Circuit):
                 # bin index is the sum of the intermediate bit's indices (0-indexed)
                 bins[interBit.ID[1]+interBit.ID[2]-2].append(interBit)
         pp.pprint(bins)
+        self.bins = bins
+
+    def propagateBins(self):
+        for i in range(len(self.bins)):
+            if len(self.bins[i]) == 1:
+                # assign bit z to the value of the last bin val
+                for index in range(len(self.terms)):
+                    if self.terms[index].ID == ('z', i + 1):
+                        self.terms[index].inputs.append(self.bins[i][0])
+                        # TODO add z_i+1 <- b
+
+            elif len(self.bins[i]) == 2:
+                # TODO
+                # add z_i+1 <- b xor b'
+                # add c <- b /\ b'
+                # put c into bin[i+1]
+                pass
+            else:
+                # TODO
+                # add r <- b xor b' xor b''
+                # add c <- b /\ b' /\ b''
+                # put c into bin[i+1]
+                # put r into bin[i]
+                pass

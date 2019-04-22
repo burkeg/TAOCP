@@ -393,6 +393,7 @@ def Exercise41():
     ckt = Multiplier(3, 4)
     ckt.createInitialTerms()
     ckt.createBins()
+    ckt.propagateBins()
 
 
 
