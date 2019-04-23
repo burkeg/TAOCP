@@ -375,18 +375,18 @@ class Tseytin:
         return ([[-u, v, t], [u, -v, t], [u, v, -t], [-u, -v, -t]], t)
 
     @staticmethod
-    def conjSym(u, v):
-        t = (u, v)
+    def conjSym(u, v, startLiteral):
+        t = ('aux', startLiteral)
         return ([[(1, u), (-1, t)], [(1, v), (-1, t)], [(-1, u), (-1, v), (1, t)]], (1, t))
 
     @staticmethod
-    def disjSym(u, v):
-        t = (u, v)
+    def disjSym(u, v, startLiteral):
+        t = ('aux', startLiteral)
         return ([[(-1, u), (1, t)], [(-1, v), (1, t)], [(1, u), (1, v), (-1, t)]], (1, t))
 
     @staticmethod
-    def xorSym(u, v):
-        t = (u, v)
+    def xorSym(u, v, startLiteral):
+        t = ('aux', startLiteral)
         return ([[(-1, u), (1, v), (1, t)], [(1, u), (-1, v), (1, t)], [(1, u), (1, v), (-1, t)], [(-1, u), (-1, v), (-1, t)]], (1, t))
 
 def tst2():

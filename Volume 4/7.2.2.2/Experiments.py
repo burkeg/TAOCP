@@ -1,4 +1,6 @@
 from McGregor import McGregor
+import random as rand
+from SATSolver import SATSolver
 from SATUtils import SATUtils
 from GraphColoring import GraphColoring
 import pycosat
@@ -221,7 +223,13 @@ class Experiments:
         strong2 = GraphColoring.merged(GraphColoring.cartesianProduct(A,B),GraphColoring.tensorProduct(A,B))
         tmp = 0
 
-
+    @staticmethod
+    def testAlgoA():
+        F = [[1, -2], [2, 3], [-1, -3], [-1, -2, 3]]
+        G = F + [[1, 2, -3]]
+        H = [[rand.choice([-1, 1])*rand.randint(1, 100) for _ in range(3)] for _ in range(200)]
+        solver = SATSolver(McGregor(10, 4).clauses, SATSolver.Algorithm_A)
+        solver.compare()
 
 if __name__ == "__main__":
-    Experiments.testGraphOperations()
+    Experiments.testAlgoA()
