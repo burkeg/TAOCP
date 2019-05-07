@@ -1,3 +1,13 @@
 *.mmo
 *.mml
 *~
+.idea/
+Volume 4/7.2.2.2/.idea/7.2.2.2.iml
+Volume 4/7.2.2.2/.idea/misc.xml
+Volume 4/7.2.2.2/.idea/workspace.xml
+Volume 4/7.2.2.2/__pycache__/
+curiosities/t10k-images.idx3-ubyte
+curiosities/t10k-labels.idx1-ubyte
+curiosities/train-images.idx3-ubyte
+curiosities/train-labels.idx1-ubyte
+
