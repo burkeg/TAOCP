@@ -13,24 +13,13 @@ def load_words():
 def solve(anagramSize=5, minCluster=10):
     words = load_words()
     words = sorted([(x, ''.join(sorted(list(x)))) for x in words], key=lambda x: x[1])
-    # pp.pprint(words)
-    best = 0
-    bestGroups = []
+    groups = []
     for key, group in itertools.groupby(words, lambda x: x[1]):
-        groupSize = 0
-        potentialBestGroup = []
-        for thing in group:
-            if len(thing[0]) != anagramSize:
-                break
-            groupSize += 1
-            potentialBestGroup.append(thing)
-        if groupSize == 0:
-            continue
-        # print(groupSize, thing)
-        if groupSize >= minCluster:
-            bestGroups.append(potentialBestGroup)
-    bestGroups = sorted([(len(x), x) for x in bestGroups], key= lambda x: x[0])
-    for thing in bestGroups:
+        nextGroup = [thing for thing in group if len(thing[0]) == anagramSize]
+        if len(nextGroup) >= minCluster:
+            groups.append(nextGroup)
+    groups = sorted([(len(x), x) for x in groups], key= lambda x: x[0])
+    for thing in groups:
         pp.pprint(thing)
 
 
