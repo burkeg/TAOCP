@@ -28,4 +28,4 @@ if __name__ == "__main__":
     # for x in range(8):
     #     for y in range(8):
     #         print(x, y, getDistance(x,y))
-    solve(anagramSize=5, minCluster=10)
+    solve(anagramSize=8, minCluster=2)
