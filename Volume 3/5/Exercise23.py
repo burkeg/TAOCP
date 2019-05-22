@@ -6,8 +6,8 @@ import itertools
 import copy
 
 def solve():
-    numPeople = 100
-    acquaintencesPerPerson = 30
+    numPeople = 4096
+    acquaintencesPerPerson = 100
     friendAdjList = [rand.sample([person for person in range(numPeople) if person != me], acquaintencesPerPerson) for me in range(numPeople)]
     friendAdjList = [set() for _ in range(numPeople)]
     for me in range(numPeople):
@@ -18,8 +18,7 @@ def solve():
             friendAdjList[me].add(otherPerson)
     friendAdjList = [[x for x in y] for y in friendAdjList]
     # friendAdjMatrix = [[1 if x in friendAdjList[curr] else 0 for x in range(numPeople)] for curr in range(numPeople)]
-    print(findAllKCliques(friendAdjList, 4))
-    print(sum([len(x) for x in friendAdjList])/len(friendAdjList))
+    print(findAllKCliques(friendAdjList, 25))
     tmp = 0
     pass
 
@@ -32,8 +31,6 @@ def findAllKCliques(friendList, k):
         for person, friends in enumerate(friendList):
             for friend in friends:
                 cliqueSet.add(frozenset([person, friend]))
-        return cliqueSet
-        pass
     else:
         k_minus_one_cliques = findAllKCliques(friendList, k-1)
         # build up the list of k-cliques from k-1-cliques
@@ -45,7 +42,10 @@ def findAllKCliques(friendList, k):
             # for each node that is a neighbor with every other node in the clique, generate a new k-clique
             for node in sharedNodes:
                 cliqueSet.add(frozenset(clique.union(set([node]))))
-        return cliqueSet
+    print(k)
+    pp.pprint(cliqueSet)
+    print('------------------')
+    return cliqueSet
 
 
     tmp = 0
