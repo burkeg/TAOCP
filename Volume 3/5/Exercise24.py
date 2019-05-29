@@ -129,7 +129,7 @@ def shuffle(lst):
 def solveWithCheating():
     # 100,000 10: 2515
     # 100,000 1: 42070
-    Coalescer(Deck(3_000_000), maxNucleationSites=1)
+    Coalescer(Deck(10000), maxNucleationSites=100)
 
 
 
