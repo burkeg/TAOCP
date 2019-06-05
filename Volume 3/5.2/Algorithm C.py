@@ -8,7 +8,7 @@ def reconstructFromInversionCount(arr, inversions):
         sortedArr.insert(inversions[i], arr[i])
     return sortedArr
 
-def ComparisonCounting(arr):
+def ComparisonCountingWeird(arr):
     counts = [0]*len(arr)
     for i in range(len(arr) - 1):
         for j in range(i+1, len(arr)):
@@ -16,8 +16,18 @@ def ComparisonCounting(arr):
                 counts[i] += 1
     return reconstructFromInversionCount(arr, counts)
 
+def ComparisonCounting(arr):
+    counts = [0]*len(arr)
+    for i in range(len(arr) - 1):
+        for j in range(i+1, len(arr)):
+            if arr[i] > arr[j]:
+                counts[i] += 1
+            else:
+                counts[j] += 1
+    return [arr[counts[x]] for x in range(len(arr))]
+
 def solve():
-    unsorted = SortUtils.randomIntegerArray(10, -4)
+    unsorted = SortUtils.randomIntegerArray(10)
     sortedArr = ComparisonCounting(unsorted)
     print(unsorted)
     print(sortedArr)
