@@ -1,4 +1,5 @@
 import sys
+import random as rand
 import copy
 sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\Sort Utils')
 from SortUtils import SortUtils
@@ -27,6 +28,7 @@ def DistributionCounting(R):
 
 def solve():
     unsorted = SortUtils.randomIntegerArray(10)
+    unsorted = [rand.randint(50,60) for x in range(500)]
     # unsorted = [5,5,5,5,6,2,3,0]
     sortedArr2 = ComparisonCounting(unsorted)
     sortedArr = DistributionCounting(unsorted)
