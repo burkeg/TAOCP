@@ -1,5 +1,6 @@
 import sys
-sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\Sort Utils')
+import random as rand
+sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\SortUtils')
 from SortUtils import SortUtils
 
 def reconstructFromInversionCount(arr, inversions):
@@ -30,7 +31,9 @@ def ComparisonCounting(arr):
     return outputArr
 
 def solve():
-    unsorted = SortUtils.randomIntegerArray(10)
+    # unsorted = SortUtils.randomIntegerArray(10)
+    # unsorted = SortUtils.KnuthExample()
+    unsorted = [rand.randint(50,60) for x in range(500)]
     sortedArr = ComparisonCounting(unsorted)
     print(unsorted)
     print(sortedArr)
