@@ -140,9 +140,16 @@ def getPairsFromFirstIteration(sortedByFirst, sortedBySecond):
     twoSpaced = []
     lastPair = None
     secondHighest = None
-    highest = None
+    highest = sortedByFirst[0][0]
     foundFirst = None
     foundSecond = None
+    allKeys = set()
+    for front, back in sortedByFirst:
+        allKeys.add(front)
+        allKeys.add(back)
+    highest = max(allKeys)
+    allKeys.remove(highest)
+    secondHighest = max(allKeys)
     # the pair (x_N-1, x_N) is the last person in line
     # the pairs (N-1, x_N-1) and (N, x_N) are saved
     while firstPos < len(sortedByFirst) and secondPos < len(sortedBySecond):
@@ -159,29 +166,63 @@ def getPairsFromFirstIteration(sortedByFirst, sortedBySecond):
             foundSecond = secondPos
             secondPos +=1
 
-    if foundFirst == None or foundSecond == None:
+    if lastPair == None:
         # If we couldn't find the last Pair in our first pass, then by coincidence N = x_N
         # In this case, the last person of the list of people sorted by first will not be
         # the the "largest" name
         lastPair = sortedBySecond[secondPos]
-        secondHighest = (sortedByFirst[-1][0], lastPair[0])
-        highest = (sortedBySecond[-1][1], lastPair[1])
-    else:
-        secondHighest = (sortedByFirst[-2][0], lastPair[0])
-        highest = (sortedByFirst[-1][0], lastPair[1])
-    return (twoSpaced, lastPair, secondHighest, highest)
+
+    return (twoSpaced, lastPair, (secondHighest, lastPair[0]), (highest, lastPair[1]))
 
 def solve():
-    initSequence, key = renameRandSequence(getRandSequence(4), doNothing=False)
+    initSequence, key = renameRandSequence(getRandSequence(10), doNothing=False)
     print(initSequence)
     print(key)
     sortedByFirst = sorted(initSequence, key=lambda x:x[0])
     sortedBySecond = sorted(initSequence, key=lambda x:x[1])
 
     firstFile = getPairsFromFirstIteration(sortedByFirst, sortedBySecond)
+    twoSpaced = firstFile[0]
+    lastPair = firstFile[1]
+    secondHighestLast = firstFile[2]
+    highestLast = firstFile[3]
     print(firstFile)
     print(sortedByFirst)
     print(sortedBySecond)
+    t = 2
+    F = twoSpaced
+    G = sorted(F, key=lambda x:x[1])
+    H = sorted(F, key=lambda x:x[0])
+    while 2*t < len(F):
+        Fp = []
+        Gp = []
+        Hp = []
+        Fpos = 0
+        Gpos = 0
+        Hpos = 0
+        while Fpos < len(F):
+            x = F[Fpos][0]
+            xp = F[Fpos][1]
+            y = G[Fpos][0]
+            yp = G[Fpos][1]
+            z = H[Fpos][0]
+            zp = H[Fpos][1]
+            if xp == z:
+                Fp.append((x, xp))
+                Fpos += 1
+                Hpos += 1
+            elif xp == yp:
+                Gp.append((y-t, x))
+                Fpos +=1
+                Gpos += 1
+            elif xp > yp:
+                Gpos += 1
+            elif xp > z:
+                Hpos += 1
+        t *= 2
+        F = Fp
+        G = sorted(G + Gp, key=lambda x: x[1])
+    G = sorted(G, key=lambda x:x[0])
 
     return
 
