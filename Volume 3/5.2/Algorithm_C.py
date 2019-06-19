@@ -1,6 +1,5 @@
 import sys
 import random as rand
-sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\SortUtils')
 from SortUtils import SortUtils
 
 def reconstructFromInversionCount(arr, inversions):

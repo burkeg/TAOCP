@@ -2,7 +2,6 @@ import sys
 import pyoeis
 import random as rand
 import copy
-sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\SortUtils')
 from SortUtils import SortUtils
 # https://buildmedia.readthedocs.org/media/pdf/pyoeis/latest/pyoeis.pdf
 

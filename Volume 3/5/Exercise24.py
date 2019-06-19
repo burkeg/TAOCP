@@ -4,6 +4,7 @@ import pprint as pp
 import random as rand
 import itertools
 import copy
+from SortUtils import SortUtils
 from llist import dllist, dllistnode
 
 
@@ -28,11 +29,11 @@ class Deck:
     def createDeck(self):
         self.cards = []
         sequence = list(range(self.size))
-        shuffle(sequence)
+        SortUtils.shuffle(sequence)
         for i, j in zip(range(self.size-1), range(1, self.size)):
             self.cards.append(Card(sequence[i], sequence[j]))
         self.originalSequence = copy.deepcopy(self.cards)
-        shuffle(self.cards)
+        SortUtils.shuffle(self.cards)
 
 
 class Coalescer:
@@ -116,25 +117,77 @@ class Coalescer:
             numPasses += 1
             print(numFound, numPasses)
 
-# Knuth Shuffle A.K.A. Fisher-Yates Shuffle
-def shuffle(lst):
-    for i in range(len(lst)-1):
-        j = rand.randint(i, len(lst) - 1)
-        tmp = lst[i]
-        lst[i] = lst[j]
-        lst[j] = tmp
-
-
-
 def solveWithCheating():
     # 100,000 10: 2515
     # 100,000 1: 42070
     Coalescer(Deck(10000), maxNucleationSites=100)
 
+def getRandSequence(size):
+    lst = SortUtils.randomIntegerArray(size-1)
+    return [(x, x+1) for x in lst]
+
+def renameRandSequence(initSeq, doNothing=False):
+    if doNothing:
+        return initSeq, list(range(len(initSeq)+1))
+    N = len(initSeq)
+    key = SortUtils.randomIntegerArray(N+1)
+    newSeq = [(key[x[0]], key[x[1]]) for x in initSeq]
+    return newSeq, key
+
+def getPairsFromFirstIteration(sortedByFirst, sortedBySecond):
+    firstPos = 0
+    secondPos = 0
+    twoSpaced = []
+    lastPair = None
+    secondHighest = None
+    highest = None
+    foundFirst = None
+    foundSecond = None
+    # the pair (x_N-1, x_N) is the last person in line
+    # the pairs (N-1, x_N-1) and (N, x_N) are saved
+    while firstPos < len(sortedByFirst) and secondPos < len(sortedBySecond):
+        # Found a pair (x_i, x_i+2)
+        if sortedByFirst[firstPos][0] == sortedBySecond[secondPos][1]:
+            twoSpaced.append((sortedBySecond[secondPos][0], sortedByFirst[firstPos][1]))
+            firstPos += 1
+            secondPos += 1
+        elif sortedByFirst[firstPos][0] < sortedBySecond[secondPos][1]:
+            foundFirst = firstPos
+            firstPos += 1
+        elif sortedByFirst[firstPos][0] > sortedBySecond[secondPos][1]:
+            lastPair = sortedBySecond[secondPos]
+            foundSecond = secondPos
+            secondPos +=1
+
+    if foundFirst == None or foundSecond == None:
+        # If we couldn't find the last Pair in our first pass, then by coincidence N = x_N
+        # In this case, the last person of the list of people sorted by first will not be
+        # the the "largest" name
+        lastPair = sortedBySecond[secondPos]
+        secondHighest = (sortedByFirst[-1][0], lastPair[0])
+        highest = (sortedBySecond[-1][1], lastPair[1])
+    else:
+        secondHighest = (sortedByFirst[-2][0], lastPair[0])
+        highest = (sortedByFirst[-1][0], lastPair[1])
+    return (twoSpaced, lastPair, secondHighest, highest)
+
+def solve():
+    initSequence, key = renameRandSequence(getRandSequence(4), doNothing=False)
+    print(initSequence)
+    print(key)
+    sortedByFirst = sorted(initSequence, key=lambda x:x[0])
+    sortedBySecond = sorted(initSequence, key=lambda x:x[1])
+
+    firstFile = getPairsFromFirstIteration(sortedByFirst, sortedBySecond)
+    print(firstFile)
+    print(sortedByFirst)
+    print(sortedBySecond)
+
+    return
 
 
 if __name__ == "__main__":
-    # rand.seed(0)
-    solveWithCheating()
+    rand.seed()
+    solve()
 
 4

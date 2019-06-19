@@ -1,7 +1,6 @@
 import sys
 import random as rand
 import copy
-sys.path.append(r'C:\Users\gabburke\Documents\Personal\TAOCP\Volume 3\SortUtils')
 from SortUtils import SortUtils
 from Algorithm_C import ComparisonCounting
 
@@ -17,7 +16,7 @@ def DistributionCounting(R, key=lambda x:x):
     # D4
     for i in range(u+1, v+1):
         counts[i - u] = counts[i - u] + counts[i - 1 - u]
-    for j in range(len(R)):   # D5
+    for j in reversed(range(len(R))):   # D5
         i = counts[key(R[j]) - u]
         outputs[i-1] = R[j]
         counts[key(R[j]) - u] = i - 1
