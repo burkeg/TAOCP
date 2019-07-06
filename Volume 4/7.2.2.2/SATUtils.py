@@ -125,6 +125,44 @@ class SATUtils:
         if oldToNew:
             tmp_map = {v: k for k, v in mapping.items()}
         return [[int(x/abs(x))*tmp_map[abs(x)] for x in clause] for clause in clauses]
+    
+    @staticmethod
+    def getEdgeLiteralDictsFromNodeDict(nodeDict):
+        # A nodeDict is a dictionary where each key is a vertex label,
+        # nodeDict[vertex] should be a tuple of the vertex labels of each adjacent vertex.
+        # Returns 2 dictionaries: edgeToLiteral and literalToEdge.
+        # edgeToLiteral:  Each key is a tuple (vertex label A, vertex label B) in sorted order. Each value is a unique literal.
+        # literalToEdge:  Each key is a unique literal. Each value is a tuple (vertex label A, vertex label B) in sorted order.
+        literalCount = 1
+        edges = set()
+        edgeToLiteral = dict()
+        literalToEdge = dict()
+        for node, neighbors in nodeDict.items():
+            for neighbor in neighbors:
+                edge = tuple(sorted((node, neighbor)))
+                edges.add(edge)
+        for edge in edges:
+            edgeToLiteral[edge] = literalCount
+            literalToEdge[literalCount] = edge
+            literalCount += 1
+        return (edgeToLiteral, literalToEdge)
+    
+    @staticmethod
+    def getNodeLiteralDictsFromNodeDict(nodeDict):
+        # A nodeDict is a dictionary where each key is a vertex label,
+        # nodeDict[vertex] should be a tuple of the vertex labels of each adjacent vertex.
+        # Returns 2 dictionaries: nodeToLiteral and literalToNode.
+        # nodeToLiteral:  Each key is a vertex label. Each value is a unique literal.
+        # literalToNode:  Each key is a unique literal. Each value is a vertex label.
+        literalCount = 1
+        nodeToLiteral = dict()
+        literalToNode = dict()
+        for node in nodeDict.keys():
+            nodeToLiteral[node] = literalCount
+            literalToNode[literalCount] = node
+            literalCount += 1
+        return (nodeToLiteral, literalToNode)
+                
 
     #returns a tuple containing:
     # an equivalent list of clauses with literals 1-n

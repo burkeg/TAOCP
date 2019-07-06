@@ -228,8 +228,29 @@ class Experiments:
         F = [[1, -2], [2, 3], [-1, -3], [-1, -2, 3]]
         G = F + [[1, 2, -3]]
         H = [[rand.choice([-1, 1])*rand.randint(1, 100) for _ in range(3)] for _ in range(200)]
-        solver = SATSolver(McGregor(10, 4).clauses, SATSolver.Algorithm_A)
+        solver = SATSolver(McGregor(4, 4).clauses, SATSolver.Algorithm_A)
+        # solver = SATSolver(H, SATSolver.Algorithm_A)
         solver.compare()
 
+    @staticmethod
+    def singleLoopGraph():
+        F = GraphColoring.C(5)
+        G = GraphColoring.C(4)
+        print(F)
+        print(G)
+        Gp = dict()
+        delta = 5
+        for k, v in G.items():
+            Gp[k+delta] = tuple([x + delta for x in v])
+        F.update(Gp)
+        print(F)
+        [edgeToLiteral, literalToEdge] = SATUtils.getEdgeLiteralDictsFromNodeDict(F)
+        [nodeToLiteral, literalToNode] = SATUtils.getNodeLiteralDictsFromNodeDict(F)
+        print("edgeToLiteral:", edgeToLiteral)
+        print("literalToEdge:", literalToEdge)
+        print("nodeToLiteral:", nodeToLiteral)
+        print("literalToNode:", literalToNode)
+
+
 if __name__ == "__main__":
-    Experiments.testAlgoA()
+    Experiments.singleLoopGraph()

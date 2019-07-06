@@ -4,6 +4,7 @@ import numpy as np
 import pycosat
 import pprint as pp
 import time
+from VisualizeSAT import Visualizer
 
 class SATSolver:
     def __init__(self, cnf, strategy=pycosat.solve):
@@ -12,6 +13,10 @@ class SATSolver:
 
     @staticmethod
     def Algorithm_A(F):
+        literals = set()
+        for clause in F:
+            literals.update(set([abs(x) for x in clause]))
+        visualizer = Visualizer(list(literals))
         # returns clauses F conditioned on literal l
         def Fgivenl(F,l):
             return [[literal for literal in clause if literal != -l] for clause in F if l not in clause]
@@ -26,20 +31,26 @@ class SATSolver:
             # otherwise let l be a literal in F and set L <- B(F|l)
             else:
                 l = F[0][0]
-                L = B(Fgivenl(F, l))
+                FCondOnl = Fgivenl(F, l)
+                visualizer.assignLiteral(l)
+                L = B(FCondOnl)
             # If L != UNSAT, return L union l
             if L != 'UNSAT':
                 L.add(l)
                 return L
             # otherwise set L <- B(F|-l).
             else:
-                L = B(Fgivenl(F, -l))
+                visualizer.unassignLiteral(l)
+                FCondOnnl = Fgivenl(F, -l)
+                visualizer.assignLiteral(-l)
+                L = B(FCondOnnl)
             # If L != UNSAT, return L union -l
             if L != 'UNSAT':
                 L.add(-l)
                 return L
             # otherwise return UNSAT
             else:
+                visualizer.unassignLiteral(-l)
                 return 'UNSAT'
 
         result = B(F)
