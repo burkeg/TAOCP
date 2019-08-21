@@ -21,21 +21,21 @@ def stackPermute(target):
 
     def exitStacks():
         output.append(stacks[-1].pop())
-        print('Output: ' + str(output))
+        # print('Output: ' + str(output))
 
-    def filterTarget(majN, minN):
-        lowerIndex = 2**majN if majN > 0 else 0
-        upperIndex = 2**minN + lowerIndex
-        print(str(lowerIndex) + ':' + str(upperIndex-1))
+    def filterTarget(lowerIndex, regionWidth):
+        upperIndex = 2 ** regionWidth + lowerIndex
+        # print(str(lowerIndex) + ':' + str(upperIndex-1))
         return [x for x in target if x in range(lowerIndex, upperIndex)]
 
     def stackOffset(frameMin, frameMax, value):
-        frameSize = frameMax - frameMin
+        frameSize = frameMax - frameMin + 1
         threshold = frameSize//2
         offset = 0
-        while frameSize - threshold >= 2 and value > threshold:
+        while frameSize - threshold > 1 and (value - frameMin) >= threshold:
             offset += 1
-            threshold = (threshold + frameSize ) // 2
+            threshold = (threshold + frameSize) // 2
+        # print('frameSize', frameSize, 'frameMin', frameMin, 'frameMax', frameMax, 'value', value, 'offset', offset)
         return offset
 
     def moveFromStackToStack(stackB, stackA):
@@ -45,15 +45,15 @@ def stackPermute(target):
         for i in range(stackB, stackA):
             popStack(i)
 
-    def doPermute(majN, minN, downRight=False):
-        print(downRight)
+    def doPermute(lowerIndex, regionWidth, downRight=False):
+        if len(incoming) == 0:
+            return
         # Two parts, first recursively form stacks from smaller minN
         # Second, stitch together to form majN
 
         # Base case, minN = 1
-        filtered = filterTarget(majN,minN)
-        print('')
-        if minN == 1:
+        filtered = filterTarget(lowerIndex, regionWidth)
+        if regionWidth == 1:
             # We want the lower value to go first when:
             #   * it is preceded by the higher value and we're downRight
             #   * it precedes the higher value and we're downLeft
@@ -69,7 +69,7 @@ def stackPermute(target):
                 popStack(0)
             return
 
-        doPermute(majN,minN-1, downRight=not downRight)
+        doPermute(lowerIndex, regionWidth - 1, downRight=not downRight)
 
         # stitch together from previous stacks
         frameMin = min(filtered)
@@ -77,35 +77,37 @@ def stackPermute(target):
         hasTakenFromIncoming = False
         for val in reversed(filtered) if downRight else filtered:
             offset = stackOffset(frameMin, frameMax, val)
-            if minN - offset - 1 <= 0:
+            if regionWidth - offset - 1 <= 0:
                 if val == frameMax - 1:
                     if hasTakenFromIncoming:
-                        moveFromStackToStack(0, minN)
+                        moveFromStackToStack(0, regionWidth)
                     else:
-                        moveFromStackToStack(-1, minN)
+                        moveFromStackToStack(-1, regionWidth)
                     hasTakenFromIncoming = True
+                    continue
                 elif val == frameMax:
                     if hasTakenFromIncoming:
-                        moveFromStackToStack(-1, minN)
+                        moveFromStackToStack(-1, regionWidth)
                     else:
                         enterStacks()
-                        moveFromStackToStack(-1, minN)
+                        moveFromStackToStack(-1, regionWidth)
                     hasTakenFromIncoming = True
-            else:
-                moveFromStackToStack(minN - offset - 1, minN)
+                    continue
+                else:
+                    raise Exception('This should never happen')
+            moveFromStackToStack(regionWidth - offset - 1, regionWidth)
 
-        doPermute(minN,minN-1, downRight=downRight)
+        doPermute(lowerIndex + 2**regionWidth, regionWidth - 1, downRight=downRight)
 
-        pass
+    doPermute(lowerIndex=0, regionWidth=n, downRight=False)
 
-    doPermute(majN=0, minN=4, downRight=False)
-
-
-    pp.pprint(stacks)
+    return output
 
 
 if __name__ == '__main__':
-    # stackPermute(SortUtils.shuffled(list(range(2**3))))
-    stackPermute([12, 14, 3, 8, 1, 6, 15, 5, 0, 10, 9, 4, 13, 7, 11, 2])
+    result = stackPermute(SortUtils.shuffled(list(range(2**3))))
+    # result = stackPermute([12, 14, 3, 8, 1, 6, 15, 5, 0, 10, 9, 4, 13, 7, 11, 2])
     # stackPermute([12, 14, 2, 8, 1, 6, 15, 5, 0, 10, 9, 4, 13, 7, 11, 3])
     # stackPermute([0, 3, 1 ,2])
+
+    print(result)
