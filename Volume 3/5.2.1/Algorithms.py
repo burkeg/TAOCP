@@ -2,7 +2,6 @@ import sys
 import pyoeis
 import random as rand
 import copy
-sys.path.append(r'C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 3\SortUtils')
 from SortUtils import SortUtils
 # https://buildmedia.readthedocs.org/media/pdf/pyoeis/latest/pyoeis.pdf
 
@@ -45,6 +44,7 @@ def solve():
     OEIS = pyoeis.client.OEISClient()
     incrementList = OEIS.get_by_id('A003586').unsigned(55)
     unsorted = SortUtils.randomIntegerArray(100)
+    unsorted = [rand.randint(50,55) for x in range(200000)]
     # unsorted = [rand.randint(50,60) for x in range(500)]
     # unsorted = [5,5,5,5,6,2,3,0]
     # [503, 87, 512, 61, 908, 170, 897, 275, 653, 426, 154, 509, 612, 677, 765, 703]

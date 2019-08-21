@@ -291,7 +291,7 @@ class GraphColoring:
         nodeDict = dict()
         if zeroIndexed:
             for i in range(0, n):
-                    nodeDict[i] = ((i-1) % n, i+1 % n)
+                    nodeDict[i] = ((i-1) % n, (i+1) % n)
         else:
             for i in range(1, n+1):
                     nodeDict[i] = (((i-2) % n)+1, ((i) % n)+1)
