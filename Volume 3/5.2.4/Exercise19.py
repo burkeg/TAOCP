@@ -1,27 +1,36 @@
 import pprint as pp
 from SortUtils import SortUtils
 import math
-def stackPermute(target):
+def stackPermute(target, debug=True):
     n = math.ceil(math.log(len(target), 2))
     stacks = [[] for x in range(n)]
     incoming = list(range(2**n))
     output = []
-    pp.pprint(target)
+    actionSequence = []
+    # pp.pprint(target)
 
     def enterStacks():
+        if debug:
+            print('Push ' + str(incoming[0]) + ' to stack [0]')
         stacks[0].append(incoming.pop(0))
+        actionSequence.append(0)
 
     def popStack(stackNum):
         if n == stackNum + 1:
             exitStacks()
         elif n > stackNum and stackNum >= 0:
+            actionSequence.append(stackNum+1)
+            if debug:
+                print('Pop ' + str(stacks[stackNum][-1]) + ' from stack[' + str(stackNum) + ']')
             stacks[stackNum+1].append(stacks[stackNum].pop())
         else:
             raise Exception('Invalid stack index.')
 
     def exitStacks():
+        actionSequence.append(n)
         output.append(stacks[-1].pop())
-        # print('Output: ' + str(output))
+        if debug:
+            print('Output from stack [' + str(n-1) + ']: ' + str(output))
 
     def filterTarget(lowerIndex, regionWidth):
         upperIndex = 2 ** regionWidth + lowerIndex
@@ -101,13 +110,17 @@ def stackPermute(target):
 
     doPermute(lowerIndex=0, regionWidth=n, downRight=False)
 
-    return output
+    return output, actionSequence
 
 
 if __name__ == '__main__':
-    result = stackPermute(SortUtils.shuffled(list(range(2**3))))
+    lst = SortUtils.shuffled(list(range(2**10)))
+    result, actions = stackPermute(lst, debug=True)
     # result = stackPermute([12, 14, 3, 8, 1, 6, 15, 5, 0, 10, 9, 4, 13, 7, 11, 2])
     # stackPermute([12, 14, 2, 8, 1, 6, 15, 5, 0, 10, 9, 4, 13, 7, 11, 3])
     # stackPermute([0, 3, 1 ,2])
+    print('Expected: ', lst)
 
-    print(result)
+    print('Actual:   ', result)
+
+    print(actions)
