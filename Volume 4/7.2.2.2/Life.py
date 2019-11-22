@@ -1,14 +1,14 @@
-import pycosat
-import math
-import numpy as np
-import pprint as pp
-import sys
-import collections
-import re
+# import pycosat
+# import math
+# import numpy as np
+# import pprint as pp
+# import sys
+# import collections
+# import re
 from enum import Enum
-from SATUtils import SATUtils
-from collections import namedtuple
-from GraphColoring import GraphColoring
+# from SATUtils import SATUtils
+# from collections import namedtuple
+# from GraphColoring import GraphColoring
 
 
 class State(Enum):
@@ -46,13 +46,26 @@ class Life:
         self.game[0][2][1].state = State.ALIVE
         self.game[0][2][2].state = State.ALIVE
         self.game[0][2][3].state = State.ALIVE
-        print(self.game)
+
+    def Glider(self):
+        self.width = 5
+        self.height = 5
+        self.game = GameInstance(self.height, self.width)
+        for i in range(5):
+            for j in range(5):
+                self.game[0][i][j].state = State.DEAD
+        self.game[0][1][2].state = State.ALIVE
+        self.game[0][2][1].state = State.ALIVE
+        self.game[0][3][1].state = State.ALIVE
+        self.game[0][3][2].state = State.ALIVE
+        self.game[0][3][3].state = State.ALIVE
 
 
 class GameInstance:
-    def __init__(self,height=0,width=0):
+    def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
         self.height = height
         self.width = width
+        self.boundaryCondition = boundaryCondition
         self.tilings = [Tiling(height=height, width=width, time=0)]
 
     def __getitem__(self, key):
@@ -62,10 +75,16 @@ class GameInstance:
 
         gameStr = '-------------\n'
         for t in range(len(self.tilings)):
-            gameStr+= 'Time = ' + str(t) + '\n'
-            gameStr+= str(self[t])
-            gameStr+= '-------------\n'
+            gameStr += 'Time = ' + str(t) + '\n'
+            gameStr += str(self[t])
+            gameStr += '-------------\n'
         return gameStr
+
+    def AddFrames(self, n):
+        if len(self.tilings) == 0:
+            return
+        for i in range(n):
+            self.tilings.append(self.tilings[-1].GetNextState(boundaryCondition=self.boundaryCondition))
 
 
 class Tiling:
@@ -82,18 +101,17 @@ class Tiling:
         boardStr= ''
         for i in range(self.height):
             for j in range(self.width):
-                wtfIsThis = self[i][j]
                 if self[i][j].state == State.ALIVE:
-                    boardStr+= '■'
+                    boardStr += '■'
                 elif self[i][j].state == State.DEAD:
-                    boardStr+= '□'
+                    boardStr += '□'
                 elif self[i][j].state == State.DONTCARE:
-                    boardStr+= '▩'
+                    boardStr += '▩'
                 else:
                     raise Exception('Unknown tile state')
 
             if i != self.width:
-                boardStr+= '\n'
+                boardStr += '\n'
         return boardStr
 
     def GetNextState(self, boundaryCondition=BoundaryCondition.TOROIDAL):
@@ -108,7 +126,7 @@ class Tiling:
                             adjustedRow = (row + i) % self.height
                             adjustedCol = (col + j) % self.width
                             if self[adjustedRow][adjustedCol].state == State.ALIVE and not(i == 0 and j == 0):
-                                numAlive+= 1
+                                numAlive += 1
                     # Live cells stay alive when they have 2 or 3 neighbors
                     if self[row][col].state == State.ALIVE and (numAlive == 2 or numAlive == 3):
                         newTiling[row][col].state = State.ALIVE
@@ -120,9 +138,50 @@ class Tiling:
                         newTiling[row][col].state = State.DEAD
 
         elif boundaryCondition == BoundaryCondition.ALL_DEAD:
-            pass
+            for row in range(self.height):
+                for col in range(self.width):
+                    numAlive = 0
+                    for i in offsets:
+                        for j in offsets:
+                            adjustedRow = row + i
+                            adjustedCol = col + j
+                            # Out of bounds cells count as dead
+                            if adjustedRow not in range(self.height) or adjustedCol not in range(self.width):
+                                numAlive += 0
+                            elif self[adjustedRow][adjustedCol].state == State.ALIVE and not(i == 0 and j == 0):
+                                numAlive += 1
+                    # Live cells stay alive when they have 2 or 3 neighbors
+                    if self[row][col].state == State.ALIVE and (numAlive == 2 or numAlive == 3):
+                        newTiling[row][col].state = State.ALIVE
+                        # Dead cells come alive when they have exactly 3 neighbors
+                    elif self[row][col].state == State.DEAD and numAlive == 3:
+                        newTiling[row][col].state = State.ALIVE
+                        # All other remaining cells become dead
+                    else:
+                        newTiling[row][col].state = State.DEAD
+
         elif boundaryCondition == BoundaryCondition.ALL_ALIVE:
-            pass
+            for row in range(self.height):
+                for col in range(self.width):
+                    numAlive = 0
+                    for i in offsets:
+                        for j in offsets:
+                            adjustedRow = row + i
+                            adjustedCol = col + j
+                            # Out of bounds cells count as alive
+                            if adjustedRow not in range(self.height) or adjustedCol not in range(self.width):
+                                numAlive += 1
+                            elif self[adjustedRow][adjustedCol].state == State.ALIVE and not(i == 0 and j == 0):
+                                numAlive += 1
+                    # Live cells stay alive when they have 2 or 3 neighbors
+                    if self[row][col].state == State.ALIVE and (numAlive == 2 or numAlive == 3):
+                        newTiling[row][col].state = State.ALIVE
+                        # Dead cells come alive when they have exactly 3 neighbors
+                    elif self[row][col].state == State.DEAD and numAlive == 3:
+                        newTiling[row][col].state = State.ALIVE
+                        # All other remaining cells become dead
+                    else:
+                        newTiling[row][col].state = State.DEAD
         else:
             raise Exception('Unknown boundary condition')
         return newTiling
@@ -139,9 +198,9 @@ class Tile:
 
 if __name__ == "__main__":
     lifeGame = Life()
-    lifeGame.Blinker()
-    nextState = lifeGame.game.tilings[0].GetNextState()
-    print(lifeGame.game.tilings[0])
-    print(nextState)
+    lifeGame.Glider()
+    lifeGame.game.boundaryCondition = BoundaryCondition.TOROIDAL
+    lifeGame.game.AddFrames(50)
+    print(lifeGame.game)
     test = 0
 
