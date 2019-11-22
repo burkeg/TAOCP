@@ -6,7 +6,7 @@
 # import collections
 # import re
 from enum import Enum
-# from SATUtils import SATUtils
+from SATUtils import SATUtils, CNF, Clause, Literal, DSAT
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
 
@@ -150,6 +150,32 @@ class Life:
         self.game[0][6][18].state = State.ALIVE
         self.game[0][6][19].state = State.ALIVE
 
+    def Assert_A_Precedes_B(self, A, B, boundaryCondition=BoundaryCondition.ALL_DEAD):
+        if A.height != B.height or A.width != B.width:
+            raise Exception('Cannot compare tilings with different dimensions.')
+        for row in range(A.height):
+            for col in range(A.width):
+                if A[row][col].variable == None or B[row][col].variable == None:
+                    raise Exception('All tiles must have a variable tied to them.')
+
+        #   TODO
+        #   adj = [
+        #       A[i-1][j-1],
+        #       A[i-1][j],
+        #       A[i-1][j+1],
+        #       A[i][j-1],
+        #       A[i][j+1],
+        #       A[i+1][j-1],
+        #       A[i+1][j],
+        #       A[i+1][j+1],
+        #   ]
+        #   POPCNT() counts the number of true variables in the list
+        #   (POPCNT(adj) == 3 or (POPCNT(adj) == 2 and A[i][j])) implies B[i][j]
+
+        if boundaryCondition == BoundaryCondition.ALL_DEAD:
+            clauses=CNF()
+        else:
+            raise NotImplementedError()
 
 class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
@@ -288,10 +314,18 @@ class Tile:
         return '[' + str(self.row) + ', ' + str(self.col) + ', ' + self.state.name + ']'
 
 if __name__ == "__main__":
-    lifeGame = Life(40, 40)
-    lifeGame.Gabe()
-    lifeGame.game.boundaryCondition = BoundaryCondition.ALL_DEAD
-    lifeGame.game.AddFrames(5)
-    print(lifeGame.game)
+    lifeGame = Life(5, 5)
+    tilingA = Tiling(5,5)
+    tilingB = Tiling(5,5)
+    variableCount = 1
+    for i in range(5):
+        for j in range(5):
+            tilingA[i][j].variable = variableCount
+            variableCount += 1
+    for i in range(5):
+        for j in range(5):
+            tilingB[i][j].variable = variableCount
+            variableCount += 1
+    lifeGame.Assert_A_Precedes_B(tilingA, tilingB)
     test = 0
 
