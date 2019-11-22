@@ -60,6 +60,96 @@ class Life:
         self.game[0][3][2].state = State.ALIVE
         self.game[0][3][3].state = State.ALIVE
 
+    def Gabe(self):
+        self.height = 8
+        self.width = 21
+        self.game = GameInstance(self.height, self.width)
+        for row in range(self.height):
+            for col in range(self.width):
+                self.game[0][row][col].state = State.DEAD
+        self.game[0][1][2].state = State.ALIVE
+        self.game[0][1][3].state = State.ALIVE
+        self.game[0][1][4].state = State.ALIVE
+        self.game[0][1][6].state = State.ALIVE
+        self.game[0][1][7].state = State.ALIVE
+        self.game[0][1][8].state = State.ALIVE
+        self.game[0][1][11].state = State.ALIVE
+        self.game[0][1][12].state = State.ALIVE
+        self.game[0][1][13].state = State.ALIVE
+        self.game[0][1][16].state = State.ALIVE
+        self.game[0][1][17].state = State.ALIVE
+        self.game[0][1][18].state = State.ALIVE
+        self.game[0][1][19].state = State.ALIVE
+
+
+        self.game[0][2][1].state = State.ALIVE
+
+        self.game[0][2][6].state = State.ALIVE
+        self.game[0][2][9].state = State.ALIVE
+
+        self.game[0][2][11].state = State.ALIVE
+        self.game[0][2][14].state = State.ALIVE
+
+        self.game[0][2][16].state = State.ALIVE
+
+
+        self.game[0][3][1].state = State.ALIVE
+        self.game[0][3][3].state = State.ALIVE
+        self.game[0][3][4].state = State.ALIVE
+
+        self.game[0][3][6].state = State.ALIVE
+        self.game[0][3][7].state = State.ALIVE
+        self.game[0][3][8].state = State.ALIVE
+        self.game[0][3][9].state = State.ALIVE
+
+        self.game[0][3][11].state = State.ALIVE
+        self.game[0][3][12].state = State.ALIVE
+        self.game[0][3][13].state = State.ALIVE
+
+        self.game[0][3][16].state = State.ALIVE
+        self.game[0][3][17].state = State.ALIVE
+        self.game[0][3][18].state = State.ALIVE
+
+        self.game[0][4][1].state = State.ALIVE
+        self.game[0][4][4].state = State.ALIVE
+
+        self.game[0][4][6].state = State.ALIVE
+        self.game[0][4][9].state = State.ALIVE
+
+        self.game[0][4][11].state = State.ALIVE
+        self.game[0][4][14].state = State.ALIVE
+
+        self.game[0][4][16].state = State.ALIVE
+
+
+        self.game[0][5][1].state = State.ALIVE
+        self.game[0][5][4].state = State.ALIVE
+
+        self.game[0][5][6].state = State.ALIVE
+        self.game[0][5][9].state = State.ALIVE
+
+        self.game[0][5][11].state = State.ALIVE
+        self.game[0][5][14].state = State.ALIVE
+
+        self.game[0][5][16].state = State.ALIVE
+
+
+        self.game[0][6][2].state = State.ALIVE
+        self.game[0][6][3].state = State.ALIVE
+        self.game[0][6][4].state = State.ALIVE
+
+        self.game[0][6][6].state = State.ALIVE
+        self.game[0][6][9].state = State.ALIVE
+
+        self.game[0][6][11].state = State.ALIVE
+        self.game[0][6][12].state = State.ALIVE
+        self.game[0][6][13].state = State.ALIVE
+
+        self.game[0][6][16].state = State.ALIVE
+        self.game[0][6][17].state = State.ALIVE
+        self.game[0][6][18].state = State.ALIVE
+        self.game[0][6][19].state = State.ALIVE
+
 
 class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
@@ -188,19 +278,20 @@ class Tiling:
 
 
 class Tile:
-    def __init__(self, state=State.DONTCARE, row=-1, col=-1):
+    def __init__(self, state=State.DONTCARE, row=-1, col=-1, variable=None):
         self.state = state
         self.row=row
         self.col=col
+        self.variable = variable
 
     def __str__(self):
         return '[' + str(self.row) + ', ' + str(self.col) + ', ' + self.state.name + ']'
 
 if __name__ == "__main__":
-    lifeGame = Life()
-    lifeGame.Glider()
-    lifeGame.game.boundaryCondition = BoundaryCondition.TOROIDAL
-    lifeGame.game.AddFrames(50)
+    lifeGame = Life(40, 40)
+    lifeGame.Gabe()
+    lifeGame.game.boundaryCondition = BoundaryCondition.ALL_DEAD
+    lifeGame.game.AddFrames(5)
     print(lifeGame.game)
     test = 0
 
