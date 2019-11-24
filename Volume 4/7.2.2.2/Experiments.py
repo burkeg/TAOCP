@@ -256,10 +256,10 @@ class Experiments:
     def TseytinSimple():
         a = Wire()
         b = Wire()
-        andGate = Gate2(LogicGate.XOR, a, b)
+        andGate = Gate2(LogicGate.IMPLIES, a, b)
         c = andGate.output
-        notGate = Gate1(LogicGate.NOT, c)
-        d = notGate.output
+        # notGate = Gate1(LogicGate.NOT, c)
+        # d = notGate.output
         logicForm = LogicFormula([a,b])
         logicForm.getTseytinCNF()
         cnfFormula = logicForm.cnfForm.rawCNF()

@@ -53,24 +53,31 @@ class LogicFormula:
             if gate.gateType == LogicGate.AND:
                 newClauses, _= Tseytin.AND(varA, varB, varOut)
                 return newClauses
-            if gate.gateType == LogicGate.NAND:
+            elif gate.gateType == LogicGate.NAND:
                 newClauses, _= Tseytin.NAND(varA, varB, varOut)
                 return newClauses
-            if gate.gateType == LogicGate.OR:
+            elif gate.gateType == LogicGate.OR:
                 newClauses, _= Tseytin.OR(varA, varB, varOut)
                 return newClauses
-            if gate.gateType == LogicGate.NOR:
+            elif gate.gateType == LogicGate.NOR:
                 newClauses, _= Tseytin.NOR(varA, varB, varOut)
                 return newClauses
-            if gate.gateType == LogicGate.XOR:
+            elif gate.gateType == LogicGate.XOR:
                 newClauses, _= Tseytin.XOR(varA, varB, varOut)
                 return newClauses
+            elif gate.gateType == LogicGate.IMPLIES:
+                newClauses, _= Tseytin.IMPLIES(varA, varB, varOut)
+                return newClauses
+            else:
+                raise Exception('Unknown gate')
         if isinstance(gate, Gate1):
             varA = gate.inputA.variable
             varOut = gate.output.variable
             if gate.gateType == LogicGate.NOT:
                 newClauses, _= Tseytin.NOT(varA, varOut)
                 return newClauses
+            else:
+                raise Exception('Unknown gate')
 
 
 
