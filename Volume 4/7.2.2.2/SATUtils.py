@@ -391,41 +391,53 @@ class SATUtils:
             n += 1
 
 class Tseytin:
+    # C = A & B
     @staticmethod
-    def conj(u, v, startLiteral = None):
+    def AND(A, B, startLiteral = None):
         if startLiteral == None:
-            startLiteral = max(u, v) + 1
-        t = startLiteral
-        return ([[u, -t], [v, -t], [-u, -v, t]], t)
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[-A, -B, C], [A, -C], [B, -C]], C)
 
+    # C = ~(A & B)
     @staticmethod
-    def disj(u, v, startLiteral = None):
+    def NAND(A, B, startLiteral = None):
         if startLiteral == None:
-            startLiteral = max(u, v) + 1
-        t = startLiteral
-        return ([[-u, t], [-v, t], [u, v, -t]], t)
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[-A, -B, -C], [A, C], [B, C]], C)
 
+    # C = A | B
     @staticmethod
-    def xor(u, v, startLiteral = None):
+    def OR(A, B, startLiteral = None):
         if startLiteral == None:
-            startLiteral = max(u, v) + 1
-        t = startLiteral
-        return ([[-u, v, t], [u, -v, t], [u, v, -t], [-u, -v, -t]], t)
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[A, B, -C], [-A, C], [-B, C]], C)
 
+    # C = ~(A | B)
     @staticmethod
-    def conjSym(u, v, startLiteral):
-        t = ('aux', startLiteral)
-        return ([[(1, u), (-1, t)], [(1, v), (-1, t)], [(-1, u), (-1, v), (1, t)]], (1, t))
+    def NOR(A, B, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[A, B, C], [-A, -C], [-B, -C]], C)
 
+    # C = ~A
     @staticmethod
-    def disjSym(u, v, startLiteral):
-        t = ('aux', startLiteral)
-        return ([[(-1, u), (1, t)], [(-1, v), (1, t)], [(1, u), (1, v), (-1, t)]], (1, t))
+    def NOT(A, B, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = A + 1
+        C = startLiteral
+        return ([[-A, -C], [A, C]], C)
 
+    # C = A ^ B
     @staticmethod
-    def xorSym(u, v, startLiteral):
-        t = ('aux', startLiteral)
-        return ([[(-1, u), (1, v), (1, t)], [(1, u), (-1, v), (1, t)], [(1, u), (1, v), (-1, t)], [(-1, u), (-1, v), (-1, t)]], (1, t))
+    def XOR(A, B, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[-A, -B, -C], [A, B, -C], [A, -B, C], [-A, B, C]], C)
 
 def tst2():
     cnf = CNF([[1, 2], [3, 4]])
