@@ -415,6 +415,15 @@ class Tseytin:
         C = startLiteral
         return ([[A, B, -C], [-A, C], [-B, C]], C)
 
+    # C = A -> B
+    # C = ~A | B
+    @staticmethod
+    def IMPLIES(A, B, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[-A, B, -C], [A, C], [-B, C]], C)
+
     # C = ~(A | B)
     @staticmethod
     def NOR(A, B, startLiteral = None):
@@ -425,7 +434,7 @@ class Tseytin:
 
     # C = ~A
     @staticmethod
-    def NOT(A, B, startLiteral = None):
+    def NOT(A, startLiteral = None):
         if startLiteral == None:
             startLiteral = A + 1
         C = startLiteral

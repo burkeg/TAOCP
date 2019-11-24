@@ -3,6 +3,7 @@ import random as rand
 from SATSolver import SATSolver
 from SATUtils import SATUtils
 from GraphColoring import GraphColoring
+from LogicFormula import *
 import pycosat
 import math
 import numpy as np
@@ -251,6 +252,43 @@ class Experiments:
         print("nodeToLiteral:", nodeToLiteral)
         print("literalToNode:", literalToNode)
 
+    @staticmethod
+    def TseytinSimple():
+        a = Wire()
+        b = Wire()
+        andGate = Gate2(LogicGate.XOR, a, b)
+        c = andGate.output
+        notGate = Gate1(LogicGate.NOT, c)
+        d = notGate.output
+        logicForm = LogicFormula([a,b])
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+
+    @staticmethod
+    def Tseytin_RS_NOR_Latch():
+        r = Wire()
+        s = Wire()
+        q = Wire()
+        qn = Wire()
+        norGate1 = Gate2(LogicGate.NOR, r, qn, q)
+        norGate2 = Gate2(LogicGate.NOR, s, q, qn)
+        logicForm = LogicFormula([r,s])
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        # WOW! This is so cool
+        # I could check that a formula is combinational by seeing if there exists a solution where two inputs
+        # match but all outputs don't match
+        #
+        # [-1, -2, -3, 4]       neither Set nor Reset asserted, q can be either true or false
+        # [-1, -2, 3, -4]       same as above!
+        # [-1, 2, 3, -4]        Set asserted, therefore q must be true
+        # [1, 2, -3, -4]        both Set and Reset asserted, neither q not qn true
+        # [1, -2, -3, 4]        Reset asserted, therefore qn must be true
+
 
 if __name__ == "__main__":
-    Experiments.singleLoopGraph()
+    Experiments.TseytinSimple()
