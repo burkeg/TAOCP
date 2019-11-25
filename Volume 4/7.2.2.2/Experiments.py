@@ -253,10 +253,25 @@ class Experiments:
         print("literalToNode:", literalToNode)
 
     @staticmethod
+    def TseytinCustom():
+        a = Wire()
+        b = Wire()
+        cin = Wire()
+        sum = Wire()
+        cout = Wire()
+        fa1 = GateCustom()
+        fa1.FullAdder(a, b, cin, sum, cout)
+        logicForm = LogicFormula([a, b, cin])
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+
+    @staticmethod
     def TseytinSimple():
         a = Wire()
         b = Wire()
-        andGate = Gate2(LogicGate.IMPLIES, a, b)
+        andGate = Gate2(LogicStructure.IMPLIES, a, b)
         c = andGate.output
         # notGate = Gate1(LogicGate.NOT, c)
         # d = notGate.output
@@ -272,8 +287,8 @@ class Experiments:
         s = Wire()
         q = Wire()
         qn = Wire()
-        norGate1 = Gate2(LogicGate.NOR, r, qn, q)
-        norGate2 = Gate2(LogicGate.NOR, s, q, qn)
+        norGate1 = Gate2(LogicStructure.NOR, r, qn, q)
+        norGate2 = Gate2(LogicStructure.NOR, s, q, qn)
         logicForm = LogicFormula([r,s])
         logicForm.getTseytinCNF()
         cnfFormula = logicForm.cnfForm.rawCNF()
@@ -291,4 +306,4 @@ class Experiments:
 
 
 if __name__ == "__main__":
-    Experiments.TseytinSimple()
+    Experiments.TseytinCustom()

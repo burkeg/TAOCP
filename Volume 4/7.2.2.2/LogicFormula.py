@@ -1,7 +1,7 @@
 from enum import Enum
 from collections import deque
 from SATUtils import CNF, Tseytin
-class LogicGate(Enum):
+class LogicStructure(Enum):
     AND = 0
     NAND = 1
     OR = 2
@@ -9,6 +9,7 @@ class LogicGate(Enum):
     NOT = 4
     XOR = 5
     IMPLIES = 6
+    CUSTOM = 7
 
 class LogicFormula:
     def __init__(self, inputs, startLiteral=None, overwriteLiterals=True):
@@ -36,7 +37,7 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
-            elif isinstance(v, Gate1) or isinstance(v, Gate2):
+            elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
@@ -45,41 +46,43 @@ class LogicFormula:
                 raise Exception("Logic structure should only contain Wires and Gates")
 
     def getTseytinSingleGate(self, gate):
+        if not issubclass(type(gate), Gate):
+            raise Exception("Must be of type gate")
         # If you manage to get here with inputs/outputs as None I'm impressed!
         if isinstance(gate, Gate2):
             varA = gate.inputA.variable
             varB = gate.inputB.variable
             varOut = gate.output.variable
-            if gate.gateType == LogicGate.AND:
+            if gate.gateType == LogicStructure.AND:
                 newClauses, _= Tseytin.AND(varA, varB, varOut)
                 return newClauses
-            elif gate.gateType == LogicGate.NAND:
+            elif gate.gateType == LogicStructure.NAND:
                 newClauses, _= Tseytin.NAND(varA, varB, varOut)
                 return newClauses
-            elif gate.gateType == LogicGate.OR:
+            elif gate.gateType == LogicStructure.OR:
                 newClauses, _= Tseytin.OR(varA, varB, varOut)
                 return newClauses
-            elif gate.gateType == LogicGate.NOR:
+            elif gate.gateType == LogicStructure.NOR:
                 newClauses, _= Tseytin.NOR(varA, varB, varOut)
                 return newClauses
-            elif gate.gateType == LogicGate.XOR:
+            elif gate.gateType == LogicStructure.XOR:
                 newClauses, _= Tseytin.XOR(varA, varB, varOut)
                 return newClauses
-            elif gate.gateType == LogicGate.IMPLIES:
+            elif gate.gateType == LogicStructure.IMPLIES:
                 newClauses, _= Tseytin.IMPLIES(varA, varB, varOut)
                 return newClauses
             else:
                 raise Exception('Unknown gate')
-        if isinstance(gate, Gate1):
+        elif isinstance(gate, Gate1):
             varA = gate.inputA.variable
             varOut = gate.output.variable
-            if gate.gateType == LogicGate.NOT:
+            if gate.gateType == LogicStructure.NOT:
                 newClauses, _= Tseytin.NOT(varA, varOut)
                 return newClauses
             else:
                 raise Exception('Unknown gate')
-
-
+        elif isinstance(gate, GateCustom):
+            raise Exception("Custum logic structures aren't always gates")
 
     def getAllUsedVariables(self, inputs):
         if len(inputs) == 0:
@@ -99,7 +102,7 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
-            elif isinstance(v, Gate1) or isinstance(v, Gate2):
+            elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
@@ -126,7 +129,7 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
-            elif isinstance(v, Gate1) or isinstance(v, Gate2):
+            elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
@@ -141,27 +144,80 @@ class LogicFormula:
         x2 = Wire()
         x3 = Wire()
         gate1 = Wire()
-        not1 = Gate1(LogicGate.NOT, x1, gate1)
+        not1 = Gate1(LogicStructure.NOT, x1, gate1)
         gate3_5 = Wire()
-        not2 = Gate1(LogicGate.NOT, x2, gate3_5)
+        not2 = Gate1(LogicStructure.NOT, x2, gate3_5)
         gate2 = Wire()
-        and1 = Gate2(LogicGate.AND, gate1, x2, gate2)
+        and1 = Gate2(LogicStructure.AND, gate1, x2, gate2)
         gate4 = Wire()
-        and2 = Gate2(LogicGate.AND, x1, gate3_5, gate4)
+        and2 = Gate2(LogicStructure.AND, x1, gate3_5, gate4)
         gate6 = Wire()
-        and3 = Gate2(LogicGate.AND, gate3_5, x3, gate6)
+        and3 = Gate2(LogicStructure.AND, gate3_5, x3, gate6)
         gate7 = Wire()
-        or1 = Gate2(LogicGate.OR, gate2, gate4, gate7)
+        or1 = Gate2(LogicStructure.OR, gate2, gate4, gate7)
         gate8 = Wire()
-        or2 = Gate2(LogicGate.OR, gate7, gate6, gate8)
+        or2 = Gate2(LogicStructure.OR, gate7, gate6, gate8)
         y = gate8
         return [x1, x2, x3], [y]
 
 
-
-class Gate2:
-    def __init__(self, gateType, inputA=None, inputB=None, output=None):
+class Gate:
+    def __init__(self, gateType):
         self.gateType = gateType
+        pass
+
+
+class GateCustom(Gate):
+    def __init__(self):
+        super().__init__(LogicStructure.CUSTOM)
+
+    def HalfAdder(self, A, B, S, Cout):
+        # A = Wire()
+        # B = Wire()
+        # S = Wire()
+        # Cout = Wire()
+        xor1 = Gate2(LogicStructure.XOR, A, B, S)
+        and1 = Gate2(LogicStructure.AND, A, B, Cout)
+        self.inputs = [A, B]
+        self.outputs = [S, Cout]
+
+    def FullAdder(self, A, B, Cin, S, Cout):
+        # A = Wire()
+        # B = Wire()
+        # Cin = Wire()
+        # S = Wire()
+        # Cout= Wire()
+        sumAB = Wire()
+        carryAB = Wire()
+        HA1 = GateCustom()
+        HA1.HalfAdder(A, B, sumAB, carryAB)
+        carryABC = Wire()
+        HA2 = GateCustom()
+        HA1.HalfAdder(sumAB, Cin, S, carryABC)
+        or2 = Gate2(LogicStructure.OR, carryAB, carryABC, Cout)
+
+        self.inputs= [A, B, Cin]
+        self.outputs= [S, Cout]
+
+    def ANDwide(self, inputs, output):
+        if len(inputs) == 0:
+            raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
+        elif len(inputs) == 1:
+            output = inputs[0]
+        andGate = Gate2(LogicStructure.AND, inputs[0], inputs[1])
+        for i in range(2, len(inputs)):
+            andGate = Gate2(LogicStructure.AND, andGate.output, inputs)
+        output = andGate.output
+        self.inputs = inputs
+        self.outputs = [output]
+
+
+
+
+
+class Gate2(Gate):
+    def __init__(self, gateType, inputA=None, inputB=None, output=None):
+        super().__init__(gateType)
         if inputA is None:
             self.inputA=Wire(gatesIn=self)
         else:
@@ -181,9 +237,9 @@ class Gate2:
             output.gateOut = self
 
 
-class Gate1:
+class Gate1(Gate):
     def __init__(self, gateType, inputA=None, output=None):
-        self.gateType = gateType
+        super().__init__(gateType)
         if inputA is None:
             self.inputA=Wire(gatesIn=self)
         else:
