@@ -448,6 +448,14 @@ class Tseytin:
         C = startLiteral
         return ([[-A, -B, -C], [A, B, -C], [A, -B, C], [-A, B, C]], C)
 
+    # C = ~(A ^ B)
+    @staticmethod
+    def XNOR(A, B, startLiteral = None):
+        if startLiteral == None:
+            startLiteral = max(A, B) + 1
+        C = startLiteral
+        return ([[A, -B, -C], [-A, B, -C], [-A, -B, C], [A, B, C]], C)
+
 def tst2():
     cnf = CNF([[1, 2], [3, 4]])
     print(cnf.rawCNF())

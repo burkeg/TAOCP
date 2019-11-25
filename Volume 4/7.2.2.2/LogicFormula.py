@@ -8,8 +8,9 @@ class LogicStructure(Enum):
     NOR = 3
     NOT = 4
     XOR = 5
-    IMPLIES = 6
-    CUSTOM = 7
+    XNOR = 6
+    IMPLIES = 7
+    CUSTOM = 8
 
 class LogicFormula:
     def __init__(self, inputs, startLiteral=None, overwriteLiterals=True):
@@ -67,6 +68,9 @@ class LogicFormula:
                 return newClauses
             elif gate.gateType == LogicStructure.XOR:
                 newClauses, _= Tseytin.XOR(varA, varB, varOut)
+                return newClauses
+            elif gate.gateType == LogicStructure.XNOR:
+                newClauses, _= Tseytin.XNOR(varA, varB, varOut)
                 return newClauses
             elif gate.gateType == LogicStructure.IMPLIES:
                 newClauses, _= Tseytin.IMPLIES(varA, varB, varOut)
@@ -251,6 +255,7 @@ class GateCustom(Gate):
             raise Exception("Cannot have a 0 bit Comparator")
         elif len(Abits) == 1:
             self.Comparator1Bit(Abits[0], Bbits[0], lt, eq, gt)
+            return
         # Gets XORs of each inputs
         X = [Gate2(LogicStructure.XOR, Ai, Bi).output for Ai, Bi in zip(Abits, Bbits)]
         eqOR = GateCustom()
