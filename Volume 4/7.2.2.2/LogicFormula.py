@@ -208,6 +208,7 @@ class GateCustom(Gate):
             raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
         elif len(inputs) == 1:
             output = inputs[0]
+            return
         elif len(inputs) == 2:
             # What're you doing? Just use a regular AND gate you dummy!
             Gate2(LogicStructure.AND, inputs[0], inputs[1], output)
@@ -226,6 +227,7 @@ class GateCustom(Gate):
             raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
         elif len(inputs) == 1:
             output = inputs[0]
+            return
         elif len(inputs) == 2:
             # What're you doing? Just use a regular OR gate you dummy!
             Gate2(LogicStructure.OR, inputs[0], inputs[1], output)
@@ -257,13 +259,11 @@ class GateCustom(Gate):
             self.Comparator1Bit(Abits[0], Bbits[0], lt, eq, gt)
             return
         # Gets XORs of each inputs
-        X = [Gate2(LogicStructure.XOR, Ai, Bi).output for Ai, Bi in zip(Abits, Bbits)]
-        eqOR = GateCustom()
-        eqNot = Wire()
+        X = [Gate2(LogicStructure.XNOR, Ai, Bi).output for Ai, Bi in zip(Abits, Bbits)]
+        eqAND = GateCustom()
 
-        # If all XORs of inputs are 0, then the two numbers are equal
-        eqOR.ORwide(X, eqNot)
-        Gate1(LogicStructure.NOT, eqNot, eq)
+        # If all XNORs of inputs are 1, then the two numbers are equal
+        eqAND.ANDwide(X, eq)
 
         # To determine lt or gt, we need to get a chain of AND'd Xs in descending order first
         Xands = []

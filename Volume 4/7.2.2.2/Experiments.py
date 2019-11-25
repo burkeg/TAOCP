@@ -286,7 +286,7 @@ class Experiments:
     def TseytinSimple():
         a = Wire()
         b = Wire()
-        andGate = Gate2(LogicStructure.IMPLIES, a, b)
+        andGate = Gate2(LogicStructure.XNOR, a, b)
         c = andGate.output
         # notGate = Gate1(LogicGate.NOT, c)
         # d = notGate.output
