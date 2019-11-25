@@ -130,9 +130,15 @@ class LogicFormula:
                         visited.add(gate)
                         componentQueue.append(gate)
             elif issubclass(type(v), Gate):
-                if v.output not in visited:
-                    visited.add(v.output)
-                    componentQueue.append(v.output)
+                if isinstance(v, GateCustom):
+                    for output in v.outputs:
+                        if output not in visited:
+                            visited.add(output)
+                            componentQueue.append(output)
+                else:
+                    if v.output not in visited:
+                        visited.add(v.output)
+                        componentQueue.append(v.output)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
         return literalTracker-1
@@ -210,9 +216,9 @@ class GateCustom(Gate):
             self.inputs = inputs
             self.outputs = [output]
         andGate = Gate2(LogicStructure.AND, inputs[0], inputs[1])
-        for i in range(2, len(inputs)):
+        for i in range(2, len(inputs)-1):
             andGate = Gate2(LogicStructure.AND, andGate.output, inputs[i])
-        output = andGate.output
+        Gate2(LogicStructure.AND, andGate.output, inputs[-1], output)
         self.inputs = inputs
         self.outputs = [output]
 
@@ -243,13 +249,68 @@ class GateCustom(Gate):
         self.outputs = [lt, eq, gt]
 
     def ComparatorNBit(self, Abits, Bbits, lt, eq, gt):
+        if len(Abits) != len(Bbits):
+            raise Exception('A and B must have same number of bits!')
+        if len(Abits) == 0:
+            raise Exception("Cannot have a 0 bit Comparator")
+        elif len(Abits) == 1:
+            self.Comparator1Bit(Abits[0], Bbits[0], lt, eq, gt)
         # Gets XORs of each inputs
-        X = [Gate2(LogicStructure.XOR, ai, bi).output for ai, bi in zip(Abits, Bbits)]
+        X = [Gate2(LogicStructure.XOR, Ai, Bi).output for Ai, Bi in zip(Abits, Bbits)]
         eqOR = GateCustom()
         eqNot = Wire()
-        
+
+        # If all XORs of inputs are 0, then the two numbers are equal
         eqOR.ORwide(X, eqNot)
         Gate1(LogicStructure.NOT, eqNot, eq)
+
+        # To determine lt or gt, we need to get a chain of AND'd Xs in descending order first
+        Xands = []
+        lastXand = Gate2(LogicStructure.AND, X[len(Abits)-1], X[len(Abits)-2])
+        Xands.append(lastXand.output)
+        for i in reversed(range(1, len(Abits) - 2)):
+            lastXand = Gate2(LogicStructure.AND, lastXand.output, X[i])
+            Xands.append(lastXand.output)
+        # Xands = [Xn-1, Xn-1&Xn-2, Xn-1&Xn-2&Xn-3, ..., Xn-1&Xn-2&...&X1]
+        # len(Xands) = n-2
+
+        # Now determine the values of the lt and gt outputs
+        ltWires = []
+        gtWires = []
+        for i, (Ai, Bi) in enumerate(zip(Abits, Bbits)):
+            # For lt, get ~Ai&Bi. gt: Ai&~Bi
+            notA = Gate1(LogicStructure.NOT, Ai)
+            notB = Gate1(LogicStructure.NOT, Bi)
+            toBeAnd = []
+
+            # Next, add the appropriate X's
+            if i == len(Abits) - 1:
+                # the highest bits don't have any X's
+                pass
+            elif i == len(Abits) - 2:
+                # The 2nd highest bit only has Xn-1 and doesn't need to look at the cascaded ANDs or XORs list
+                toBeAnd.append(X[len(Abits) - 1])
+            else:
+                toBeAnd.append(Xands[(len(Abits) - 3) - i])
+                
+            ltBigAnd = GateCustom()
+            ltBigAndOut = Wire()
+            ltBigAnd.ANDwide(toBeAnd + [notA.output, Bi], ltBigAndOut)
+                
+            gtBigAnd = GateCustom()
+            gtBigAndOut = Wire()
+            gtBigAnd.ANDwide(toBeAnd + [notB.output, Ai], gtBigAndOut)
+
+            ltWires.append(ltBigAndOut)
+            gtWires.append(gtBigAndOut)
+            
+        # Now or together all the previous results
+        ltFinalGate = GateCustom()
+        ltFinalGate.ORwide(ltWires, lt)
+        gtFinalGate = GateCustom()
+        gtFinalGate.ORwide(gtWires, gt)
+            
+
         self.inputs = Abits + Bbits
         self.outputs = [lt, eq, gt]
 
