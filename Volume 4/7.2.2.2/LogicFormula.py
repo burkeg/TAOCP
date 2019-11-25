@@ -130,15 +130,9 @@ class LogicFormula:
                         visited.add(gate)
                         componentQueue.append(gate)
             elif issubclass(type(v), Gate):
-                if isinstance(v, GateCustom):
-                    for output in v.outputs:
-                        if output not in visited:
-                            visited.add(output)
-                            componentQueue.append(output)
-                else:
-                    if v.output not in visited:
-                        visited.add(v.output)
-                        componentQueue.append(v.output)
+                if v.output not in visited:
+                    visited.add(v.output)
+                    componentQueue.append(v.output)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
         return literalTracker-1
@@ -215,6 +209,7 @@ class GateCustom(Gate):
             Gate2(LogicStructure.AND, inputs[0], inputs[1], output)
             self.inputs = inputs
             self.outputs = [output]
+            return
         andGate = Gate2(LogicStructure.AND, inputs[0], inputs[1])
         for i in range(2, len(inputs)-1):
             andGate = Gate2(LogicStructure.AND, andGate.output, inputs[i])
@@ -232,6 +227,7 @@ class GateCustom(Gate):
             Gate2(LogicStructure.OR, inputs[0], inputs[1], output)
             self.inputs = inputs
             self.outputs = [output]
+            return
         orGate = Gate2(LogicStructure.OR, inputs[0], inputs[1])
         for i in range(2, len(inputs)-1):
             orGate = Gate2(LogicStructure.OR, orGate.output, inputs[i])
