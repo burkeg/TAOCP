@@ -268,6 +268,21 @@ class Experiments:
             print(solution)
 
     @staticmethod
+    def TseytinCustomLargeOR():
+        a = Wire()
+        b = Wire()
+        c = Wire()
+        d = Wire()
+        out = Wire()
+        fa1 = GateCustom()
+        fa1.ORwide([a, b, c, d], out)
+        logicForm = LogicFormula([a, b, c, d])
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+
+    @staticmethod
     def TseytinSimple():
         a = Wire()
         b = Wire()
@@ -280,6 +295,26 @@ class Experiments:
         cnfFormula = logicForm.cnfForm.rawCNF()
         for solution in pycosat.itersolve(cnfFormula):
             print(solution)
+
+    @staticmethod
+    def TseytinComparator():
+        a0 = Wire()
+        b0 = Wire()
+        a1 = Wire()
+        b1 = Wire()
+        a2 = Wire()
+        b2 = Wire()
+        lt = Wire()
+        eq = Wire()
+        gt = Wire()
+        comparator = GateCustom()
+        comparator.ComparatorNBit([a0, a1, a2], [b0, b1, b2], lt, eq, gt)
+        logicForm = LogicFormula([a0, a1, a2, b0, b1, b2])
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        print('')
 
     @staticmethod
     def Tseytin_RS_NOR_Latch():
@@ -306,4 +341,4 @@ class Experiments:
 
 
 if __name__ == "__main__":
-    Experiments.TseytinCustom()
+    Experiments.TseytinComparator()

@@ -204,14 +204,54 @@ class GateCustom(Gate):
             raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
         elif len(inputs) == 1:
             output = inputs[0]
+        elif len(inputs) == 2:
+            # What're you doing? Just use a regular AND gate you dummy!
+            Gate2(LogicStructure.AND, inputs[0], inputs[1], output)
+            self.inputs = inputs
+            self.outputs = [output]
         andGate = Gate2(LogicStructure.AND, inputs[0], inputs[1])
         for i in range(2, len(inputs)):
-            andGate = Gate2(LogicStructure.AND, andGate.output, inputs)
+            andGate = Gate2(LogicStructure.AND, andGate.output, inputs[i])
         output = andGate.output
         self.inputs = inputs
         self.outputs = [output]
 
+    def ORwide(self, inputs, output):
+        if len(inputs) == 0:
+            raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
+        elif len(inputs) == 1:
+            output = inputs[0]
+        elif len(inputs) == 2:
+            # What're you doing? Just use a regular OR gate you dummy!
+            Gate2(LogicStructure.OR, inputs[0], inputs[1], output)
+            self.inputs = inputs
+            self.outputs = [output]
+        orGate = Gate2(LogicStructure.OR, inputs[0], inputs[1])
+        for i in range(2, len(inputs)-1):
+            orGate = Gate2(LogicStructure.OR, orGate.output, inputs[i])
+        Gate2(LogicStructure.OR, orGate.output, inputs[-1], output)
+        self.inputs = inputs
+        self.outputs = [output]
 
+    def Comparator1Bit(self, A, B, lt, eq, gt):
+        not1 = Gate1(LogicStructure.NOT, A)
+        not2 = Gate1(LogicStructure.NOT, B)
+        and1 = Gate2(LogicStructure.AND, not1.output, B, lt)
+        and2 = Gate2(LogicStructure.AND, not2.output, A, gt)
+        nor1 = Gate2(LogicStructure.NOR, lt, gt, eq)
+        self.inputs = [A, B]
+        self.outputs = [lt, eq, gt]
+
+    def ComparatorNBit(self, Abits, Bbits, lt, eq, gt):
+        # Gets XORs of each inputs
+        X = [Gate2(LogicStructure.XOR, ai, bi).output for ai, bi in zip(Abits, Bbits)]
+        eqOR = GateCustom()
+        eqNot = Wire()
+        
+        eqOR.ORwide(X, eqNot)
+        Gate1(LogicStructure.NOT, eqNot, eq)
+        self.inputs = Abits + Bbits
+        self.outputs = [lt, eq, gt]
 
 
 
