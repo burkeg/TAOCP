@@ -315,6 +315,11 @@ class GateCustom(Gate):
         self.inputs = Abits + Bbits
         self.outputs = [lt, eq, gt]
 
+    # https://en.wikipedia.org/wiki/Wallace_tree
+    # similar approach, but all bits have equal weighting and I don't need to do any preprocessing to find bits
+    def SidewaysAdd(self, inputs, outputs):
+        pass
+
 
 
 class Gate2(Gate):
