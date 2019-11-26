@@ -378,6 +378,10 @@ class GateCustom(Gate):
         self.outputs = [x[0] for x in bitBuckets.values()]
         # At this point, all lists in bitBuckets should have 1 element
 
+    # Produces a circuit whose output is true when the game of life tiles
+    def LIFE_nextState(self, A9tiles, output):
+        pass
+
 
 class Gate2(Gate):
     def __init__(self, gateType, inputA=None, inputB=None, output=None):
