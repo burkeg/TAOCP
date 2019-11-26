@@ -317,9 +317,66 @@ class GateCustom(Gate):
 
     # https://en.wikipedia.org/wiki/Wallace_tree
     # similar approach, but all bits have equal weighting and I don't need to do any preprocessing to find bits
-    def SidewaysAdd(self, inputs, outputs):
-        pass
+    def SidewaysAdd(self, inputs, outputs=None):
+        if len(inputs) == 0:
+            raise Exception("Cannot have a 0 bit Comparator")
+        if len(inputs) == 1:
+            self.inputs = inputs
+            self.outputs = [inputs[0]]
+            return
+        bitBuckets = dict()
+        bitBuckets[1] = inputs.copy()
+        bitsRemain = True
+        while bitsRemain:
+            nextBuckets = dict()
+            for key, value in bitBuckets.items():
+                if len(value) == 1:
+                    # Job's done, we've already reduced to 1 bit. Continue onwards
+                    nextBuckets.setdefault(key, []).append(value[0])
+                    continue
+                numHalfAdders = 0
+                numFullAdders = 0
+                if len(value) % 3 == 0:
+                    numHalfAdders = 0
+                    numFullAdders = len(value) // 3
+                elif len(value) % 3 == 1:
+                    numHalfAdders = 2
+                    numFullAdders = (len(value)-4) // 3
+                else:
+                    numHalfAdders = 1
+                    numFullAdders = len(value) // 3
+                test = 0
+                for i in range(numFullAdders):
+                    FA_S = Wire()
+                    FA_Cout = Wire()
+                    FA = GateCustom()
+                    FA.FullAdder(
+                        A=value[i*3 + 0],
+                        B=value[i*3 + 1],
+                        Cin=value[i*3 + 2],
+                        S=FA_S,
+                        Cout=FA_Cout)
+                    nextBuckets.setdefault(key, []).append(FA_S)
+                    nextBuckets.setdefault(key*2, []).append(FA_Cout)
 
+                for i in range(numHalfAdders):
+                    HA_S = Wire()
+                    HA_Cout = Wire()
+                    HA = GateCustom()
+                    HA.HalfAdder(
+                        A=value[numFullAdders*3 + i*2 + 0],
+                        B=value[numFullAdders*3 + i*2 + 1],
+                        S=HA_S,
+                        Cout=HA_Cout)
+                    nextBuckets.setdefault(key, []).append(HA_S)
+                    nextBuckets.setdefault(key*2, []).append(HA_Cout)
+
+            bitBuckets = nextBuckets.copy()
+            bitsRemain = sum([1 if len(x) == 1 else 0 for x in bitBuckets.values()]) != len(bitBuckets)
+
+        self.inputs = inputs
+        self.outputs = [x[0] for x in bitBuckets.values()]
+        # At this point, all lists in bitBuckets should have 1 element
 
 
 class Gate2(Gate):

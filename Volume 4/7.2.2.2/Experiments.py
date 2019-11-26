@@ -317,6 +317,18 @@ class Experiments:
         print('')
 
     @staticmethod
+    def TseytinSADD():
+        a = [Wire() for _ in range(8)]
+        sadd = GateCustom()
+        sadd.SidewaysAdd(a)
+        logicForm = LogicFormula(a)
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        print('')
+
+    @staticmethod
     def Tseytin_RS_NOR_Latch():
         r = Wire()
         s = Wire()
@@ -341,4 +353,4 @@ class Experiments:
 
 
 if __name__ == "__main__":
-    Experiments.TseytinComparator()
+    Experiments.TseytinSADD()
