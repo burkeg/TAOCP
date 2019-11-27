@@ -56,6 +56,9 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
+                if v.gateOut not in visited and v.gateOut is not None:
+                    visited.add(v.gateOut)
+                    componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
@@ -63,9 +66,7 @@ class LogicFormula:
                     self.cnfForm.mergeWithRaw(self.getTseytinSingleGate(v))
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        # if inputWire.variable is None:
-                        #     raise Exception('All wire components must have a variable bound.')
-                        # visited.add(inputWire)
+                        visited.add(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
@@ -132,18 +133,16 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
+                if v.gateOut not in visited and v.gateOut is not None:
+                    visited.add(v.gateOut)
+                    componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        # if inputWire.variable is None:
-                        #     raise Exception('All wire components must have a variable bound.')
-                        # else:
-                        #     usedVariables.add(inputWire.variable)
-                        # usedVariables.add(v.variable)
-                        # visited.add(inputWire)
+                        visited.add(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
@@ -168,15 +167,16 @@ class LogicFormula:
                     if gate not in visited:
                         visited.add(gate)
                         componentQueue.append(gate)
+                if v.gateOut not in visited and v.gateOut is not None:
+                    visited.add(v.gateOut)
+                    componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        # v.variable = literalTracker
-                        # literalTracker += 1
-                        # visited.add(inputWire)
+                        visited.add(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
