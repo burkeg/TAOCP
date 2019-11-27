@@ -24,19 +24,12 @@ class LogicFormula:
 
     def getConstantClauses(self, visitedPoints):
         clauses = []
-        for wire in visitedPoints:
+        for wire in set(visitedPoints):
             if isinstance(wire, Wire) and wire.constant is not None:
                 if wire.constant:
                     clauses.append([wire.variable])
                 else:
                     clauses.append([-wire.variable])
-
-        for inputWire in self.inputs:
-            if inputWire.constant is not None:
-                if inputWire.constant:
-                    clauses.append([inputWire.variable])
-                else:
-                    clauses.append([-inputWire.variable])
         return clauses
 
 
@@ -52,6 +45,7 @@ class LogicFormula:
             if isinstance(v,Wire):
                 if v.variable is None:
                     raise Exception('All wire components must have a variable bound.')
+                visited.add(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
                         visited.add(gate)
@@ -129,6 +123,7 @@ class LogicFormula:
                     raise Exception('All wire components must have a variable bound.')
                 else:
                     usedVariables.add(v.variable)
+                visited.add(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
                         visited.add(gate)
@@ -163,6 +158,7 @@ class LogicFormula:
             if isinstance(v,Wire):
                 v.variable = literalTracker
                 literalTracker += 1
+                visited.add(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
                         visited.add(gate)

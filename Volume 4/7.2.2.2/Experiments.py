@@ -362,6 +362,16 @@ class Experiments:
     @staticmethod
     def TseytinLIFE():
         prevTiles = [Wire() for _ in range(9)]
+        prevTiles[0].constant = False
+        prevTiles[1].constant = False
+        prevTiles[2].constant = False
+        prevTiles[3].constant = False
+        prevTiles[4].constant = False
+
+        prevTiles[5].constant = False
+        prevTiles[6].constant = False
+        prevTiles[7].constant = False
+        prevTiles[8].constant = False
         nextTile = Wire()
         nextTile.constant = True
         life = GateCustom()
