@@ -329,6 +329,51 @@ class Experiments:
         print('')
 
     @staticmethod
+    def TseytinEquals():
+        aAct = [Wire() for _ in range(16)]
+        aExp = [Wire() for _ in range(16)]
+        aExp[0].constant = True
+        aExp[1].constant = True
+        aExp[2].constant = False
+        aExp[3].constant = True
+        aExp[4].constant = False
+        aExp[5].constant = False
+        aExp[6].constant = False
+        aExp[7].constant = False
+        aExp[8].constant = True
+        aExp[9].constant = True
+        aExp[10].constant = False
+        aExp[11].constant = True
+        aExp[12].constant = False
+        aExp[13].constant = False
+        aExp[14].constant = False
+        aExp[15].constant = False
+        isEq = Wire()
+        isEq.constant = True
+        eq = GateCustom()
+        eq.EqualsExpected(aAct, aExp, isEq)
+        logicForm = LogicFormula(aAct + aExp)
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        print('')
+
+    @staticmethod
+    def TseytinLIFE():
+        prevTiles = [Wire() for _ in range(9)]
+        nextTile = Wire()
+        nextTile.constant = True
+        life = GateCustom()
+        life.LIFE_nextState(prevTiles, nextTile)
+        logicForm = LogicFormula(prevTiles)
+        logicForm.getTseytinCNF()
+        cnfFormula = logicForm.cnfForm.rawCNF()
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        print('')
+
+    @staticmethod
     def Tseytin_RS_NOR_Latch():
         r = Wire()
         s = Wire()
@@ -353,4 +398,4 @@ class Experiments:
 
 
 if __name__ == "__main__":
-    Experiments.TseytinSADD()
+    Experiments.TseytinLIFE()

@@ -22,6 +22,24 @@ class LogicFormula:
             startLiteral = max(self.usedLiterals) + 1
         self.cnfForm = None
 
+    def getConstantClauses(self, visitedPoints):
+        clauses = []
+        for wire in visitedPoints:
+            if isinstance(wire, Wire) and wire.constant is not None:
+                if wire.constant:
+                    clauses.append([wire.variable])
+                else:
+                    clauses.append([-wire.variable])
+
+        for inputWire in self.inputs:
+            if inputWire.constant is not None:
+                if inputWire.constant:
+                    clauses.append([inputWire.variable])
+                else:
+                    clauses.append([-inputWire.variable])
+        return clauses
+
+
     def getTseytinCNF(self):
         self.cnfForm = CNF()
         if len(self.inputs) == 0:
@@ -43,8 +61,16 @@ class LogicFormula:
                     visited.add(v.output)
                     componentQueue.append(v.output)
                     self.cnfForm.mergeWithRaw(self.getTseytinSingleGate(v))
+                for inputWire in v.inputs:
+                    if inputWire not in visited:
+                        # if inputWire.variable is None:
+                        #     raise Exception('All wire components must have a variable bound.')
+                        # visited.add(inputWire)
+                        componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
+
+        self.cnfForm.mergeWithRaw(self.getConstantClauses(visited))
 
     def getTseytinSingleGate(self, gate):
         if not issubclass(type(gate), Gate):
@@ -110,6 +136,15 @@ class LogicFormula:
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
+                for inputWire in v.inputs:
+                    if inputWire not in visited:
+                        # if inputWire.variable is None:
+                        #     raise Exception('All wire components must have a variable bound.')
+                        # else:
+                        #     usedVariables.add(inputWire.variable)
+                        # usedVariables.add(v.variable)
+                        # visited.add(inputWire)
+                        componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
         return usedVariables
@@ -137,6 +172,12 @@ class LogicFormula:
                 if v.output not in visited:
                     visited.add(v.output)
                     componentQueue.append(v.output)
+                for inputWire in v.inputs:
+                    if inputWire not in visited:
+                        # v.variable = literalTracker
+                        # literalTracker += 1
+                        # visited.add(inputWire)
+                        componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
         return literalTracker-1
@@ -166,14 +207,16 @@ class LogicFormula:
 
 
 class Gate:
-    def __init__(self, gateType):
+    def __init__(self, gateType, inputs, outputs):
         self.gateType = gateType
+        self.inputs = inputs
+        self.outputs = outputs
         pass
 
 
 class GateCustom(Gate):
     def __init__(self):
-        super().__init__(LogicStructure.CUSTOM)
+        super().__init__(LogicStructure.CUSTOM, [], [])
 
     def HalfAdder(self, A, B, S, Cout):
         # A = Wire()
@@ -379,13 +422,68 @@ class GateCustom(Gate):
         # At this point, all lists in bitBuckets should have 1 element
 
     # Produces a circuit whose output is true when the game of life tiles
-    def LIFE_nextState(self, A9tiles, output):
-        pass
+    def LIFE_nextState(self, prev9tiles, output):
+        prevNeighbors = [
+            prev9tiles[0],
+            prev9tiles[1],
+            prev9tiles[2],
+            prev9tiles[3],
+            prev9tiles[5],
+            prev9tiles[6],
+            prev9tiles[7],
+            prev9tiles[8],
+        ]
+        prevCenter = prev9tiles[4]
+
+        two = [Wire() for _ in range(4)]
+        two[0].constant = False
+        two[1].constant = True
+        two[2].constant = False
+        two[3].constant = False
+        three = [Wire() for _ in range(4)]
+        three[0].constant = True
+        three[1].constant = True
+        three[2].constant = False
+        three[3].constant = False
+        sadd = GateCustom()
+        liveNeighbors = [Wire() for _ in range(4)]
+        sadd.SidewaysAdd(prevNeighbors, liveNeighbors)
+
+        # If there's 3 alive then output is True
+        aliveFrom3 = Wire()
+        eq3 = GateCustom()
+        eq3.EqualsExpected(liveNeighbors, three, aliveFrom3)
+
+        # Or there's 2 alive and prevCenter is true!
+        aliveFrom2 = Wire()
+        twoNeighbors = Wire()
+        eq2 = GateCustom()
+        eq2.EqualsExpected(liveNeighbors, two, twoNeighbors)
+        Gate2(LogicStructure.AND, twoNeighbors, prevCenter, aliveFrom2)
+
+        # If Either of the above conditions are true, then we should output True
+        Gate2(LogicStructure.OR, aliveFrom2, aliveFrom3, output)
+        self.inputs = prev9tiles
+        self.outputs = [output]
+
+
+    def EqualsExpected(self, inputsActual, inputsExpected, output):
+        if len(inputsActual) != len(inputsExpected):
+            raise Exception('A and B must have same number of bits!')
+        if len(inputsActual) == 0:
+            raise Exception("Cannot have a 0 bit Comparator")
+        bitsEqual = [Gate2(LogicStructure.XNOR, Ai, Bi).output for Ai, Bi in zip(inputsActual, inputsExpected)]
+        eqAND = GateCustom()
+
+        # If all XNORs of inputs are 1, then the two numbers are equal
+        eqAND.ANDwide(bitsEqual, output)
+        self.inputs = inputsActual + inputsExpected
+        self.outputs = [output]
 
 
 class Gate2(Gate):
     def __init__(self, gateType, inputA=None, inputB=None, output=None):
-        super().__init__(gateType)
+        super().__init__(gateType, inputs=[], outputs=[])
         if inputA is None:
             self.inputA=Wire(gatesIn=self)
         else:
@@ -403,11 +501,13 @@ class Gate2(Gate):
         else:
             self.output=output
             output.gateOut = self
+        self.inputs = [inputA, inputB]
+        self.outputs = [output]
 
 
 class Gate1(Gate):
     def __init__(self, gateType, inputA=None, output=None):
-        super().__init__(gateType)
+        super().__init__(gateType, inputs=[], outputs=[])
         if inputA is None:
             self.inputA=Wire(gatesIn=self)
         else:
@@ -419,14 +519,17 @@ class Gate1(Gate):
         else:
             self.output=output
             output.gateOut = self
+        self.inputs = [inputA]
+        self.outputs = [output]
 
 
 class Wire:
-    def __init__(self, gateOut=None, gatesIn=None, variable=None):
+    def __init__(self, gateOut=None, gatesIn=None, variable=None, constant=None):
         self.variable = variable
         if gatesIn is None:
             gatesIn = set()
         self.gateOut = gateOut
+        self.constant = constant
             
         if isinstance(gatesIn, set):
             # If it's a set, accept it
