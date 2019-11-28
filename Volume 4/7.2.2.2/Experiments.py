@@ -377,8 +377,13 @@ class Experiments:
         life = GateCustom()
         life.LIFE_nextState(prevTiles, nextTile)
         logicForm = LogicFormula(prevTiles)
-        logicForm.getTseytinCNF()
-        cnfFormula = logicForm.cnfForm.rawCNF()
+        assertedInputWires = logicForm.assertedInputWires
+        detectedInputWires = logicForm.detectedInputWires
+        constantWires = logicForm.constantWires
+        freeInputs = logicForm.freeInputs
+        assert assertedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
+        cnfFormula = sorted(logicForm.cnfForm.rawCNF())
+        varList = logicForm.cnfForm.usedVariables()
         for solution in pycosat.itersolve(cnfFormula):
             print(solution)
         print('')
@@ -405,6 +410,32 @@ class Experiments:
         # [-1, 2, 3, -4]        Set asserted, therefore q must be true
         # [1, 2, -3, -4]        both Set and Reset asserted, neither q not qn true
         # [1, -2, -3, 4]        Reset asserted, therefore qn must be true
+
+    @staticmethod
+    def Tseytin_Test_Constants():
+        A = Wire()
+        B = Wire()
+        C = Wire()
+        D = Wire()
+        E = Wire()
+        F = Wire()
+        out = Wire()
+        E.constant = True
+        F.constant = False
+        Gate2(LogicStructure.AND, A, B, C)
+        Gate2(LogicStructure.AND, E, F, D)
+        Gate2(LogicStructure.AND, C, D, out)
+        logicForm = LogicFormula([A, B])
+        logicForm.getTseytinCNF()
+        assertedInputWires = logicForm.assertedInputWires
+        detectedInputWires = logicForm.detectedInputWires
+        constantWires = logicForm.constantWires
+        freeInputs = logicForm.freeInputs
+        assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
+        cnfFormula = sorted(logicForm.cnfForm.rawCNF())
+        for solution in pycosat.itersolve(cnfFormula):
+            print(solution)
+        print('')
 
 
 if __name__ == "__main__":

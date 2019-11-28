@@ -30,6 +30,13 @@ class CNF:
                     newClause.addLiteral(Literal(literal))
                 self.addClause(newClause)
 
+    def usedVariables(self):
+        varSet = set()
+        for clause in self.rawCNF():
+            for literal in clause:
+                varSet.add(abs(literal))
+        return varSet
+
 
 class Clause:
     def __init__(self, literals=[], comment = '_', groupComment = '_'):

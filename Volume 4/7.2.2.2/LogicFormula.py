@@ -15,30 +15,41 @@ class LogicStructure(Enum):
 class LogicFormula:
     def __init__(self, inputs, startLiteral=None, overwriteLiterals=True):
         self.inputs = inputs
+        self.assertedInputWires = set(self.inputs)
+        self.detectedInputWires = set()
+        self.constantWires = set()
         if overwriteLiterals:
             LogicFormula.assignVariables(inputs, startLiteral)
         self.usedLiterals = self.getAllUsedVariables(self.inputs)
         if startLiteral is None:
             startLiteral = max(self.usedLiterals) + 1
-        self.cnfForm = None
+        self.cnfForm = CNF()
+        self.getTseytinCNF()
+        # rawCnf = self.cnfForm.rawCNF()
+        # unusedVars = self.cnfForm.usedVariables().symmetric_difference(set(range(1, max(self.cnfForm.usedVariables()) + 1)))
+        # assert len(unusedVars) == 0, \
+        #     "There shouldn't be unused variables in the Tseytin transform. Something is clearly wrong"
+
 
     def getConstantClauses(self, visitedPoints):
         clauses = []
+        self.constantWires = set()
         for wire in set(visitedPoints):
             if isinstance(wire, Wire) and wire.constant is not None:
+                self.constantWires.add(wire)
                 if wire.constant:
                     clauses.append([wire.variable])
                 else:
                     clauses.append([-wire.variable])
         return clauses
 
-
     def getTseytinCNF(self):
         self.cnfForm = CNF()
         if len(self.inputs) == 0:
             return
         visited = set()
-        componentQueue = deque(self.inputs)
+        componentQueue = deque(self.detectedInputWires)
+        # componentQueue = deque(self.inputs)
         visited.add(componentQueue[0])
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
@@ -64,7 +75,6 @@ class LogicFormula:
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
-
         self.cnfForm.mergeWithRaw(self.getConstantClauses(visited))
 
     def getTseytinSingleGate(self, gate):
@@ -112,6 +122,8 @@ class LogicFormula:
     def getAllUsedVariables(self, inputs):
         if len(inputs) == 0:
             return set()
+        self.detectedInputWires = set()
+        self.freeInputs = set()
         visited = set()
         componentQueue = deque(inputs)
         usedVariables = set()
@@ -124,6 +136,10 @@ class LogicFormula:
                 else:
                     usedVariables.add(v.variable)
                 visited.add(v)
+                if v.gateOut is None:
+                    self.detectedInputWires.add(v)
+                    if v.constant is None:
+                        self.freeInputs.add(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
                         visited.add(gate)
@@ -150,29 +166,30 @@ class LogicFormula:
         if startLiteral is None:
             startLiteral = 1
         literalTracker = startLiteral
-        visited = set()
+        visited = []
         componentQueue = deque(inputs)
-        visited.add(componentQueue[0])
+        visited.append(componentQueue[0])
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
             if isinstance(v,Wire):
                 v.variable = literalTracker
                 literalTracker += 1
-                visited.add(v)
+                if v not in visited:
+                    visited.append(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
-                        visited.add(gate)
+                        visited.append(gate)
                         componentQueue.append(gate)
                 if v.gateOut not in visited and v.gateOut is not None:
-                    visited.add(v.gateOut)
+                    visited.append(v.gateOut)
                     componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
                 if v.output not in visited:
-                    visited.add(v.output)
+                    visited.append(v.output)
                     componentQueue.append(v.output)
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        visited.add(inputWire)
+                        visited.append(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
@@ -415,6 +432,12 @@ class GateCustom(Gate):
 
         self.inputs = inputs
         self.outputs = [x[0] for x in bitBuckets.values()]
+        if outputs is not None:
+            for calculated, passedIn in zip(self.outputs, outputs):
+                assert isinstance(passedIn, Wire) and isinstance(calculated, Wire)
+                passedIn.mergeIntoThis(calculated)
+
+
         # At this point, all lists in bitBuckets should have 1 element
 
     # Produces a circuit whose output is true when the game of life tiles
@@ -484,13 +507,13 @@ class Gate2(Gate):
             self.inputA=Wire(gatesIn=self)
         else:
             self.inputA=inputA
-            inputA.gatesIn.add(self)
+            inputA.gatesIn.append(self)
 
         if inputB is None:
             self.inputB=Wire(gatesIn=self)
         else:
             self.inputB=inputB
-            inputB.gatesIn.add(self)
+            inputB.gatesIn.append(self)
 
         if output is None:
             self.output=Wire(gateOut=self)
@@ -520,22 +543,47 @@ class Gate1(Gate):
 
 
 class Wire:
-    def __init__(self, gateOut=None, gatesIn=None, variable=None, constant=None):
+    def __init__(self, gateOut=None, gatesIn=None, variable=None, constant=None, name=None):
         self.variable = variable
         if gatesIn is None:
-            gatesIn = set()
+            self.gatesIn = []
         self.gateOut = gateOut
         self.constant = constant
-            
-        if isinstance(gatesIn, set):
-            # If it's a set, accept it
+        self.name = name
+
+        if isinstance(gatesIn, list):
+            for gate in gatesIn:
+                assert issubclass(type(gate), Gate)
             self.gatesIn = gatesIn
-        elif isinstance(gatesIn, list):
-            # If it's a list, first convert it to a set
-            self.gatesIn = set(gatesIn)
-        else:
-            # Otherwise it's some other format, assume it's a single element of whatever format is passed in
-            self.gatesIn = {gatesIn}
+
+        elif issubclass(type(gatesIn), Gate):
+            self.gatesIn = [gatesIn]
+        elif gatesIn is not None:
+            raise Exception("Must pass in a gate or list of gates")
+
+    def mergeIntoThis(self, otherWire):
+        assert isinstance(otherWire, Wire)
+
+        if self.constant is None:
+            self.constant = otherWire.constant
+        elif otherWire.constant is not None and self.constant != otherWire.constant:
+            raise Exception('Cannot overwrite original wire constant')
+
+        if self.gateOut is None:
+            self.gateOut = otherWire.gateOut
+        elif otherWire.gateOut is not None and self.gateOut != otherWire.gateOut:
+            raise Exception('Cannot overwrite original wire gateOutput')
+
+        if self.variable is None:
+            self.variable = otherWire.variable
+        elif otherWire.variable is not None and self.variable != otherWire.variable:
+            raise Exception('Cannot overwrite original wire variable')
+
+        if self.gatesIn is None:
+            self.gatesIn = otherWire.gatesIn
+        elif otherWire.gatesIn is not None:
+            self.gatesIn.extend(otherWire.gatesIn)
+
 
 
 if __name__ == '__main__':
