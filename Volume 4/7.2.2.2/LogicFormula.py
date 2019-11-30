@@ -190,7 +190,8 @@ class LogicFormula:
             if isinstance(v,Wire):
                 v.variable = literalTracker
                 literalTracker += 1
-                # print('Wire assigned: ' + str(v.variable))
+                if v.name is not None:
+                    print(v.name + ' assigned: ' + str(v.variable))
                 if v not in visited:
                     visited.append(v)
                 for gate in v.gatesIn:
@@ -474,12 +475,12 @@ class GateCustom(Gate):
         ]
         prevCenter = prev9tiles[4]
 
-        two = [Wire() for _ in range(4)]
+        two = [Wire(name="Two") for _ in range(4)]
         two[0].constant = False
         two[1].constant = True
         two[2].constant = False
         two[3].constant = False
-        three = [Wire() for _ in range(4)]
+        three = [Wire(name="Three") for _ in range(4)]
         three[0].constant = True
         three[1].constant = True
         three[2].constant = False
@@ -487,6 +488,7 @@ class GateCustom(Gate):
         sadd = GateCustom()
         liveNeighbors = [Wire() for _ in range(4)]
         sadd.SidewaysAdd(prevNeighbors, liveNeighbors)
+        liveNeighbors = sadd.outputs
 
         # If there's 3 alive then output is True
         aliveFrom3 = Wire()

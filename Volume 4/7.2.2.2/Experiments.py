@@ -362,16 +362,17 @@ class Experiments:
     @staticmethod
     def TseytinLIFE():
         prevTiles = [Wire() for _ in range(9)]
-        prevTiles[0].constant = False
-        prevTiles[1].constant = False
-        prevTiles[2].constant = True
-        prevTiles[3].constant = True
-        # prevTiles[4].constant = False
+        # prevTiles[0].constant = False
+        # prevTiles[1].constant = True
+        # prevTiles[2].constant = True
+        # prevTiles[3].constant = True
 
-        prevTiles[5].constant = False
-        prevTiles[6].constant = False
-        prevTiles[7].constant = False
-        prevTiles[8].constant = False
+        prevTiles[4].constant = True
+
+        # prevTiles[5].constant = False
+        # prevTiles[6].constant = False
+        # prevTiles[7].constant = False
+        # prevTiles[8].constant = False
         nextTile = Wire()
         nextTile.constant = True
         life = GateCustom()
@@ -383,9 +384,12 @@ class Experiments:
         freeInputs = set(logicForm.freeInputs)
         assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
         cnfFormula = sorted(logicForm.cnfForm.rawCNF(),key=lambda x: [len(x), [abs(y) for y in x]])
+        cnt = 0
         for solution in pycosat.itersolve(cnfFormula):
-            print(solution)
-        print('')
+            # print(solution)
+            cnt += 1
+        print(cnt)
+        print(SATUtils.nCr(8,2) + SATUtils.nCr(8,3))
 
     @staticmethod
     def Tseytin_RS_NOR_Latch():
@@ -431,9 +435,11 @@ class Experiments:
         freeInputs = set(logicForm.freeInputs)
         assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
         cnfFormula = sorted(logicForm.cnfForm.rawCNF())
+        cnt = 0
         for solution in pycosat.itersolve(cnfFormula):
-            print(solution)
-        print('')
+            # print(solution)
+            cnt += 1
+        print(cnt)
 
 
 if __name__ == "__main__":
