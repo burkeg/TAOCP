@@ -25,12 +25,12 @@ class BoundaryCondition(Enum):
 
 class Testing:
     def __init__(self):
-        self.testTilingPrecede()
+        self.findGabe()
 
-    def testTilingPrecede(self):
+    def findGabe(self, numIterations=4):
         lifeGame = Life()
         lifeGame.Gabe()
-        tilingBefore = [Tiling(lifeGame.height, lifeGame.width) for _ in range(2)]
+        tilingBefore = [Tiling(lifeGame.height, lifeGame.width) for _ in range(numIterations)]
         tilingFinal = lifeGame.game.tilings[0]
         variableCount = 1
         for index in range(len(tilingBefore)):
