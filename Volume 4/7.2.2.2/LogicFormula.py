@@ -27,8 +27,6 @@ class LogicFormula:
         self.getTseytinCNF()
         self.rawCnf = self.cnfForm.rawCNF()
         self.unusedVars = self.cnfForm.usedVariables().symmetric_difference(set(range(1, max(self.cnfForm.usedVariables()) + 1)))
-        # print(sorted(self.rawCnf))
-        # print(self.unusedVars)
         assert len(self.unusedVars) == 0, \
             "There shouldn't be unused variables in the Tseytin transform. Something is clearly wrong"
 
@@ -92,32 +90,32 @@ class LogicFormula:
             varB = gate.inputB.variable
             varOut = gate.output.variable
             if gate.gateType == LogicStructure.AND:
-                print(str(varA) + ' AND ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' AND ' + str(varB) + ' = ' + str(varOut))
                 newClauses, _= Tseytin.AND(varA, varB, varOut)
                 return newClauses
             elif gate.gateType == LogicStructure.NAND:
                 newClauses, _= Tseytin.NAND(varA, varB, varOut)
-                print(str(varA) + ' NAND ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' NAND ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.OR:
                 newClauses, _= Tseytin.OR(varA, varB, varOut)
-                print(str(varA) + ' OR ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' OR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.NOR:
                 newClauses, _= Tseytin.NOR(varA, varB, varOut)
-                print(str(varA) + ' NOR ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' NOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.XOR:
                 newClauses, _= Tseytin.XOR(varA, varB, varOut)
-                print(str(varA) + ' XOR ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' XOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.XNOR:
                 newClauses, _= Tseytin.XNOR(varA, varB, varOut)
-                print(str(varA) + ' XNOR ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' XNOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.IMPLIES:
                 newClauses, _= Tseytin.IMPLIES(varA, varB, varOut)
-                print(str(varA) + ' IMPLIES ' + str(varB) + ' = ' + str(varOut))
+                # print(str(varA) + ' IMPLIES ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             else:
                 raise Exception('Unknown gate')
@@ -126,7 +124,7 @@ class LogicFormula:
             varOut = gate.output.variable
             if gate.gateType == LogicStructure.NOT:
                 newClauses, _= Tseytin.NOT(varA, varOut)
-                print('NOT ' + str(varA) + ' = ' + str(varOut))
+                # print('NOT ' + str(varA) + ' = ' + str(varOut))
                 return newClauses
             else:
                 raise Exception('Unknown gate')
@@ -190,8 +188,8 @@ class LogicFormula:
             if isinstance(v,Wire):
                 v.variable = literalTracker
                 literalTracker += 1
-                if v.name is not None:
-                    print(v.name + ' assigned: ' + str(v.variable))
+                # if v.name is not None:
+                #     print(v.name + ' assigned: ' + str(v.variable))
                 if v not in visited:
                     visited.append(v)
                 for gate in v.gatesIn:
