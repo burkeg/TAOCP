@@ -377,13 +377,12 @@ class Experiments:
         life = GateCustom()
         life.LIFE_nextState(prevTiles, nextTile)
         logicForm = LogicFormula(prevTiles)
-        assertedInputWires = logicForm.assertedInputWires
-        detectedInputWires = logicForm.detectedInputWires
-        constantWires = logicForm.constantWires
-        freeInputs = logicForm.freeInputs
-        assert assertedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
+        assertedInputWires = set(logicForm.assertedInputWires)
+        detectedInputWires = set(logicForm.detectedInputWires)
+        constantWires = set(logicForm.constantWires)
+        freeInputs = set(logicForm.freeInputs)
+        assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
         cnfFormula = sorted(logicForm.cnfForm.rawCNF())
-        varList = logicForm.cnfForm.usedVariables()
         for solution in pycosat.itersolve(cnfFormula):
             print(solution)
         print('')
@@ -426,11 +425,10 @@ class Experiments:
         Gate2(LogicStructure.AND, E, F, D)
         Gate2(LogicStructure.AND, C, D, out)
         logicForm = LogicFormula([A, B])
-        logicForm.getTseytinCNF()
-        assertedInputWires = logicForm.assertedInputWires
-        detectedInputWires = logicForm.detectedInputWires
-        constantWires = logicForm.constantWires
-        freeInputs = logicForm.freeInputs
+        assertedInputWires = set(logicForm.assertedInputWires)
+        detectedInputWires = set(logicForm.detectedInputWires)
+        constantWires = set(logicForm.constantWires)
+        freeInputs = set(logicForm.freeInputs)
         assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
         cnfFormula = sorted(logicForm.cnfForm.rawCNF())
         for solution in pycosat.itersolve(cnfFormula):

@@ -15,9 +15,9 @@ class LogicStructure(Enum):
 class LogicFormula:
     def __init__(self, inputs, startLiteral=None, overwriteLiterals=True):
         self.inputs = inputs
-        self.assertedInputWires = set(self.inputs)
-        self.detectedInputWires = set()
-        self.constantWires = set()
+        self.assertedInputWires = self.inputs
+        self.detectedInputWires = []
+        self.constantWires = []
         if overwriteLiterals:
             LogicFormula.assignVariables(inputs, startLiteral)
         self.usedLiterals = self.getAllUsedVariables(self.inputs)
@@ -25,18 +25,20 @@ class LogicFormula:
             startLiteral = max(self.usedLiterals) + 1
         self.cnfForm = CNF()
         self.getTseytinCNF()
-        # rawCnf = self.cnfForm.rawCNF()
-        # unusedVars = self.cnfForm.usedVariables().symmetric_difference(set(range(1, max(self.cnfForm.usedVariables()) + 1)))
-        # assert len(unusedVars) == 0, \
-        #     "There shouldn't be unused variables in the Tseytin transform. Something is clearly wrong"
+        self.rawCnf = self.cnfForm.rawCNF()
+        self.unusedVars = self.cnfForm.usedVariables().symmetric_difference(set(range(1, max(self.cnfForm.usedVariables()) + 1)))
+        # print(sorted(self.rawCnf))
+        # print(self.unusedVars)
+        assert len(self.unusedVars) == 0, \
+            "There shouldn't be unused variables in the Tseytin transform. Something is clearly wrong"
 
 
     def getConstantClauses(self, visitedPoints):
         clauses = []
-        self.constantWires = set()
-        for wire in set(visitedPoints):
-            if isinstance(wire, Wire) and wire.constant is not None:
-                self.constantWires.add(wire)
+        self.constantWires = []
+        for wire in visitedPoints:
+            if isinstance(wire, Wire) and wire.constant is not None and wire not in self.constantWires:
+                self.constantWires.append(wire)
                 if wire.constant:
                     clauses.append([wire.variable])
                 else:
@@ -47,31 +49,35 @@ class LogicFormula:
         self.cnfForm = CNF()
         if len(self.inputs) == 0:
             return
-        visited = set()
-        componentQueue = deque(self.detectedInputWires)
+        visited = []
+        componentQueue = deque(self.assertedInputWires)
         # componentQueue = deque(self.inputs)
-        visited.add(componentQueue[0])
+        visited.append(componentQueue[0])
+        visitedGates = set()
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
             if isinstance(v,Wire):
                 if v.variable is None:
                     raise Exception('All wire components must have a variable bound.')
-                visited.add(v)
+                if v not in visited:
+                    visited.append(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
-                        visited.add(gate)
+                        visited.append(gate)
                         componentQueue.append(gate)
                 if v.gateOut not in visited and v.gateOut is not None:
-                    visited.add(v.gateOut)
+                    visited.append(v.gateOut)
                     componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
-                if v.output not in visited:
-                    visited.add(v.output)
-                    componentQueue.append(v.output)
+                if v not in visitedGates:
+                    visitedGates.add(v)
                     self.cnfForm.mergeWithRaw(self.getTseytinSingleGate(v))
+                if v.output not in visited:
+                    visited.append(v.output)
+                    componentQueue.append(v.output)
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        visited.add(inputWire)
+                        visited.append(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
@@ -86,25 +92,32 @@ class LogicFormula:
             varB = gate.inputB.variable
             varOut = gate.output.variable
             if gate.gateType == LogicStructure.AND:
+                print(str(varA) + ' AND ' + str(varB) + ' = ' + str(varOut))
                 newClauses, _= Tseytin.AND(varA, varB, varOut)
                 return newClauses
             elif gate.gateType == LogicStructure.NAND:
                 newClauses, _= Tseytin.NAND(varA, varB, varOut)
+                print(str(varA) + ' NAND ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.OR:
                 newClauses, _= Tseytin.OR(varA, varB, varOut)
+                print(str(varA) + ' OR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.NOR:
                 newClauses, _= Tseytin.NOR(varA, varB, varOut)
+                print(str(varA) + ' NOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.XOR:
                 newClauses, _= Tseytin.XOR(varA, varB, varOut)
+                print(str(varA) + ' XOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.XNOR:
                 newClauses, _= Tseytin.XNOR(varA, varB, varOut)
+                print(str(varA) + ' XNOR ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             elif gate.gateType == LogicStructure.IMPLIES:
                 newClauses, _= Tseytin.IMPLIES(varA, varB, varOut)
+                print(str(varA) + ' IMPLIES ' + str(varB) + ' = ' + str(varOut))
                 return newClauses
             else:
                 raise Exception('Unknown gate')
@@ -113,6 +126,7 @@ class LogicFormula:
             varOut = gate.output.variable
             if gate.gateType == LogicStructure.NOT:
                 newClauses, _= Tseytin.NOT(varA, varOut)
+                print('NOT ' + str(varA) + ' = ' + str(varOut))
                 return newClauses
             else:
                 raise Exception('Unknown gate')
@@ -121,39 +135,41 @@ class LogicFormula:
 
     def getAllUsedVariables(self, inputs):
         if len(inputs) == 0:
-            return set()
-        self.detectedInputWires = set()
-        self.freeInputs = set()
-        visited = set()
+            return []
+        self.detectedInputWires = []
+        self.freeInputs = []
+        visited = []
         componentQueue = deque(inputs)
-        usedVariables = set()
-        visited.add(componentQueue[0])
+        usedVariables = []
+        visited.append(componentQueue[0])
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
             if isinstance(v,Wire):
                 if v.variable is None:
                     raise Exception('All wire components must have a variable bound.')
-                else:
-                    usedVariables.add(v.variable)
-                visited.add(v)
+                elif v.variable not in usedVariables:
+                    usedVariables.append(v.variable)
+                if v not in visited:
+                    visited.append(v)
                 if v.gateOut is None:
-                    self.detectedInputWires.add(v)
-                    if v.constant is None:
-                        self.freeInputs.add(v)
+                    if v not in self.detectedInputWires:
+                        self.detectedInputWires.append(v)
+                    if v.constant is None and v not in self.freeInputs:
+                        self.freeInputs.append(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
-                        visited.add(gate)
+                        visited.append(gate)
                         componentQueue.append(gate)
                 if v.gateOut not in visited and v.gateOut is not None:
-                    visited.add(v.gateOut)
+                    visited.append(v.gateOut)
                     componentQueue.append(v.gateOut)
             elif issubclass(type(v), Gate):
                 if v.output not in visited:
-                    visited.add(v.output)
+                    visited.append(v.output)
                     componentQueue.append(v.output)
                 for inputWire in v.inputs:
                     if inputWire not in visited:
-                        visited.add(inputWire)
+                        visited.append(inputWire)
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
@@ -174,10 +190,12 @@ class LogicFormula:
             if isinstance(v,Wire):
                 v.variable = literalTracker
                 literalTracker += 1
+                # print('Wire assigned: ' + str(v.variable))
                 if v not in visited:
                     visited.append(v)
                 for gate in v.gatesIn:
                     if gate not in visited:
+                        # print('Gate added')
                         visited.append(gate)
                         componentQueue.append(gate)
                 if v.gateOut not in visited and v.gateOut is not None:
@@ -187,10 +205,12 @@ class LogicFormula:
                 if v.output not in visited:
                     visited.append(v.output)
                     componentQueue.append(v.output)
+                    # print('Wire added')
                 for inputWire in v.inputs:
                     if inputWire not in visited:
                         visited.append(inputWire)
                         componentQueue.append(inputWire)
+                        # print('Wire added')
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
         return literalTracker-1
