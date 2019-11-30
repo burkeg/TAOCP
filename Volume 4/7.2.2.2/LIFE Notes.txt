@@ -1,0 +1,8 @@
+Plan for solving for previous generation:
+    Idea 1:
+    Set up 2 2d lists, one for prev and one for curr.
+    Assign variables to each tile in those two lists.
+
+    Idea 2:
+    Make 1 giant ass circuit for the whole board
+    Write an algorithm to find redundant gates and optimize them out

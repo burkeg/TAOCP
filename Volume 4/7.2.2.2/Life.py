@@ -7,6 +7,7 @@
 # import re
 from enum import Enum
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
+from LogicFormula import *
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
 
@@ -24,10 +25,7 @@ class BoundaryCondition(Enum):
 
 class Testing:
     def __init__(self):
-        self.testTseytin()
-
-    def testTseytin(self):
-        Tseytin.conj()
+        self.testTilingPrecede()
 
     def testTilingPrecede(self):
         lifeGame = Life(5, 5)
@@ -42,7 +40,7 @@ class Testing:
             for j in range(5):
                 tilingB[i][j].variable = variableCount
                 variableCount += 1
-        lifeGame.Assert_A_Precedes_B(tilingA, tilingB, boundaryCondition=BoundaryCondition.TOROIDAL)
+        Tiling.Assert_A_Precedes_B(tilingA, tilingB, boundaryCondition=BoundaryCondition.TOROIDAL)
         test = 0
 
 
@@ -174,55 +172,6 @@ class Life:
         self.game[0][6][18].state = State.ALIVE
         self.game[0][6][19].state = State.ALIVE
 
-    def Assert_A_Precedes_B(self, A, B, startLiteral=None, boundaryCondition=BoundaryCondition.ALL_DEAD):
-        if A.height != B.height or A.width != B.width:
-            raise Exception('Cannot compare tilings with different dimensions.')
-        if startLiteral is None:
-            inLiterals = set()
-        for row in range(A.height):
-            for col in range(A.width):
-                if A[row][col].variable is None or B[row][col].variable is None:
-                    raise Exception('All tiles must have a variable tied to them.')
-                else:
-                    inLiterals.add(A[row][col].variable)
-                    inLiterals.add(B[row][col].variable)
-        if startLiteral is None:
-            startLiteral = max([abs(x) for x in inLiterals]) + 1
-
-        #   TODO
-        #   adj = [
-        #       A[i-1][j-1],
-        #       A[i-1][j],
-        #       A[i-1][j+1],
-        #       A[i][j-1],
-        #       A[i][j+1],
-        #       A[i+1][j-1],
-        #       A[i+1][j],
-        #       A[i+1][j+1],
-        #   ]
-        #   POPCNT() counts the number of true variables in the list
-        #   (POPCNT(adj) == 3 or (POPCNT(adj) == 2 and A[i][j])) implies B[i][j]
-        offsets = [-1, 0, 1]
-        if boundaryCondition == BoundaryCondition.TOROIDAL:
-            for row in range(self.height):
-                for col in range(self.width):
-                    neighborList = []
-                    for i in offsets:
-                        for j in offsets:
-                            adjustedRow = (row + i) % self.height
-                            adjustedCol = (col + j) % self.width
-                            if not(i == 0 and j == 0):
-                                neighborList.append(A.board[adjustedRow][adjustedCol].variable)
-                    exact3 = SATUtils.exactlyR(neighborList, 3, startLiteral=startLiteral)
-                    exact2 = SATUtils.exactlyR(neighborList, 2, startLiteral=startLiteral)
-                    # (exact3 || (exact2 && A[i][j]) -> B[i][j]
-                    print(neighborList)
-
-        elif boundaryCondition == BoundaryCondition.ALL_DEAD:
-            clauses=CNF()
-        else:
-            raise NotImplementedError()
-
 class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
         self.height = height
@@ -250,7 +199,7 @@ class GameInstance:
 
 
 class Tiling:
-    def __init__(self,height=0,width=0,time=-1):
+    def __init__(self,height=0,width=0,time=None):
         self.height = height
         self.width = width
         self.time = time
@@ -349,16 +298,56 @@ class Tiling:
             raise Exception('Unknown boundary condition')
         return newTiling
 
+    @staticmethod
+    def Assert_A_Precedes_B(A, B, boundaryCondition=BoundaryCondition.ALL_DEAD):
+        assert isinstance(A, Tiling) and isinstance(B, Tiling)
+        if A.height != B.height or A.width != B.width:
+            raise Exception('Cannot compare tilings with different dimensions.')
+        offsets = [-1, 0, 1]
+        if boundaryCondition == BoundaryCondition.TOROIDAL:
+            inputWires = []
+            for row in range(A.height):
+                for col in range(A.width):
+                    inputWires.append(A[row][col].wire)
+                    prevNodes = []
+                    for i in offsets:
+                        for j in offsets:
+                            adjustedRow = (row + i) % A.height
+                            adjustedCol = (col + j) % A.width
+                            prevNodes.append(A[adjustedRow][adjustedCol].wire)
+                    tilePrecedingLogic = GateCustom()
+                    tilePrecedingLogic.LIFE_nextState(
+                        prev9tiles=prevNodes,
+                        output=B[row][col])
+            layerFormula = LogicFormula(inputWires)
+            print(layerFormula.rawCnf)
+        elif boundaryCondition == BoundaryCondition.ALL_DEAD:
+            clauses = CNF()
+        else:
+            raise NotImplementedError()
 
 class Tile:
-    def __init__(self, state=State.DONTCARE, row=-1, col=-1, variable=None):
+    def __init__(self, state=State.DONTCARE, row=None, col=None, variable=None, time=None):
         self.state = state
         self.row=row
         self.col=col
         self.variable = variable
+        self.time = time
+        self.wire = Wire(name=str(self))
 
     def __str__(self):
         return '[' + str(self.row) + ', ' + str(self.col) + ', ' + self.state.name + ']'
+
+    def updateWire(self):
+        assert isinstance(self.wire, Wire)
+        if self.state == State.ALIVE:
+            self.wire.constant = True
+        elif self.state == State.DEAD:
+            self.wire.constant = False
+        elif self.state == State.DONTCARE:
+            # reset back to original state
+            self.wire.constant = None
+        self.wire.name = str(self)
 
 if __name__ == "__main__":
     Testing()
