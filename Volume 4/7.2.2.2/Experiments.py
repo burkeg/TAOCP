@@ -364,9 +364,9 @@ class Experiments:
         prevTiles = [Wire() for _ in range(9)]
         prevTiles[0].constant = False
         prevTiles[1].constant = False
-        prevTiles[2].constant = False
-        prevTiles[3].constant = False
-        prevTiles[4].constant = False
+        prevTiles[2].constant = True
+        prevTiles[3].constant = True
+        # prevTiles[4].constant = False
 
         prevTiles[5].constant = False
         prevTiles[6].constant = False
@@ -382,7 +382,7 @@ class Experiments:
         constantWires = set(logicForm.constantWires)
         freeInputs = set(logicForm.freeInputs)
         assert detectedInputWires.difference(constantWires) == freeInputs, "The set of input wires minus all wires assigned constant values should be the remaining free inputs"
-        cnfFormula = sorted(logicForm.cnfForm.rawCNF())
+        cnfFormula = sorted(logicForm.cnfForm.rawCNF(),key=lambda x: [len(x), [abs(y) for y in x]])
         for solution in pycosat.itersolve(cnfFormula):
             print(solution)
         print('')
