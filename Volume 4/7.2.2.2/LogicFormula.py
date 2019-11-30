@@ -79,6 +79,7 @@ class LogicFormula:
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
+        print(len(visited))
         self.cnfForm.mergeWithRaw(self.getConstantClauses(visited))
 
     def getTseytinSingleGate(self, gate):

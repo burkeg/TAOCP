@@ -6,3 +6,4 @@ Plan for solving for previous generation:
     Idea 2:
     Make 1 giant ass circuit for the whole board
     Write an algorithm to find redundant gates and optimize them out
+5

@@ -21,14 +21,21 @@ class CNF:
     def addClause(self, clause):
         self.clauses.append(clause)
 
-    def mergeWithRaw(self, newCNF):
-        currentCNF = self.rawCNF()
-        for clause in newCNF:
-            if set(clause) not in [set(x) for x in currentCNF]:
+    def mergeWithRaw(self, newCNF, allowDuplicates=True):
+        if allowDuplicates:
+            for clause in newCNF:
                 newClause = Clause([])
                 for literal in clause:
                     newClause.addLiteral(Literal(literal))
                 self.addClause(newClause)
+        else:
+            currentCNF = self.rawCNF()
+            for clause in newCNF:
+                if set(clause) not in [set(x) for x in currentCNF]:
+                    newClause = Clause([])
+                    for literal in clause:
+                        newClause.addLiteral(Literal(literal))
+                    self.addClause(newClause)
 
     def usedVariables(self):
         varSet = set()
