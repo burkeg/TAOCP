@@ -29,23 +29,23 @@ class Testing:
 
     def testTilingPrecede(self):
         lifeGame = Life(5, 5)
-        lifeGame.Glider()
-        tilingA = Tiling(5, 5)
+        lifeGame.Gabe()
+        tilingA = Tiling(lifeGame.height, lifeGame.width)
         tilingB = lifeGame.game.tilings[0]
         variableCount = 1
-        for i in range(5):
-            for j in range(5):
+        for i in range(lifeGame.height):
+            for j in range(lifeGame.width):
                 tilingA[i][j].variable = variableCount
                 tilingA[i][j].state = State.DONTCARE
                 tilingA[i][j].updateWire()
                 variableCount += 1
-        for i in range(5):
-            for j in range(5):
+        for i in range(lifeGame.height):
+            for j in range(lifeGame.width):
                 tilingB[i][j].variable = variableCount
                 # tilingB[i][j].state = State.DEAD
                 tilingB[i][j].updateWire()
                 variableCount += 1
-        Tiling.Assert_A_Precedes_B(tilingA, tilingB, boundaryCondition=BoundaryCondition.TOROIDAL)
+        Tiling.Assert_A_Precedes_B(tilingA, tilingB, boundaryCondition=BoundaryCondition.ALL_DEAD)
         test = 0
 
 
@@ -383,7 +383,81 @@ class Tiling:
                 # print('After B:')
                 # print(B)
         elif boundaryCondition == BoundaryCondition.ALL_DEAD:
-            clauses = CNF()
+            inputWires = []
+            for row in range(A.height):
+                for col in range(A.width):
+                    inputWires.append(A[row][col].wire)
+                    prevNodes = []
+                    for i in offsets:
+                        for j in offsets:
+                            adjustedRow = row + i
+                            adjustedCol = col + j
+                            # Out of bounds cells count as dead
+                            if adjustedRow not in range(A.height) or adjustedCol not in range(A.width):
+                                prevNodes.append(Wire(constant=False))
+                            else:
+                                prevNodes.append(A[adjustedRow][adjustedCol].wire)
+                    tilePrecedingLogic = GateCustom()
+                    tilePrecedingLogic.LIFE_nextState(
+                        prev9tiles=prevNodes,
+                        output=B[row][col].wire)
+            layerFormula = LogicFormula(inputWires)
+            cnfFormula = sorted(layerFormula.cnfForm.rawCNF(),key=lambda x: [len(x), [abs(y) for y in x]])
+            cnt = 0
+
+            for row in range(A.height):
+                for col in range(A.width):
+                    oldToNewVariables[A[row][col].variable] = A[row][col].wire.variable
+                    oldToNewVariables[B[row][col].variable] = B[row][col].wire.variable
+            for solution in pycosat.itersolve(cnfFormula):
+                print('--------------------')
+                print(solution)
+                cnt += 1
+                newTilingA = Tiling(A.height, A.width, A.time)
+                newTilingB = Tiling(B.height, B.width, B.time)
+
+                for row in range(A.height):
+                    for col in range(A.width):
+                        if oldToNewVariables[A[row][col].variable] in solution:
+                            if A[row][col].state == State.ALIVE or A[row][col].state == State.DONTCARE:
+                                # This means that we either forced the cell to be alive or we derived a possible value
+                                newTilingA[row][col].state = State.ALIVE
+                                pass
+                            else:
+                                raise Exception("Computed state is incompatible with original state")
+                        elif -oldToNewVariables[A[row][col].variable] in solution:
+                            if A[row][col].state == State.DEAD or A[row][col].state == State.DONTCARE:
+                                # This means that we either forced the cell to be dead or we derived a possible value
+                                newTilingA[row][col].state = State.DEAD
+                                pass
+                            else:
+                                raise Exception("Computed state is incompatible with original state")
+                        else:
+                            raise Exception("Input wasn't even in the solution! Something is clearly wrong here.")
+
+                for row in range(B.height):
+                    for col in range(B.width):
+                        if oldToNewVariables[B[row][col].variable] in solution:
+                            if B[row][col].state == State.ALIVE or B[row][col].state == State.DONTCARE:
+                                # This means that we either forced the cell to be alive or we derived a possible value
+                                newTilingB[row][col].state = State.ALIVE
+                                pass
+                            else:
+                                raise Exception("Computed state is incompatible with original state")
+                        elif -oldToNewVariables[B[row][col].variable] in solution:
+                            if B[row][col].state == State.DEAD or B[row][col].state == State.DONTCARE:
+                                # This means that we either forced the cell to be dead or we derived a possible value
+                                newTilingB[row][col].state = State.DEAD
+                                pass
+                            else:
+                                raise Exception("Computed state is incompatible with original state")
+                        else:
+                            raise Exception("Input wasn't even in the solution! Something is clearly wrong here.")
+
+                # print('After A:')
+                print(newTilingA)
+                # print('After B:')
+                # print(B)
         else:
             raise NotImplementedError()
 
