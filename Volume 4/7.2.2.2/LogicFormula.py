@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 from collections import deque
 from SATUtils import CNF, Tseytin
@@ -11,6 +12,8 @@ class LogicStructure(Enum):
     XNOR = 6
     IMPLIES = 7
     CUSTOM = 8
+
+DEBUG = True
 
 class LogicFormula:
     def __init__(self, inputs, startLiteral=None, overwriteLiterals=True):
@@ -26,6 +29,8 @@ class LogicFormula:
         self.cnfForm = CNF()
         self.getTseytinCNF()
         self.rawCnf = self.cnfForm.rawCNF()
+        if DEBUG:
+            print(str(len(self.rawCnf)) + ' clauses generated.')
         self.unusedVars = self.cnfForm.usedVariables().symmetric_difference(set(range(1, max(self.cnfForm.usedVariables()) + 1)))
         assert len(self.unusedVars) == 0, \
             "There shouldn't be unused variables in the Tseytin transform. Something is clearly wrong"
@@ -52,6 +57,9 @@ class LogicFormula:
         # componentQueue = deque(self.inputs)
         visited.append(componentQueue[0])
         visitedGates = set()
+        if DEBUG:
+            print('Translating circuit graph into CNF using Tseytin Transform.')
+            t0 = time.time()
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
             if isinstance(v,Wire):
@@ -79,7 +87,9 @@ class LogicFormula:
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
-        print(len(visited))
+        if DEBUG:
+            total = time.time() - t0
+            print('Finished translating ' + str(len(visited)) + ' components. (' + str(total) + ' seconds)')
         self.cnfForm.mergeWithRaw(self.getConstantClauses(visited))
 
     def getTseytinSingleGate(self, gate):
@@ -133,6 +143,9 @@ class LogicFormula:
             raise Exception("Custum logic structures aren't always gates")
 
     def getAllUsedVariables(self, inputs):
+        if DEBUG:
+            print('Determining used variables.')
+            t0 = time.time()
         if len(inputs) == 0:
             return []
         self.detectedInputWires = []
@@ -172,6 +185,9 @@ class LogicFormula:
                         componentQueue.append(inputWire)
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
+        if DEBUG:
+            total = time.time() - t0
+            print(str(len(usedVariables)) + ' used variables found. (' + str(total) + ' seconds)')
         return usedVariables
 
     @staticmethod
@@ -184,6 +200,9 @@ class LogicFormula:
         visited = []
         componentQueue = deque(inputs)
         visited.append(componentQueue[0])
+        if DEBUG:
+            print('Assigning variables.')
+            t0 = time.time()
         while len(componentQueue) != 0:
             v = componentQueue.popleft()
             if isinstance(v,Wire):
@@ -213,6 +232,9 @@ class LogicFormula:
                         # print('Wire added')
             else:
                 raise Exception("Logic structure should only contain Wires and Gates")
+        if DEBUG:
+            total = time.time() - t0
+            print('Variable assignment completed. (' + str(total) + ' seconds)')
         return literalTracker-1
 
     # https://en.wikipedia.org/wiki/Tseytin_transformation

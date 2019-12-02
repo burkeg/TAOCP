@@ -5,13 +5,13 @@ import pycosat
 # import sys
 # import collections
 # import re
+import time
 import os
 from enum import Enum
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
 from LogicFormula import *
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
-
 
 class State(Enum):
     ALIVE = 0
@@ -26,8 +26,26 @@ class BoundaryCondition(Enum):
 
 class Testing:
     def __init__(self):
-        for i in range(1, 10):
+        pass
+
+    def GenerateGabeSolutions(self):
+        for i in range(6, 10):
+            if DEBUG:
+                print('---------------------------')
+                print('Searching ' + str(i) + ' states into the past.')
             Life(solutionCap=20).findGabe(i)
+
+    def LoadGabeSolution(self):
+        life = Life()
+        life.readSolution('GabeIn4/solution0.bin')
+        print(life.game)
+        rebuilt = Life()
+        rebuilt.game.SetFrames([life.game.tilings[0]])
+        rebuilt.game.boundaryCondition=BoundaryCondition.ALL_DEAD
+        print(rebuilt.game)
+        rebuilt.game.AddFrames(4)
+        print(rebuilt.game)
+
 
 
 
@@ -198,8 +216,6 @@ class Life:
             file.write(solution.toBytes())
         self.solutionCount += 1
 
-
-
     def FillInSequence(self, boundaryCondition=BoundaryCondition.ALL_DEAD):
         sequence = self.game.tilings
         if len(sequence) <= 1:
@@ -212,6 +228,9 @@ class Life:
         offsets = [-1, 0, 1]
 
         inputWires = []
+        if DEBUG:
+            print('Initiating building of circuit graph.')
+            t0 = time.time()
         for index in reversed(range(1, len(sequence))):
             A = sequence[index-1]
             B = sequence[index]
@@ -247,6 +266,9 @@ class Life:
                     tilePrecedingLogic.LIFE_nextState(
                         prev9tiles=prevNodes,
                         output=B[row][col].wire)
+        if DEBUG:
+            total = time.time() - t0
+            print('Building of circuit graph completed. (' + str(total) + ' seconds)')
         layerFormula = LogicFormula(inputWires)
         cnfFormula = sorted(layerFormula.cnfForm.rawCNF(),key=lambda x: [len(x), [abs(y) for y in x]])
         cnt = 0
@@ -256,11 +278,17 @@ class Life:
                     oldToNewVariables[tiling[row][col].variable] = tiling[row][col].wire.variable
 
         self.createSolutionDir()
+        if DEBUG:
+            print('Starting to find solutions.')
+            t0 = time.time()
         for solution in pycosat.itersolve(cnfFormula):
+            if DEBUG and cnt == 0:
+                total = time.time() - t0
+                print('First solution found in ' + str(total) + ' seconds.')
             if self.solutionCap is not None and self.solutionCap <= cnt:
                 break
-            print('--------------------')
-            print(solution)
+            # print('--------------------')
+            # print(solution)
             updatedSequence = []
             for tiling in sequence:
                 newTilingA = Tiling(tiling.height, tiling.width, tiling.time)
@@ -285,13 +313,25 @@ class Life:
                             raise Exception("Input wasn't even in the solution! Something is clearly wrong here.")
                 updatedSequence.append(newTilingA)
                 # print('After A:')
-                print(newTilingA)
+                # print(newTilingA)
                 # print('After B:')
                 # print(B)
             gameSolution = GameInstance(boundaryCondition=boundaryCondition)
             gameSolution.SetFrames(updatedSequence)
+            print(gameSolution)
             self.addSolution(gameSolution)
             cnt += 1
+        if DEBUG:
+            total = time.time() - t0
+            print('All solutions found or solution limit reached. (' + str(total) + ' seconds)')
+
+    def readSolution(self, fname):
+        bytes_read = bytes()
+        with open(fname, "rb") as f:
+            bytes_read = f.read()
+            self.game = GameInstance()
+            self.game.loadBytes(bytes_read)
+
 
 class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
@@ -334,10 +374,12 @@ class GameInstance:
         self.width = byteForm[2]
         idx = 1
         time = 0
+        self.tilings = []
         for tilingIdx in range(numTilings):
             nextIdx = idx + self.height * self.width + 2
-            tiling = Tiling(time=time, byteForm=byteForm[idx:(nextIdx + 1)])
+            self.tilings.append(Tiling(time=time, byteForm=byteForm[idx:(nextIdx + 1)]))
             idx = nextIdx
+
 
     def toBytes(self):
         lstToBytes = bytearray([len(self.tilings)])
@@ -386,6 +428,7 @@ class Tiling:
         for row in range(self.height):
             for col in range(self.width):
                 self[row][col].loadBytes(byteForm[idx])
+                idx += 1
 
     def toBytes(self):
         lstToBytes = bytearray([self.height, self.width])
@@ -492,11 +535,12 @@ class Tile:
         self.wire.name = str(self)
 
     def loadBytes(self, byteForm):
-        self.state = State(byteForm[0])
+        self.state = State(byteForm)
 
     def toBytes(self):
         return bytearray([self.state.value])
 
 if __name__ == "__main__":
-    Testing()
+    test = Testing()
+    test.GenerateGabeSolutions()
 
