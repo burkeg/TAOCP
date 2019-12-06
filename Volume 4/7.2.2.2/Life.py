@@ -33,7 +33,20 @@ class Testing:
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
-            Life(solutionCap=20).findGabe(i)
+            life = Life(solutionCap=20)
+            life.Gabe()
+            life.fname = 'GabeIn' + str(i)
+            life.findPreceding(i)
+
+    def GenerateFrogSolutions(self):
+        for i in range(1, 10):
+            if DEBUG:
+                print('---------------------------')
+                print('Searching ' + str(i) + ' states into the past.')
+            life = Life(solutionCap=5)
+            life.Frog()
+            life.fname = 'FrogIn' + str(i)
+            life.findPreceding(i)
 
     def LoadGabeSolution(self):
         life = Life()
@@ -64,6 +77,41 @@ class Life:
         # for t in range(1):
         #     print(self.game[t])
         # print(self.game)
+
+    # https://i.etsystatic.com/11849187/c/908/721/320/3/il/f1e2b2/1187483474/il_340x270.1187483474_33t6.jpg
+    # https://opengameart.org/content/cute-green-pixel-frog-1616
+    # https://image.shutterstock.com/image-vector/pixel-art-frog-isolated-on-600w-1146982025.jpg
+    # https://image.shutterstock.com/image-vector/8-bit-pixel-green-frog-600w-1334781158.jpg
+    # https://i.pinimg.com/originals/fa/75/e1/fa75e141c255054ea03a60bde3a95596.png
+    # https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlNd5ecrtHBB8L25G3c01YTYVU0mm4yYyWEFfKImil-0t1O84c&s
+    def Frog(self):
+        board  = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,1,1,1,1],
+            [1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,1],
+            [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1],
+            [1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,1,1,1],
+            [1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1],
+            [1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1],
+            [1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1],
+            [1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,1],
+            [1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1],
+            [1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,1,1,0,1],
+            [1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,1,1,0,1],
+            [1,1,1,1,1,0,1,1,0,1,1,0,1,0,1,1,1,1,0,1],
+            [1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,1,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ]
+        self.height = len(board)
+        self.width = len(board[0])
+        self.game = GameInstance(self.height, self.width)
+        for row in range(self.height):
+            for col in range(self.width):
+                self.game[0][row][col].state = State(board[row][col])
 
     def Blinker(self):
         self.width = 5
@@ -179,9 +227,7 @@ class Life:
         self.game[0][6][18].state = State.ALIVE
         self.game[0][6][19].state = State.ALIVE
 
-    def findGabe(self, numIterations=1):
-        self.Gabe()
-        self.fname = 'GabeIn' + str(numIterations)
+    def findPreceding(self, numIterations=1):
         tilingBefore = [Tiling(self.height, self.width) for _ in range(numIterations)]
         tilingFinal = self.game.tilings[0]
         variableCount = 1
@@ -542,5 +588,5 @@ class Tile:
 
 if __name__ == "__main__":
     test = Testing()
-    test.GenerateGabeSolutions()
+    test.GenerateFrogSolutions()
 
