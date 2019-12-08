@@ -10,242 +10,62 @@ import os
 from enum import Enum
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
 from LogicFormula import *
+from Life import *
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
 
-class LifeState(Enum):
-    ALIVE = 0
-    DEAD = 1
-    DONTCARE = 2
+class MSState(Enum):
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 6
+    SIX = 5
+    SEVEN = 7
+    EIGHT = 8
+    UNKNOWN = 9
+    BOMB = 10
+    NOBOMB = 11
 
 
-class BoundaryCondition(Enum):
-    TOROIDAL = 0
-    ALL_DEAD = 1
-    ALL_ALIVE = 2
-
-class Testing:
-    def __init__(self):
-        pass
-
-    def GenerateGabeSolutions(self):
-        for i in range(1, 10):
-            if DEBUG:
-                print('---------------------------')
-                print('Searching ' + str(i) + ' states into the past.')
-            life = Life(solutionCap=20)
-            life.Gabe()
-            life.fname = 'GabeIn' + str(i)
-            life.findPreceding(i)
-
-    def GenerateFrogSolutions(self):
-        for i in range(1, 10):
-            if DEBUG:
-                print('---------------------------')
-                print('Searching ' + str(i) + ' states into the past.')
-            life = Life(solutionCap=5)
-            life.Frog()
-            life.fname = 'FrogIn' + str(i)
-            life.findPreceding(i)
-
-    def LoadGabeSolution(self):
-        life = Life()
-        life.readSolution('GabeIn4/solution0.bin')
-        print(life.game)
-        rebuilt = Life()
-        rebuilt.game.SetFrames([life.game.tilings[0]])
-        rebuilt.game.boundaryCondition=BoundaryCondition.ALL_DEAD
-        print(rebuilt.game)
-        rebuilt.game.AddFrames(4)
-        print(rebuilt.game)
-
-
-
-
-class Life:
+class MineSweeper:
     def __init__(self,height=0,width=0, fname=None, solutionCap=None):
         self.fname = fname
         self.height = height
         self.width = width
-        self.game = LifeGameInstance(self.height, self.width)
+        self.game = GameInstance(self.height, self.width)
         self.solutionCount = 0
         self.solutionCap = 10
-        # for t in range(1):
-        #     for row in range(self.height):
-        #         for col in range(self.width):
-        #             print(self.game[t][row][col])
-        # for t in range(1):
-        #     print(self.game[t])
-        # print(self.game)
 
-    # https://i.etsystatic.com/11849187/c/908/721/320/3/il/f1e2b2/1187483474/il_340x270.1187483474_33t6.jpg
-    # https://opengameart.org/content/cute-green-pixel-frog-1616
-    # https://image.shutterstock.com/image-vector/pixel-art-frog-isolated-on-600w-1146982025.jpg
-    # https://image.shutterstock.com/image-vector/8-bit-pixel-green-frog-600w-1334781158.jpg
-    # https://i.pinimg.com/originals/fa/75/e1/fa75e141c255054ea03a60bde3a95596.png
-    # https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlNd5ecrtHBB8L25G3c01YTYVU0mm4yYyWEFfKImil-0t1O84c&s
     def Frog(self):
         board  = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,1,1,1,1],
-            [1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,1],
-            [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1],
-            [1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,1,1,1],
-            [1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],
-            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],
-            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1],
-            [1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1],
-            [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1],
-            [1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1],
-            [1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,1],
-            [1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1],
-            [1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,1,1,0,1],
-            [1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,1,1,0,1],
-            [1,1,1,1,1,0,1,1,0,1,1,0,1,0,1,1,1,1,0,1],
-            [1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1],
-            [1,1,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            [11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,11 ,11 ,10 ,10 ,10 ,11 ,11 ,11 ,10 ,10 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,11 ,10 ,11 ,11 ,11 ,10 ,11 ,10 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,11 ,10 ,11 ,10 ,11 ,10 ,11 ,10 ,11 ,10 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,11 ,10 ,11 ,10 ,11 ,10 ,10 ,10 ,11 ,10 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ],
+            [11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ],
+            [11 ,11 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ],
+            [11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ],
+            [11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,11 ],
+            [11 ,11 ,11 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,11 ,10 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,11 ,10 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,10 ,11 ,11 ,11 ,11 ,10 ,11 ],
+            [11 ,11 ,11 ,11 ,10 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,10 ,11 ,11 ,11 ,11 ,11 ,10 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,10 ,10 ,10 ,10 ,10 ,10 ,10 ,11 ,10 ,10 ,10 ,10 ,10 ,11 ,11 ],
+            [11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ,11 ]
         ]
         self.height = len(board)
         self.width = len(board[0])
-        self.game = LifeGameInstance(self.height, self.width)
+        self.game = GameInstance(self.height, self.width)
         for row in range(self.height):
             for col in range(self.width):
-                self.game[0][row][col].state = LifeState(board[row][col])
-
-    def Blinker(self):
-        self.width = 5
-        self.height = 5
-        self.game = LifeGameInstance(self.height, self.width)
-        for i in range(5):
-            for j in range(5):
-                self.game[0][i][j].state = LifeState.DEAD
-        self.game[0][2][1].state = LifeState.ALIVE
-        self.game[0][2][2].state = LifeState.ALIVE
-        self.game[0][2][3].state = LifeState.ALIVE
-
-    def Glider(self):
-        self.width = 5
-        self.height = 5
-        self.game = LifeGameInstance(self.height, self.width)
-        for i in range(5):
-            for j in range(5):
-                self.game[0][i][j].state = LifeState.DEAD
-        self.game[0][1][2].state = LifeState.ALIVE
-        self.game[0][2][1].state = LifeState.ALIVE
-        self.game[0][3][1].state = LifeState.ALIVE
-        self.game[0][3][2].state = LifeState.ALIVE
-        self.game[0][3][3].state = LifeState.ALIVE
-
-    def Gabe(self):
-        self.height = 8
-        self.width = 21
-        self.game = LifeGameInstance(self.height, self.width)
-        for row in range(self.height):
-            for col in range(self.width):
-                self.game[0][row][col].state = LifeState.DEAD
-        self.game[0][1][2].state = LifeState.ALIVE
-        self.game[0][1][3].state = LifeState.ALIVE
-        self.game[0][1][4].state = LifeState.ALIVE
-        self.game[0][1][6].state = LifeState.ALIVE
-        self.game[0][1][7].state = LifeState.ALIVE
-        self.game[0][1][8].state = LifeState.ALIVE
-        self.game[0][1][11].state = LifeState.ALIVE
-        self.game[0][1][12].state = LifeState.ALIVE
-        self.game[0][1][13].state = LifeState.ALIVE
-        self.game[0][1][16].state = LifeState.ALIVE
-        self.game[0][1][17].state = LifeState.ALIVE
-        self.game[0][1][18].state = LifeState.ALIVE
-        self.game[0][1][19].state = LifeState.ALIVE
-
-
-        self.game[0][2][1].state = LifeState.ALIVE
-
-        self.game[0][2][6].state = LifeState.ALIVE
-        self.game[0][2][9].state = LifeState.ALIVE
-
-        self.game[0][2][11].state = LifeState.ALIVE
-        self.game[0][2][14].state = LifeState.ALIVE
-
-        self.game[0][2][16].state = LifeState.ALIVE
-
-
-        self.game[0][3][1].state = LifeState.ALIVE
-        self.game[0][3][3].state = LifeState.ALIVE
-        self.game[0][3][4].state = LifeState.ALIVE
-
-        self.game[0][3][6].state = LifeState.ALIVE
-        self.game[0][3][7].state = LifeState.ALIVE
-        self.game[0][3][8].state = LifeState.ALIVE
-        self.game[0][3][9].state = LifeState.ALIVE
-
-        self.game[0][3][11].state = LifeState.ALIVE
-        self.game[0][3][12].state = LifeState.ALIVE
-        self.game[0][3][13].state = LifeState.ALIVE
-
-        self.game[0][3][16].state = LifeState.ALIVE
-        self.game[0][3][17].state = LifeState.ALIVE
-        self.game[0][3][18].state = LifeState.ALIVE
-
-        self.game[0][4][1].state = LifeState.ALIVE
-        self.game[0][4][4].state = LifeState.ALIVE
-
-        self.game[0][4][6].state = LifeState.ALIVE
-        self.game[0][4][9].state = LifeState.ALIVE
-
-        self.game[0][4][11].state = LifeState.ALIVE
-        self.game[0][4][14].state = LifeState.ALIVE
-
-        self.game[0][4][16].state = LifeState.ALIVE
-
-
-        self.game[0][5][1].state = LifeState.ALIVE
-        self.game[0][5][4].state = LifeState.ALIVE
-
-        self.game[0][5][6].state = LifeState.ALIVE
-        self.game[0][5][9].state = LifeState.ALIVE
-
-        self.game[0][5][11].state = LifeState.ALIVE
-        self.game[0][5][14].state = LifeState.ALIVE
-
-        self.game[0][5][16].state = LifeState.ALIVE
-
-
-        self.game[0][6][2].state = LifeState.ALIVE
-        self.game[0][6][3].state = LifeState.ALIVE
-        self.game[0][6][4].state = LifeState.ALIVE
-
-        self.game[0][6][6].state = LifeState.ALIVE
-        self.game[0][6][9].state = LifeState.ALIVE
-
-        self.game[0][6][11].state = LifeState.ALIVE
-        self.game[0][6][12].state = LifeState.ALIVE
-        self.game[0][6][13].state = LifeState.ALIVE
-
-        self.game[0][6][16].state = LifeState.ALIVE
-        self.game[0][6][17].state = LifeState.ALIVE
-        self.game[0][6][18].state = LifeState.ALIVE
-        self.game[0][6][19].state = LifeState.ALIVE
-
-    def findPreceding(self, numIterations=1):
-        tilingBefore = [LifeTiling(self.height, self.width) for _ in range(numIterations)]
-        tilingFinal = self.game.tilings[0]
-        variableCount = 1
-        for index in range(len(tilingBefore)):
-            for i in range(self.height):
-                for j in range(self.width):
-                    tilingBefore[index][i][j].variable = variableCount
-                    tilingBefore[index][i][j].state = LifeState.DONTCARE
-                    tilingBefore[index][i][j].updateWire()
-                    variableCount += 1
-        for i in range(self.height):
-            for j in range(self.width):
-                tilingFinal[i][j].variable = variableCount
-                tilingFinal[i][j].updateWire()
-                variableCount += 1
-        self.game.SetFrames(tilingBefore + [tilingFinal])
-        self.FillInSequence(boundaryCondition=BoundaryCondition.ALL_DEAD)
-        test = 0
+                self.game[0][row][col].state = MSState(board[row][col])
 
     def createSolutionDir(self):
         try:
@@ -257,7 +77,7 @@ class Life:
             self.solutionCount = 0
 
     def addSolution(self, solution):
-        assert isinstance(solution, LifeGameInstance)
+        assert isinstance(solution, GameInstance)
         with open(self.fname + '/solution' + str(self.solutionCount) + '.bin', 'wb') as file:
             file.write(solution.toBytes())
         self.solutionCount += 1
@@ -267,7 +87,7 @@ class Life:
         if len(sequence) <= 1:
             raise Exception('A sequence needs at least 2 elements!')
         for tiling in sequence:
-            assert isinstance(tiling, LifeTiling)
+            assert isinstance(tiling, Tiling)
             assert tiling.height == sequence[0].height and tiling.width == sequence[0].width, \
                 'Cannot compare tilings with different dimensions.'
         oldToNewVariables = dict()
@@ -337,21 +157,21 @@ class Life:
             # print(solution)
             updatedSequence = []
             for tiling in sequence:
-                newTilingA = LifeTiling(tiling.height, tiling.width, tiling.time)
+                newTilingA = Tiling(tiling.height, tiling.width, tiling.time)
 
                 for row in range(tiling.height):
                     for col in range(tiling.width):
                         if oldToNewVariables[tiling[row][col].variable] in solution:
-                            if tiling[row][col].state == LifeState.ALIVE or tiling[row][col].state == LifeState.DONTCARE:
+                            if tiling[row][col].state == MSState.ALIVE or tiling[row][col].state == MSState.DONTCARE:
                                 # This means that we either forced the cell to be alive or we derived a possible value
-                                newTilingA[row][col].state = LifeState.ALIVE
+                                newTilingA[row][col].state = MSState.ALIVE
                                 pass
                             else:
                                 raise Exception("Computed state is incompatible with original state")
                         elif -oldToNewVariables[tiling[row][col].variable] in solution:
-                            if tiling[row][col].state == LifeState.DEAD or tiling[row][col].state == LifeState.DONTCARE:
+                            if tiling[row][col].state == MSState.DEAD or tiling[row][col].state == MSState.DONTCARE:
                                 # This means that we either forced the cell to be dead or we derived a possible value
-                                newTilingA[row][col].state = LifeState.DEAD
+                                newTilingA[row][col].state = MSState.DEAD
                                 pass
                             else:
                                 raise Exception("Computed state is incompatible with original state")
@@ -362,7 +182,7 @@ class Life:
                 # print(newTilingA)
                 # print('After B:')
                 # print(B)
-            gameSolution = LifeGameInstance(boundaryCondition=boundaryCondition)
+            gameSolution = GameInstance(boundaryCondition=boundaryCondition)
             gameSolution.SetFrames(updatedSequence)
             print(gameSolution)
             self.addSolution(gameSolution)
@@ -375,16 +195,16 @@ class Life:
         bytes_read = bytes()
         with open(fname, "rb") as f:
             bytes_read = f.read()
-            self.game = LifeGameInstance()
+            self.game = GameInstance()
             self.game.loadBytes(bytes_read)
 
 
-class LifeGameInstance:
+class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
         self.height = height
         self.width = width
         self.boundaryCondition = boundaryCondition
-        self.tilings = [LifeTiling(height=height, width=width, time=0)]
+        self.tilings = [Tiling(height=height, width=width, time=0)]
 
     def __getitem__(self, key):
         return self.tilings[key]
@@ -407,7 +227,7 @@ class LifeGameInstance:
         if len(frames) == 0:
             raise Exception('Why load in 0 frames?')
         for tiling in frames:
-            assert isinstance(tiling, LifeTiling), 'Frames must be of type Tiling'
+            assert isinstance(tiling, Tiling), 'Frames must be of type Tiling'
             assert tiling.height == frames[0].height and tiling.width == frames[0].width, \
                 'Cannot compare tilings with different dimensions.'
         self.tilings = frames
@@ -423,7 +243,7 @@ class LifeGameInstance:
         self.tilings = []
         for tilingIdx in range(numTilings):
             nextIdx = idx + self.height * self.width + 2
-            self.tilings.append(LifeTiling(time=time, byteForm=byteForm[idx:(nextIdx + 1)]))
+            self.tilings.append(Tiling(time=time, byteForm=byteForm[idx:(nextIdx + 1)]))
             idx = nextIdx
 
 
@@ -435,7 +255,7 @@ class LifeGameInstance:
 
 
 
-class LifeTiling:
+class Tiling:
     def __init__(self,height=0,width=0,time=None, byteForm=None):
         self.height = height
         self.width = width
@@ -443,7 +263,7 @@ class LifeTiling:
         if byteForm is not None:
             self.loadBytes(byteForm)
         else:
-            self.board = [[LifeTile(row=y, col=x) for x in range(width)] for y in range(height)]
+            self.board = [[Tile(row=y, col=x) for x in range(width)] for y in range(height)]
 
     def __getitem__(self, key):
         return self.board[key]
@@ -452,11 +272,11 @@ class LifeTiling:
         boardStr= ''
         for i in range(self.height):
             for j in range(self.width):
-                if self[i][j].state == LifeState.ALIVE:
+                if self[i][j].state == MSState.ALIVE:
                     boardStr += '■'
-                elif self[i][j].state == LifeState.DEAD:
+                elif self[i][j].state == MSState.DEAD:
                     boardStr += '□'
-                elif self[i][j].state == LifeState.DONTCARE:
+                elif self[i][j].state == MSState.DONTCARE:
                     boardStr += '▩'
                     # boardStr += str(self[i][j].variable)
                 else:
@@ -469,7 +289,7 @@ class LifeTiling:
     def loadBytes(self, byteForm):
         self.height = byteForm[0]
         self.width = byteForm[1]
-        self.board = [[LifeTile(row=y, col=x) for x in range(self.width)] for y in range(self.height)]
+        self.board = [[Tile(row=y, col=x) for x in range(self.width)] for y in range(self.height)]
         idx = 2
         for row in range(self.height):
             for col in range(self.width):
@@ -485,7 +305,7 @@ class LifeTiling:
 
 
     def GetNextState(self, boundaryCondition=BoundaryCondition.TOROIDAL):
-        newTiling = LifeTiling(height=self.height, width=self.width, time=self.time + 1)
+        newTiling = Tiling(height=self.height, width=self.width, time=self.time + 1)
         offsets = [-1, 0, 1]
         if boundaryCondition == BoundaryCondition.TOROIDAL:
             for row in range(self.height):
@@ -495,17 +315,17 @@ class LifeTiling:
                         for j in offsets:
                             adjustedRow = (row + i) % self.height
                             adjustedCol = (col + j) % self.width
-                            if self[adjustedRow][adjustedCol].state == LifeState.ALIVE and not(i == 0 and j == 0):
+                            if self[adjustedRow][adjustedCol].state == MSState.ALIVE and not(i == 0 and j == 0):
                                 numAlive += 1
                     # Live cells stay alive when they have 2 or 3 neighbors
-                    if self[row][col].state == LifeState.ALIVE and (numAlive == 2 or numAlive == 3):
-                        newTiling[row][col].state = LifeState.ALIVE
+                    if self[row][col].state == MSState.ALIVE and (numAlive == 2 or numAlive == 3):
+                        newTiling[row][col].state = MSState.ALIVE
                         # Dead cells come alive when they have exactly 3 neighbors
-                    elif self[row][col].state == LifeState.DEAD and numAlive == 3:
-                        newTiling[row][col].state = LifeState.ALIVE
+                    elif self[row][col].state == MSState.DEAD and numAlive == 3:
+                        newTiling[row][col].state = MSState.ALIVE
                         # All other remaining cells become dead
                     else:
-                        newTiling[row][col].state = LifeState.DEAD
+                        newTiling[row][col].state = MSState.DEAD
 
         elif boundaryCondition == BoundaryCondition.ALL_DEAD:
             for row in range(self.height):
@@ -518,17 +338,17 @@ class LifeTiling:
                             # Out of bounds cells count as dead
                             if adjustedRow not in range(self.height) or adjustedCol not in range(self.width):
                                 numAlive += 0
-                            elif self[adjustedRow][adjustedCol].state == LifeState.ALIVE and not(i == 0 and j == 0):
+                            elif self[adjustedRow][adjustedCol].state == MSState.ALIVE and not(i == 0 and j == 0):
                                 numAlive += 1
                     # Live cells stay alive when they have 2 or 3 neighbors
-                    if self[row][col].state == LifeState.ALIVE and (numAlive == 2 or numAlive == 3):
-                        newTiling[row][col].state = LifeState.ALIVE
+                    if self[row][col].state == MSState.ALIVE and (numAlive == 2 or numAlive == 3):
+                        newTiling[row][col].state = MSState.ALIVE
                         # Dead cells come alive when they have exactly 3 neighbors
-                    elif self[row][col].state == LifeState.DEAD and numAlive == 3:
-                        newTiling[row][col].state = LifeState.ALIVE
+                    elif self[row][col].state == MSState.DEAD and numAlive == 3:
+                        newTiling[row][col].state = MSState.ALIVE
                         # All other remaining cells become dead
                     else:
-                        newTiling[row][col].state = LifeState.DEAD
+                        newTiling[row][col].state = MSState.DEAD
 
         elif boundaryCondition == BoundaryCondition.ALL_ALIVE:
             for row in range(self.height):
@@ -541,25 +361,24 @@ class LifeTiling:
                             # Out of bounds cells count as alive
                             if adjustedRow not in range(self.height) or adjustedCol not in range(self.width):
                                 numAlive += 1
-                            elif self[adjustedRow][adjustedCol].state == LifeState.ALIVE and not(i == 0 and j == 0):
+                            elif self[adjustedRow][adjustedCol].state == MSState.ALIVE and not(i == 0 and j == 0):
                                 numAlive += 1
                     # Live cells stay alive when they have 2 or 3 neighbors
-                    if self[row][col].state == LifeState.ALIVE and (numAlive == 2 or numAlive == 3):
-                        newTiling[row][col].state = LifeState.ALIVE
+                    if self[row][col].state == MSState.ALIVE and (numAlive == 2 or numAlive == 3):
+                        newTiling[row][col].state = MSState.ALIVE
                         # Dead cells come alive when they have exactly 3 neighbors
-                    elif self[row][col].state == LifeState.DEAD and numAlive == 3:
-                        newTiling[row][col].state = LifeState.ALIVE
+                    elif self[row][col].state == MSState.DEAD and numAlive == 3:
+                        newTiling[row][col].state = MSState.ALIVE
                         # All other remaining cells become dead
                     else:
-                        newTiling[row][col].state = LifeState.DEAD
+                        newTiling[row][col].state = MSState.DEAD
         else:
             raise Exception('Unknown boundary condition')
         return newTiling
 
 
-class LifeTile:
-    def __init__(self, state=LifeState.DONTCARE, row=None, col=None, variable=None, time=None):
-        assert issubclass(type(state), Enum)
+class Tile:
+    def __init__(self, state=MSState.DONTCARE, row=None, col=None, variable=None, time=None):
         self.state = state
         self.row=row
         self.col=col
@@ -572,23 +391,22 @@ class LifeTile:
 
     def updateWire(self):
         assert isinstance(self.wire, Wire)
-        if self.state == LifeState.ALIVE:
+        if self.state == MSState.ALIVE:
             self.wire.constant = True
-        elif self.state == LifeState.DEAD:
+        elif self.state == MSState.DEAD:
             self.wire.constant = False
-        elif self.state == LifeState.DONTCARE:
+        elif self.state == MSState.DONTCARE:
             # reset back to original state
             self.wire.constant = None
         self.wire.name = str(self)
 
     def loadBytes(self, byteForm):
-        self.state = LifeState(byteForm)
+        self.state = MSState(byteForm)
 
     def toBytes(self):
-        assert isinstance(self.state.value, int)
         return bytearray([self.state.value])
 
 if __name__ == "__main__":
     test = Testing()
-    test.GenerateGabeSolutions()
+    test.GenerateFrogSolutions()
 
