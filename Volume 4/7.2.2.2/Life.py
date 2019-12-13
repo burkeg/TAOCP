@@ -7,7 +7,7 @@ import pycosat
 # import re
 import time
 import os
-from enum import Enum
+
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
 from LogicFormula import *
 # from collections import namedtuple
@@ -29,7 +29,7 @@ class Testing:
         pass
 
     def GenerateGabeSolutions(self):
-        for i in range(6, 10):
+        for i in range(2, 7):
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
@@ -39,7 +39,7 @@ class Testing:
             life.findPreceding(i)
 
     def GenerateFrogSolutions(self):
-        for i in range(1, 10):
+        for i in range(5, 10):
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
@@ -270,6 +270,8 @@ class Life:
             assert isinstance(tiling, Tiling)
             assert tiling.height == sequence[0].height and tiling.width == sequence[0].width, \
                 'Cannot compare tilings with different dimensions.'
+        height = sequence[0].height
+        width = sequence[0].width
         oldToNewVariables = dict()
         offsets = [-1, 0, 1]
 
@@ -317,6 +319,26 @@ class Life:
             print('Building of circuit graph completed. (' + str(total) + ' seconds)')
         layerFormula = LogicFormula(inputWires)
         cnfFormula = sorted(layerFormula.cnfForm.rawCNF(),key=lambda x: [len(x), [abs(y) for y in x]])
+
+        # Add extra assertion that no triple along an edge has all 3 variables true.
+        for tiling in sequence:
+            if tiling.time == len(sequence) - 1:
+                pass
+            for row in range(height):
+                for col in range(width):
+                    if (row == 0 or row == height - 1) and (col != 0 and col != width - 1):
+                        cnfFormula.append([
+                            -tiling[row][col - 1].variable,
+                            -tiling[row][col].variable,
+                            -tiling[row][col + 1].variable
+                        ])
+                    if (col == 0 or col == width - 1) and (row != 0 and row != height - 1):
+                        cnfFormula.append([
+                            -tiling[row - 1][col].variable,
+                            -tiling[row][col].variable,
+                            -tiling[row + 1][col].variable
+                        ])
+
         cnt = 0
         for tiling in sequence:
             for row in range(tiling.height):
@@ -377,7 +399,6 @@ class Life:
             bytes_read = f.read()
             self.game = GameInstance()
             self.game.loadBytes(bytes_read)
-
 
 class GameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):

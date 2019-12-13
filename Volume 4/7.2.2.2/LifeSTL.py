@@ -29,6 +29,9 @@ class LifeSTL:
         for i, layer in enumerate(self.meshes):
             assert isinstance(layer, mesh.Mesh)
             layer.save(dir + '/layer' + str(i) + '.stl')
+        combined = LifeSTL.combineMeshes(self.meshes)
+        combined.save(dir + '/combined.stl')
+
 
 
 
@@ -56,8 +59,11 @@ class LifeSTL:
                     singleMesh.translate(np.array([row, col, 0]))
                     meshes.append(singleMesh)
 
-        return mesh.Mesh(numpy.concatenate([x.data.copy() for x in meshes]))
+        return LifeSTL.combineMeshes(meshes)
 
+    @staticmethod
+    def combineMeshes(meshes):
+        return mesh.Mesh(numpy.concatenate([x.data.copy() for x in meshes]))
 
     @staticmethod
     def cube(includeBottom=True, includeTop=True):
@@ -235,5 +241,6 @@ class LifeSTL:
 
 if __name__ == '__main__':
     lg = Life()
-    lg.readSolution('FrogIn4/solution0.bin')
-    LifeSTL(lg, saveDir='FrogIn4Meshes')
+    lg.Frog()
+    lg.readSolution('FrogIn3/solution0.bin')
+    LifeSTL(lg, saveDir='GabeSTL', render=False)
