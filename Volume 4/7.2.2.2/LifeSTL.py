@@ -2,7 +2,7 @@ from stl import mesh
 import math
 import numpy
 import os
-from Life import Life, Tiling, State
+from Life import Life, LifeTiling, LifeState
 import numpy as np
 from matplotlib import pyplot
 from mpl_toolkits import mplot3d
@@ -50,11 +50,11 @@ class LifeSTL:
 
 
     def convertTilingToStl(self, tiling, includeBottom=True, includeTop=True):
-        assert isinstance(tiling, Tiling)
+        assert isinstance(tiling, LifeTiling)
         meshes = []
         for row in range(tiling.height):
             for col in range(tiling.width):
-                if tiling[row][col].state == State.ALIVE:
+                if tiling[row][col].state == LifeState.ALIVE:
                     singleMesh = LifeSTL.cube(includeBottom, includeTop)
                     singleMesh.translate(np.array([row, col, 0]))
                     meshes.append(singleMesh)
@@ -241,6 +241,5 @@ class LifeSTL:
 
 if __name__ == '__main__':
     lg = Life()
-    lg.Frog()
-    lg.readSolution('FrogIn3/solution0.bin')
-    LifeSTL(lg, saveDir='GabeSTL', render=False)
+    lg.readSolution('GabeIn6/solution4.bin')
+    LifeSTL(lg, saveDir='GabeMeshes', render=False)
