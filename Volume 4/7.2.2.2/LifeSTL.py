@@ -2,10 +2,95 @@ from stl import mesh
 import math
 import numpy
 import os
+import copy
 from Life import Life, LifeTiling, LifeState
 import numpy as np
 from matplotlib import pyplot
 from mpl_toolkits import mplot3d
+
+
+class Normal:
+    bottom = (0, 0, -1)
+    front = (0, -1, 0)
+    left = (-1, 0, 0)
+    back = (0, 1, 0)
+    right = (1, 0, 0)
+    top = (0, 0, 1)
+
+
+class Cube:
+    def __init__(self, coord):
+        # bottom, front, left, back, right, top
+        self.faces = self.coordToFaces(coord)
+
+    def coordToFaces(self, coord):
+        assert isinstance(coord, tuple)
+        assert len(coord) == 3
+        x = coord[0]
+        y = coord[1]
+        z = coord[2]
+        bflCorner = (x,   y,   z)
+        bfrCorner = (x+1, y,   z)
+        bblCorner = (x,   y+1, z)
+        bbrCorner = (x+1, y+1, z)
+        tflCorner = (x,   y,   z+1)
+        tfrCorner = (x+1, y,   z+1)
+        tblCorner = (x,   y+1, z+1)
+        tbrCorner = (x+1, y+1, z+1)
+        bottomFace = Square(bflCorner, bfrCorner, bblCorner, bbrCorner, Normal.bottom)
+        frontFace = Square(bflCorner, bfrCorner, tflCorner, tfrCorner, Normal.front)
+        leftFace = Square(bflCorner, bblCorner, tflCorner, tblCorner, Normal.left)
+        backFace = Square(bblCorner, bbrCorner, tblCorner, tbrCorner, Normal.back)
+        rightFace = Square(bfrCorner, bbrCorner, tfrCorner, tbrCorner, Normal.right)
+        topFace = Square(tflCorner, tfrCorner, tblCorner, tbrCorner, Normal.top)
+        return bottomFace, frontFace, leftFace, backFace, rightFace, topFace
+
+    def toMesh(self):
+        return mesh.Mesh(numpy.concatenate([x.toMesh() for x in self.faces]))
+
+
+class Square:
+    allSquares = set()
+    def __init__(self, cornerA, cornerB, cornerC, cornerD, normal):
+        self.cornerA = cornerA
+        self.cornerB = cornerB
+        self.cornerC = cornerC
+        self.cornerD = cornerD
+        self.normal = normal
+        Square.allSquares.add(self.asTuple())
+
+    def asTuple(self):
+        return tuple(sorted([self.cornerA, self.cornerB, self.cornerC, self.cornerD]) + [self.normal])
+
+    def toMesh(self):
+        data = numpy.zeros(2, dtype=mesh.Mesh.dtype)
+        tup = self.asTuple()
+        data['vectors'][0] = numpy.array([tup[0],
+                                          tup[1],
+                                          tup[2]])
+        data['vectors'][1] = numpy.array([tup[3],
+                                          tup[1],
+                                          tup[2]])
+        # totally wrong probably, leaving this here so I can remember to check later
+        # data['normals'][0] = numpy.array(self.normal)
+        # data['normals'][1] = numpy.array(self.normal)
+        return data
+
+    @staticmethod
+    def createMesh():
+        def inverted(norm):
+            return -norm[0], -norm[1], -norm[2]
+        keptSquares = set()
+        for square in Square.allSquares:
+            oppositeSquare = (square[0], square[1], square[2], inverted(square[3]))
+            if oppositeSquare not in Square.allSquares:
+                keptSquares.add(square)
+        meshLst = []
+        for square in keptSquares:
+            meshLst.append(square.toMesh())
+        mesh.Mesh(meshLst)
+
+
 
 class LifeSTL:
     def __init__(self, lifeGame, render=True, saveDir=None):
@@ -33,20 +118,17 @@ class LifeSTL:
         combined.save(dir + '/combined.stl')
 
 
-
-
-
     def convertLifeToStlSquare(self):
-        self.meshes = []
         for i, tiling in enumerate(self.lifeGame.game.tilings):
-            if i != 4:
-                # continue
-                pass
-            meshLayer = self.convertTilingToStl(tiling)
-            meshLayer.translate(np.array([0, 0, i]))
-            self.meshes.append(meshLayer)
+            assert isinstance(tiling, LifeTiling)
+            cubesInLayer = []
+            for row in range(tiling.height):
+                for col in range(tiling.width):
+                    if tiling[row][col].state == LifeState.ALIVE:
+                        cubesInLayer.append(Cube((row, col, i)))
 
-
+            layerMesh = LifeSTL.combineMeshes([x.toMesh() for x in cubesInLayer])
+            self.meshes.append(layerMesh)
 
 
     def convertTilingToStl(self, tiling, includeBottom=True, includeTop=True):
@@ -164,76 +246,6 @@ class LifeSTL:
 
         # Auto scale to the mesh size
         scale = numpy.concatenate([m.points for m in self.meshes]).flatten(-1)
-        axes.auto_scale_xyz(scale, scale, scale)
-
-        # Show the plot to the screen
-        pyplot.show()
-
-
-    @staticmethod
-    def example():
-        # Create 3 faces of a cube
-        data = numpy.zeros(6, dtype=mesh.Mesh.dtype)
-
-        # Top of the cube
-        data['vectors'][0] = numpy.array([[0, 1, 1],
-                                          [1, 0, 1],
-                                          [0, 0, 1]])
-        data['vectors'][1] = numpy.array([[1, 0, 1],
-                                          [0, 1, 1],
-                                          [1, 1, 1]])
-        # Front face
-        data['vectors'][2] = numpy.array([[1, 0, 0],
-                                          [1, 0, 1],
-                                          [1, 1, 0]])
-        data['vectors'][3] = numpy.array([[1, 1, 1],
-                                          [1, 0, 1],
-                                          [1, 1, 0]])
-        # Left face
-        data['vectors'][4] = numpy.array([[0, 0, 0],
-                                          [1, 0, 0],
-                                          [1, 0, 1]])
-        data['vectors'][5] = numpy.array([[0, 0, 0],
-                                          [0, 0, 1],
-                                          [1, 0, 1]])
-
-        # Since the cube faces are from 0 to 1 we can move it to the middle by
-        # substracting .5
-        data['vectors'] -= .5
-
-        # Generate 4 different meshes so we can rotate them later
-        meshes = [mesh.Mesh(data.copy()) for _ in range(4)]
-
-        # Rotate 90 degrees over the Y axis
-        meshes[0].rotate([0.0, 0.5, 0.0], math.radians(90))
-
-        # Translate 2 points over the X axis
-        meshes[1].x += 2
-
-        # Rotate 90 degrees over the X axis
-        meshes[2].rotate([0.5, 0.0, 0.0], math.radians(90))
-        # Translate 2 points over the X and Y points
-        meshes[2].x += 2
-        meshes[2].y += 2
-
-        # Rotate 90 degrees over the X and Y axis
-        meshes[3].rotate([0.5, 0.0, 0.0], math.radians(90))
-        meshes[3].rotate([0.0, 0.5, 0.0], math.radians(90))
-        # Translate 2 points over the Y axis
-        meshes[3].y += 2
-
-
-
-        # Create a new plot
-        figure = pyplot.figure()
-        axes = mplot3d.Axes3D(figure)
-
-        # Render the cube faces
-        for m in meshes:
-            axes.add_collection3d(mplot3d.art3d.Poly3DCollection(m.vectors))
-
-        # Auto scale to the mesh size
-        scale = numpy.concatenate([m.points for m in meshes]).flatten(-1)
         axes.auto_scale_xyz(scale, scale, scale)
 
         # Show the plot to the screen
