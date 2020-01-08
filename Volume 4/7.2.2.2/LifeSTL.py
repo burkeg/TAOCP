@@ -46,7 +46,12 @@ class Cube:
         return bottomFace, frontFace, leftFace, backFace, rightFace, topFace
 
     def toMesh(self):
-        return mesh.Mesh(numpy.concatenate([x.toMesh() for x in self.faces]))
+        return mesh.Mesh(numpy.concatenate([self.faces[0].toMesh(isBBL=True),
+                                            self.faces[1].toMesh(isBBL=False),
+                                            self.faces[2].toMesh(isBBL=True),
+                                            self.faces[3].toMesh(isBBL=True),
+                                            self.faces[4].toMesh(isBBL=False),
+                                            self.faces[5].toMesh(isBBL=False)]))
 
 
 class Square:
@@ -62,15 +67,23 @@ class Square:
     def asTuple(self):
         return tuple(sorted([self.cornerA, self.cornerB, self.cornerC, self.cornerD]) + [self.normal])
 
-    def toMesh(self):
+    def toMesh(self, isBBL=False):
         data = numpy.zeros(2, dtype=mesh.Mesh.dtype)
         tup = self.asTuple()
-        data['vectors'][0] = numpy.array([tup[0],
-                                          tup[1],
-                                          tup[2]])
-        data['vectors'][1] = numpy.array([tup[3],
-                                          tup[1],
-                                          tup[2]])
+        if isBBL:
+            data['vectors'][0] = numpy.array([tup[0],
+                                              tup[2],
+                                              tup[1]])
+            data['vectors'][1] = numpy.array([tup[1],
+                                              tup[2],
+                                              tup[3]])
+        else:
+            data['vectors'][0] = numpy.array([tup[0],
+                                              tup[1],
+                                              tup[2]])
+            data['vectors'][1] = numpy.array([tup[1],
+                                              tup[3],
+                                              tup[2]])
         # totally wrong probably, leaving this here so I can remember to check later
         # data['normals'][0] = numpy.array(self.normal)
         # data['normals'][1] = numpy.array(self.normal)
@@ -113,6 +126,7 @@ class LifeSTL:
 
         for i, layer in enumerate(self.meshes):
             assert isinstance(layer, mesh.Mesh)
+            layer.update_normals()
             layer.save(dir + '/layer' + str(i) + '.stl')
         combined = LifeSTL.combineMeshes(self.meshes)
         combined.save(dir + '/combined.stl')
@@ -253,5 +267,5 @@ class LifeSTL:
 
 if __name__ == '__main__':
     lg = Life()
-    lg.readSolution('GabeIn6/solution4.bin')
-    LifeSTL(lg, saveDir='GabeMeshes', render=False)
+    lg.readSolution('FrogIn5/solution4.bin')
+    LifeSTL(lg, saveDir='FrogMeshes', render=False)
