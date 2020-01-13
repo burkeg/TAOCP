@@ -29,14 +29,15 @@ class Cube:
         x = coord[0]
         y = coord[1]
         z = coord[2]
-        bflCorner = (x,   y,   z)
-        bfrCorner = (x+1, y,   z)
-        bblCorner = (x,   y+1, z)
-        bbrCorner = (x+1, y+1, z)
-        tflCorner = (x,   y,   z+1)
-        tfrCorner = (x+1, y,   z+1)
-        tblCorner = (x,   y+1, z+1)
-        tbrCorner = (x+1, y+1, z+1)
+        expand = 0.1
+        bflCorner = (x-expand,   y-expand,   z-expand)
+        bfrCorner = (x+1+expand, y-expand,   z-expand)
+        bblCorner = (x-expand,   y+1+expand, z-expand)
+        bbrCorner = (x+1+expand, y+1+expand, z-expand)
+        tflCorner = (x-expand,   y-expand,   z+1+expand)
+        tfrCorner = (x+1+expand, y-expand,   z+1+expand)
+        tblCorner = (x-expand,   y+1+expand, z+1+expand)
+        tbrCorner = (x+1+expand, y+1+expand, z+1+expand)
         bottomFace = Square(bflCorner, bfrCorner, bblCorner, bbrCorner, Normal.bottom)
         frontFace = Square(bflCorner, bfrCorner, tflCorner, tfrCorner, Normal.front)
         leftFace = Square(bflCorner, bblCorner, tflCorner, tblCorner, Normal.left)
@@ -70,7 +71,7 @@ class Square:
     def toMesh(self, isBBL=False):
         data = numpy.zeros(2, dtype=mesh.Mesh.dtype)
         tup = self.asTuple()
-        if isBBL:
+        if not isBBL:
             data['vectors'][0] = numpy.array([tup[0],
                                               tup[2],
                                               tup[1]])
