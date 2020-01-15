@@ -28,6 +28,16 @@ class Testing:
     def __init__(self):
         pass
 
+    def GenerateFlowerSolutions(self):
+        for i in range(1, 10):
+            if DEBUG:
+                print('---------------------------')
+                print('Searching ' + str(i) + ' states into the past.')
+            life = Life(solutionCap=10)
+            life.Flower()
+            life.fname = 'FlowerIn' + str(i)
+            life.findPreceding(i)
+
     def GenerateGabeSolutions(self):
         for i in range(1, 10):
             if DEBUG:
@@ -136,6 +146,53 @@ class Life:
         self.game[0][3][1].state = LifeState.ALIVE
         self.game[0][3][2].state = LifeState.ALIVE
         self.game[0][3][3].state = LifeState.ALIVE
+
+    def Flower(self):
+        self.height = 14
+        self.width = 7
+        self.game = LifeGameInstance(self.height, self.width)
+        for row in range(self.height):
+            for col in range(self.width):
+                self.game[0][row][col].state = LifeState.DEAD
+        self.game[0][1][2].state = LifeState.ALIVE
+        self.game[0][1][4].state = LifeState.ALIVE
+
+        self.game[0][2][2].state = LifeState.ALIVE
+        self.game[0][2][3].state = LifeState.ALIVE
+        self.game[0][2][4].state = LifeState.ALIVE
+
+        self.game[0][3][2].state = LifeState.ALIVE
+        self.game[0][3][3].state = LifeState.ALIVE
+        self.game[0][3][4].state = LifeState.ALIVE
+
+        self.game[0][4][3].state = LifeState.ALIVE
+
+        self.game[0][5][3].state = LifeState.ALIVE
+        self.game[0][5][5].state = LifeState.ALIVE
+
+        self.game[0][6][1].state = LifeState.ALIVE
+        self.game[0][6][3].state = LifeState.ALIVE
+        self.game[0][6][4].state = LifeState.ALIVE
+        self.game[0][6][5].state = LifeState.ALIVE
+
+        self.game[0][7][1].state = LifeState.ALIVE
+        self.game[0][7][3].state = LifeState.ALIVE
+        self.game[0][7][5].state = LifeState.ALIVE
+
+        self.game[0][8][1].state = LifeState.ALIVE
+        self.game[0][8][2].state = LifeState.ALIVE
+        self.game[0][8][5].state = LifeState.ALIVE
+
+        self.game[0][9][1].state = LifeState.ALIVE
+        self.game[0][9][5].state = LifeState.ALIVE
+
+        self.game[0][10][2].state = LifeState.ALIVE
+        self.game[0][10][4].state = LifeState.ALIVE
+
+        self.game[0][11][2].state = LifeState.ALIVE
+        self.game[0][11][4].state = LifeState.ALIVE
+
+        self.game[0][12][3].state = LifeState.ALIVE
 
     def Gabe(self):
         self.height = 8
@@ -483,7 +540,7 @@ class LifeTiling:
                 else:
                     raise Exception('Unknown tile state')
 
-            if i != self.width:
+            if i != self.height:
                 boardStr += '\n'
         return boardStr
 
@@ -611,5 +668,5 @@ class LifeTile:
 
 if __name__ == "__main__":
     test = Testing()
-    test.GenerateGabeSolutions()
+    test.GenerateFlowerSolutions()
 
