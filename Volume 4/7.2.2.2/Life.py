@@ -685,6 +685,5 @@ class LifeTile:
         return bytearray([self.state.value])
 
 if __name__ == "__main__":
-    test = Testing()
-    test.GenerateTextSolutions('Gabe')
+    Testing().GenerateTextSolutions('Burke')
 

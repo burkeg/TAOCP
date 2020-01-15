@@ -3,6 +3,8 @@
 
 import adsk.core, adsk.fusion, traceback
 
+expansion = 0.1
+
 def main():
     ui = None
     try:
@@ -11,7 +13,7 @@ def main():
         product = app.activeProduct
         design = product
         lg = Life()
-        lg.readSolution('FrogIn5/solution4.bin')
+        lg.readSolution('GabeIn2/solution4.bin')
         LifeSTL(lg, saveDir='FrogMeshes', render=False, des=design)
 
     except:
@@ -109,7 +111,7 @@ class LifeSTL:
             for row in range(tiling.height):
                 for col in range(tiling.width):
                     if tiling[row][col].state == LifeState.ALIVE:
-                        cubesInLayer.append(((row, col, i), 0.1))
+                        cubesInLayer.append(((row, col, i), expansion))
             # break
         drawCubes(des, cubesInLayer)
         print(cubesInLayer)
