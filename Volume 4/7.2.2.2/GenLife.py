@@ -13,8 +13,23 @@ class GenLife:
                '0123456789')
         self.loadFont()
 
-    def stringToLife(self):
-        pass
+    def textToLife(self, text):
+        # figure out game dimensions
+        width = len(text)*5+1
+        height = 9
+        lifeGame = Life(height=height, width=width)
+        lifeGame.clean(state=LifeState.DEAD)
+        currI = 1
+        currJ = 1
+        for character in text.upper():
+            for iIdx in range(7):
+                for jIdx in range(4):
+                    gameIndices = (currI + iIdx, currJ + jIdx)
+                    dictIndices = (iIdx, jIdx)
+                    lifeGame.game[0][gameIndices[0]][gameIndices[1]].state \
+                        = self.strDict[character][dictIndices[0]][dictIndices[1]]
+            currJ += 5
+        return lifeGame
 
     def loadFont(self):
         img_path = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2\7x4 font_0.png"
@@ -57,11 +72,9 @@ class GenLife:
 
 def doStuff():
     letters = GenLife()
-    for character in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ .,!?:;"\'$0123456789':
-        life = Life(7, 4)
-        for i in range(7):
-            for j in range(4):
-                life.game[0][i][j].state = letters.strDict[character][i][j]
-        print(character, life.game)
+    lifeGame = letters.textToLife('Test')
+    print(lifeGame.game)
+
+
 if __name__ == '__main__':
     doStuff()

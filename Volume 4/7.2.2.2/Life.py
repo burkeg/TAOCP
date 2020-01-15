@@ -10,6 +10,7 @@ import os
 
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
 from LogicFormula import *
+from GenLife import *
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
 
@@ -27,6 +28,17 @@ class BoundaryCondition(Enum):
 class Testing:
     def __init__(self):
         pass
+
+    def GenerateTextSolutions(self, text):
+        for i in range(1, 10):
+            if DEBUG:
+                print('---------------------------')
+                print('Searching ' + str(i) + ' states into the past.')
+            lifeGenerator = GenLife()
+            life = lifeGenerator.textToLife(text)
+            life.solutionCap = 10
+            life.fname = text + str(i)
+            life.findPreceding(i)
 
     def GenerateFlowerSolutions(self):
         for i in range(1, 10):
@@ -283,6 +295,12 @@ class Life:
         self.game[0][6][17].state = LifeState.ALIVE
         self.game[0][6][18].state = LifeState.ALIVE
         self.game[0][6][19].state = LifeState.ALIVE
+
+    def clean(self, state=LifeState.DONTCARE):
+        for t in range(len(self.game.tilings)):
+            for i in range(self.height):
+                for j in range(self.width):
+                    self.game[t][i][j].state = state
 
     def findPreceding(self, numIterations=1):
         tilingBefore = [LifeTiling(self.height, self.width) for _ in range(numIterations)]
@@ -668,5 +686,5 @@ class LifeTile:
 
 if __name__ == "__main__":
     test = Testing()
-    test.GenerateFlowerSolutions()
+    test.GenerateTextSolutions('Gabe')
 
