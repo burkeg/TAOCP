@@ -5,6 +5,7 @@ import adsk.core, adsk.fusion, traceback
 
 expansion = 0.1
 
+
 def main():
     ui = None
     try:
@@ -12,13 +13,33 @@ def main():
         ui = app.userInterface
         product = app.activeProduct
         design = product
+
+        fileDialog = ui.createFileDialog()
+        fileDialog.initialDirectory = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2"
+        fileDialog.isMultiSelectEnabled = False
+        fileDialog.title = "Select Game of Life binary to construct"
+        fileDialog.filter = 'Binary files (*.bin)'
+        fileDialog.filterIndex = 0
+        dialogResult = fileDialog.showOpen()
+        if dialogResult == adsk.core.DialogResults.DialogOK:
+            path = fileDialog.filename
+        else:
+            return
+        global expansion
+        (expansion, cancelled) = ui.inputBox('Enter expansion factor', 'expansion factor', str(expansion))
+        if cancelled:
+            return
+        else:
+            expansion = float(expansion)
+
         lg = Life()
-        lg.readSolution('GabeIn2/solution4.bin')
-        LifeSTL(lg, saveDir='FrogMeshes', render=False, des=design)
+        lg.readSolution(path)
+        LifeSTL(lg, render=False, des=design)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 def drawCubes(design, argList):
     # Get reference to the root component
@@ -83,6 +104,8 @@ def drawCubes(design, argList):
 
         # Create extrusion
         extrudes.add(extInput)
+
+
 #
 
 # ----------------------------------------------------------------------
@@ -90,6 +113,8 @@ def drawCubes(design, argList):
 # import math
 # import numpy
 import os
+
+
 # import copy
 # from Life import Life, LifeTiling, LifeState
 # import numpy as np
@@ -98,7 +123,7 @@ import os
 
 
 class LifeSTL:
-    def __init__(self, lifeGame, render=True, saveDir=None, des=None):
+    def __init__(self, lifeGame, render=True, des=None):
         assert isinstance(lifeGame, Life)
         self.lifeGame = lifeGame
         self.meshes = []
@@ -131,6 +156,8 @@ class LifeSTL:
 # from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
 # from LogicFormula import *
 from enum import Enum
+
+
 # from collections import namedtuple
 # from GraphColoring import GraphColoring
 
@@ -145,8 +172,9 @@ class BoundaryCondition(Enum):
     ALL_DEAD = 1
     ALL_ALIVE = 2
 
+
 class Life:
-    def __init__(self,height=0,width=0, fname=None, solutionCap=None):
+    def __init__(self, height=0, width=0, fname=None, solutionCap=None):
         self.fname = fname
         self.height = height
         self.width = width
@@ -160,6 +188,7 @@ class Life:
             bytes_read = f.read()
             self.game = LifeGameInstance()
             self.game.loadBytes(bytes_read)
+
 
 class LifeGameInstance:
     def __init__(self, height=0, width=0, boundaryCondition=BoundaryCondition.TOROIDAL):
@@ -192,9 +221,8 @@ class LifeGameInstance:
             idx = nextIdx
 
 
-
 class LifeTiling:
-    def __init__(self,height=0,width=0,time=None, byteForm=None):
+    def __init__(self, height=0, width=0, time=None, byteForm=None):
         self.height = height
         self.width = width
         self.time = time
@@ -207,7 +235,7 @@ class LifeTiling:
         return self.board[key]
 
     def __str__(self):
-        boardStr= ''
+        boardStr = ''
         for i in range(self.height):
             for j in range(self.width):
                 if self[i][j].state == LifeState.ALIVE:
@@ -239,8 +267,8 @@ class LifeTile:
     def __init__(self, state=LifeState.DONTCARE, row=None, col=None, variable=None, time=None):
         assert issubclass(type(state), Enum)
         self.state = state
-        self.row=row
-        self.col=col
+        self.row = row
+        self.col = col
         self.variable = variable
         self.time = time
         self.wire = Wire(name=str(self))
@@ -250,6 +278,8 @@ class LifeTile:
 
     def loadBytes(self, byteForm):
         self.state = LifeState(byteForm)
+
+
 # ----------------------------------------------------------------------------------------------
 
 
@@ -261,6 +291,7 @@ class Wire:
         self.gateOut = gateOut
         self.constant = constant
         self.name = name
+
 
 main()
 
