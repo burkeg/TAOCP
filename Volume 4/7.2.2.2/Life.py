@@ -29,8 +29,8 @@ class Testing:
     def __init__(self):
         pass
 
-    def GenerateTextSolutions(self, text):
-        for i in range(1, 10):
+    def GenerateTextSolutions(self, text, start=1):
+        for i in range(start, 10):
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
@@ -685,5 +685,5 @@ class LifeTile:
         return bytearray([self.state.value])
 
 if __name__ == "__main__":
-    Testing().GenerateTextSolutions('Keysight')
+    Testing().GenerateTextSolutions('Laura')
 

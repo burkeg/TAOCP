@@ -72,7 +72,7 @@ class GenLife:
 
 def doStuff():
     letters = GenLife()
-    lifeGame = letters.textToLife('Test')
+    lifeGame = letters.textToLife('Burke')
     print(lifeGame.game)
 
 

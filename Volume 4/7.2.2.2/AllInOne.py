@@ -14,37 +14,149 @@ def main():
         product = app.activeProduct
         design = product
 
-        fileDialog = ui.createFileDialog()
-        fileDialog.initialDirectory = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2"
-        fileDialog.isMultiSelectEnabled = False
-        fileDialog.title = "Select Game of Life binary to construct"
-        fileDialog.filter = 'Binary files (*.bin)'
-        fileDialog.filterIndex = 0
-        dialogResult = fileDialog.showOpen()
-        if dialogResult == adsk.core.DialogResults.DialogOK:
-            path = fileDialog.filename
-        else:
-            return
-        global expansion
-        (expansion, cancelled) = ui.inputBox('Enter expansion factor', 'expansion factor', str(expansion))
-        if cancelled:
-            return
-        else:
-            expansion = float(expansion)
-
-        # Create a new component
-        occurrence = design.rootComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
-        component = occurrence.component
-        # Name the component
-        component.name = "Life"
-        lg = Life()
-        lg.readSolution(path)
-        drawBase(design, (lg.game.height, lg.game.width), component, baseThickness=0.5)
-        LifeSTL(lg, render=False, des=design, component=component)
+        layerCnt, expansion = MakeSolid(app, ui, product, design)
+        DoMerge(app, ui, product, design)
+        SplitIntoLayers(app, ui, product, design, layerCnt, expansion)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
+    # (numLayers, cancelled) = ui.inputBox('Enter number of layers in design', 'Number of Layers', '5')
+    # if cancelled:
+    #     return
+    # else:
+    #     numLayers = int(numLayers)
+    numLayers = layerCnt
+    # (expansion, cancelled) = ui.inputBox('Enter expansion factor', 'expansion factor', '0.1')
+    # if cancelled:
+    #     return
+    # else:
+    #     expansion = float(expansion)
+
+    # Get the root component of the active design
+    root = design.rootComponent
+    rootComp = root
+    beforeCnt = 0
+    for occ in root.occurrences:
+        for brep in occ.bRepBodies:
+            beforeCnt += 1
+
+    for i in range(numLayers - 1):
+
+        TargetBody = root.occurrences.item(0).bRepBodies.item(0)
+
+        SplitBodies = adsk.core.ObjectCollection.create()
+        flag = True
+        for occ in root.occurrences:
+            for brep in occ.bRepBodies:
+                if flag:
+                    flag = False
+                SplitBodies.add(brep)
+        # if beforeCnt == 1:
+        #     ui.messageBox('Only 1 component, nothing to do.')
+        #     return
+
+        # Create sketch
+        sketches = rootComp.sketches
+        sketch = sketches.add(rootComp.xYConstructionPlane)
+
+        # Get construction planes
+        planes = rootComp.constructionPlanes
+
+        # Create construction plane input
+        planeInput = planes.createInput()
+
+        # Add construction plane by offset
+        offsetValue = adsk.core.ValueInput.createByReal(i + 1 - expansion)
+        planeInput.setByOffset(sketch.referencePlane, offsetValue)
+        planeOne = planes.add(planeInput)
+
+        # Get the health state of the plane
+        health = planeOne.healthState
+        if health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState or health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState:
+            message = planeOne.errorOrWarningMessage
+            # splitBodies, splittingTool, isSplittingToolExtended
+        # SplitInput = root.features.splitBodyFeatures.createInput(SplitBodies, planeOne, True)
+
+        # # CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+        # SplitInput.operation = adsk.fusion.FeatureOperations.SplitBodies
+        # root.features.splitBodyFeatures.add(SplitInput)
+        # -----
+        splitBodyFeats = rootComp.features.splitBodyFeatures
+        splitBodyInput = splitBodyFeats.createInput(SplitBodies, planeOne, True)
+        # Create split body feature
+        splitBodyFeats.add(splitBodyInput)
+    afterCnt = 0
+    for occ in root.occurrences:
+        for brep in occ.bRepBodies:
+            afterCnt += 1
+
+    ui.messageBox(str(beforeCnt) + ' to ' + str(afterCnt) + ' bodies.')
+
+def MakeSolid(app, ui, product, design):
+    fileDialog = ui.createFileDialog()
+    fileDialog.initialDirectory = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2"
+    fileDialog.isMultiSelectEnabled = False
+    fileDialog.title = "Select Game of Life binary to construct"
+    fileDialog.filter = 'Binary files (*.bin)'
+    fileDialog.filterIndex = 0
+    dialogResult = fileDialog.showOpen()
+    if dialogResult == adsk.core.DialogResults.DialogOK:
+        path = fileDialog.filename
+    else:
+        return
+    global expansion
+    (expansion, cancelled) = ui.inputBox('Enter expansion factor', 'expansion factor', str(expansion))
+    if cancelled:
+        return
+    else:
+        expansion = float(expansion)
+
+    # Create a new component
+    occurrence = design.rootComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+    component = occurrence.component
+    # Name the component
+    component.name = "Life"
+    lg = Life()
+    lg.readSolution(path)
+    drawBase(design, (lg.game.height, lg.game.width), component, baseThickness=0.5)
+    LifeSTL(lg, render=False, des=design, component=component)
+    return len(lg.game.tilings), expansion
+
+def DoMerge(app, ui, product, design):
+    # Get the root component of the active design
+    root = design.rootComponent
+
+    TargetBody = root.occurrences.item(0).bRepBodies.item(0)
+
+    ToolBodies = adsk.core.ObjectCollection.create()
+    beforeCnt = 0
+    flag = True
+    for occ in root.occurrences:
+        for brep in occ.bRepBodies:
+            beforeCnt += 1
+            if flag:
+                flag = False
+                continue
+            ToolBodies.add(brep)
+    if beforeCnt == 1:
+        ui.messageBox('Only 1 component, nothing to do.')
+        return
+
+    CombineInput = root.features.combineFeatures.createInput(TargetBody, ToolBodies)
+
+    CombineFeats = root.features.combineFeatures
+    CombineInput = CombineFeats.createInput(TargetBody, ToolBodies)
+    CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+    CombineFeats.add(CombineInput)
+
+    afterCnt = 0
+    for occ in root.occurrences:
+        for brep in occ.bRepBodies:
+            afterCnt += 1
+
 
 def drawBase(design, dimensions, component, baseThickness=1.0):
     # Get reference to the root component
