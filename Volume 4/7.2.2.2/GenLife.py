@@ -32,7 +32,7 @@ class GenLife:
         return lifeGame
 
     def loadFont(self):
-        img_path = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2\7x4 font_0.png"
+        img_path = r"7x4 font_0.png"
         img = cv2.imread(img_path, 0)  # read image as grayscale. Set second parameter to 1 if rgb is required
         self.img = self.asBoolArr(img)
         for line in self.key:
