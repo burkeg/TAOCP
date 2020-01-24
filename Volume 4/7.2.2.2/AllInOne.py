@@ -2,6 +2,8 @@
 # Description-
 
 import adsk.core, adsk.fusion, traceback
+import math
+import re
 
 expansion = 0.1
 
@@ -14,13 +16,109 @@ def main():
         product = app.activeProduct
         design = product
 
+        # Generates solid cubes according to LIFE board states
         layerCnt, expansion = MakeSolid(app, ui, product, design)
+
+        # Attempts to coalesce all solids into one object
         DoMerge(app, ui, product, design)
+
+        # Cuts apart the design into layers by slicing just under each overhang
         SplitIntoLayers(app, ui, product, design, layerCnt, expansion)
+
+        # Reorganizes bodies into separate components for each printable layer
+        SeparateIntoLayers(app, ui, product, design, layerCnt, expansion)
+
+        # Physically move each of the layers apart slightly
+        TranslateApart(app, ui, product, design, expansion)
+
+        # Remerge so that pointless components that were split earlier go away
+        DoMerge(app, ui, product, design)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+def TranslateApart(app, ui, product, design, expansion):
+    # Get the root component of the active design
+    root = design.rootComponent
+    rootComp = design.rootComponent
+    features = rootComp.features
+
+    assert isinstance(root, adsk.fusion.Component)
+    for occ in root.occurrences:
+        assert isinstance(occ, adsk.fusion.Occurrence)
+        m = re.match(r'Layer (\d)+:\d+', occ.name)
+        if not m:
+            continue
+        i = int(m.group(1))
+        # Create a transform to do move
+        vector = adsk.core.Vector3D.create(0.0, 0.0, float(i))
+        transform = adsk.core.Matrix3D.create()
+        transform.translation = vector
+
+        # Create a move feature
+        moveFeats = features.moveFeatures
+        TranslateBody(root, moveFeats, occ.component, transform)
+
+
+def TranslateBody(root, moveFeats, origComponent, transform):
+    for body in origComponent.bRepBodies:
+        # Cut/paste body from component to root
+        cutPasteBody = root.features.cutPasteBodies.add(body)
+
+        # Create a collection of entities for move
+        bodies = adsk.core.ObjectCollection.create()
+        for k in range(root.bRepBodies.count):
+            bodies.add(root.bRepBodies.item(k))
+
+        moveFeatureInput = moveFeats.createInput(bodies, transform)
+        moveFeats.add(moveFeatureInput)
+
+        for bodyRoot in root.bRepBodies:
+            # Cut/paste body from component to root
+            cutPasteBody = origComponent.features.cutPasteBodies.add(bodyRoot)
+
+def SeparateIntoLayers(app, ui, product, design, layerCnt, expansion):
+    # Get the root component of the active design
+    root = design.rootComponent
+
+    ToolBodies = adsk.core.ObjectCollection.create()
+    layers = []
+    for i in range(layerCnt):
+        layers.append(makeLayer(i, design))
+    origCompLst = []
+    for occ in [x for x in root.occurrences]:
+        origCompLst.append((occ.component, [x for x in occ.component.bRepBodies]))
+
+    for comp, bodies in origCompLst:
+        test = 0
+        for body in bodies:
+            assert isinstance(body, adsk.fusion.BRepBody)
+            print(body.boundingBox.maxPoint.z)
+            layer = layers[zToLayer(body.boundingBox.maxPoint.z, expansion)]
+            assert isinstance(layer, adsk.fusion.Component)
+            # Cut/paste body from sub component 1 to sub component 2
+            cutPasteBody = layer.features.cutPasteBodies.add(body)
+
+def zToLayer(z, expansion):
+    adjZ = z - expansion
+    i = math.floor(adjZ)
+    if math.isclose(adjZ, i):
+        return i - 1
+    else:
+        return i
+
+def makeLayer(i, design):
+    # Create a new component
+    occurrence = design.rootComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+    component = occurrence.component
+    # Name the component
+    if i != 0:
+        component.name = "Layer " + str(i)
+    else:
+        component.name = "Base"
+    return component
 
 def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
     # (numLayers, cancelled) = ui.inputBox('Enter number of layers in design', 'Number of Layers', '5')
@@ -93,7 +191,7 @@ def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
         for brep in occ.bRepBodies:
             afterCnt += 1
 
-    ui.messageBox(str(beforeCnt) + ' to ' + str(afterCnt) + ' bodies.')
+    # ui.messageBox(str(beforeCnt) + ' to ' + str(afterCnt) + ' bodies.')
 
 def MakeSolid(app, ui, product, design):
     fileDialog = ui.createFileDialog()

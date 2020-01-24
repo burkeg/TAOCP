@@ -20,35 +20,27 @@ def run(context):
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-
 def SeparateIntoLayers(app, ui, product, design, layerCnt, expansion):
     # Get the root component of the active design
     root = design.rootComponent
 
     ToolBodies = adsk.core.ObjectCollection.create()
-
-    # CombineInput = root.features.combineFeatures.createInput(TargetBody, ToolBodies)
-
-    # CombineFeats = root.features.combineFeatures
-    # CombineInput = CombineFeats.createInput(TargetBody, ToolBodies)
-    # CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-    # CombineFeats.add(CombineInput)
-
-    # afterCnt = 0
-    # for occ in root.occurrences:
-    #     for brep in occ.bRepBodies:
-    #         afterCnt += 1
     layers = []
     for i in range(layerCnt):
         layers.append(makeLayer(i, design))
-    for occ in root.occurrences:
-        for brep in occ.bRepBodies:
-            assert isinstance(brep, adsk.fusion.BRepBody)
-            print(brep.boundingBox.maxPoint.z)
-            layer = layers[zToLayer(brep.boundingBox.maxPoint.z, expansion)]
-            assert isinstance(layer, adsk.fusion.Component)
-            layer.bRepBodies.add(brep)
+    origCompLst = []
+    for occ in [x for x in root.occurrences]:
+        origCompLst.append((occ.component, [x for x in occ.component.bRepBodies]))
 
+    for comp, bodies in origCompLst:
+        test = 0
+        for body in bodies:
+            assert isinstance(body, adsk.fusion.BRepBody)
+            print(body.boundingBox.maxPoint.z)
+            layer = layers[zToLayer(body.boundingBox.maxPoint.z, expansion)]
+            assert isinstance(layer, adsk.fusion.Component)
+            # Cut/paste body from sub component 1 to sub component 2
+            cutPasteBody = layer.features.cutPasteBodies.add(body)
 
 def zToLayer(z, expansion):
     adjZ = z - expansion
@@ -57,7 +49,6 @@ def zToLayer(z, expansion):
         return i - 1
     else:
         return i
-
 
 def makeLayer(i, design):
     # Create a new component
