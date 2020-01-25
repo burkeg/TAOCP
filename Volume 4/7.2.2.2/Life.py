@@ -29,6 +29,15 @@ class Testing:
     def __init__(self):
         pass
 
+    def GenerateTestSolutions(self):
+        life = Life(solutionCap=10)
+        life.Glider(15)
+        life.fname = 'Glider'
+        life.createSolutionDir()
+        life.game.AddFrames(30)
+        life.addSolution(life.game)
+        print(life.game)
+        
     def GenerateTextSolutions(self, text, start=1, stop=10, solutionCap=10):
         for i in range(start, stop):
             if DEBUG:
@@ -146,15 +155,15 @@ class Life:
         self.game[0][2][2].state = LifeState.ALIVE
         self.game[0][2][3].state = LifeState.ALIVE
 
-    def Glider(self):
-        self.width = 5
-        self.height = 5
+    def Glider(self, dim):
+        self.width = dim
+        self.height = dim
         self.game = LifeGameInstance(self.height, self.width)
-        for i in range(5):
-            for j in range(5):
+        for i in range(dim):
+            for j in range(dim):
                 self.game[0][i][j].state = LifeState.DEAD
         self.game[0][1][2].state = LifeState.ALIVE
-        self.game[0][2][1].state = LifeState.ALIVE
+        self.game[0][2][3].state = LifeState.ALIVE
         self.game[0][3][1].state = LifeState.ALIVE
         self.game[0][3][2].state = LifeState.ALIVE
         self.game[0][3][3].state = LifeState.ALIVE
