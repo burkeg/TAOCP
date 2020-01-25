@@ -29,14 +29,14 @@ class Testing:
     def __init__(self):
         pass
 
-    def GenerateTextSolutions(self, text):
-        for i in range(1, 10):
+    def GenerateTextSolutions(self, text, start=1, stop=10, solutionCap=10):
+        for i in range(start, stop):
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
             lifeGenerator = GenLife()
             life = lifeGenerator.textToLife(text)
-            life.solutionCap = 10
+            life.solutionCap = solutionCap
             life.fname = text + str(i)
             life.findPreceding(i)
 
@@ -685,5 +685,28 @@ class LifeTile:
         return bytearray([self.state.value])
 
 if __name__ == "__main__":
-    Testing().GenerateTextSolutions('Keysight')
+    names = \
+        [
+            'Tim',
+            'Ed',
+            'Hank',
+            'Julian',
+            'Kai',
+            'Keith',
+            'Kevin',
+            'Keyne',
+            'Mike',
+            'Ruben',
+            'Gordon',
+            'Bertie',
+            'Paula',
+            'Ike',
+            'Laura',
+            'Raj',
+            'Allen',
+            'Raymond',
+            'Jason'
+        ]
+    for name in names:
+        Testing().GenerateTextSolutions(name, start=3, stop=4, solutionCap=1)
 
