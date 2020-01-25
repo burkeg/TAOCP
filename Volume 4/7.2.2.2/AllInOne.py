@@ -53,7 +53,7 @@ def TranslateApart(app, ui, product, design, expansion):
             continue
         i = int(m.group(1))
         # Create a transform to do move
-        vector = adsk.core.Vector3D.create(0.0, 0.0, float(i))
+        vector = adsk.core.Vector3D.create(0.0, 0.0, 3*float(i))
         transform = adsk.core.Matrix3D.create()
         transform.translation = vector
 
@@ -223,37 +223,34 @@ def MakeSolid(app, ui, product, design):
     LifeSTL(lg, render=False, des=design, component=component)
     return len(lg.game.tilings), expansion
 
+
 def DoMerge(app, ui, product, design):
     # Get the root component of the active design
     root = design.rootComponent
+    MergeComponent(app, ui, product, design, root)
+    for occ in root.occurrences:
+        MergeComponent(app, ui, product, design, occ.component)
 
-    TargetBody = root.occurrences.item(0).bRepBodies.item(0)
+
+def MergeComponent(app, ui, product, design, component):
+    assert isinstance(component, adsk.fusion.Component)
+    if component.bRepBodies.count <= 1:
+        # No need to merge 0 or 1 bodies
+        return
+    TargetBody = component.bRepBodies.item(0)
 
     ToolBodies = adsk.core.ObjectCollection.create()
     beforeCnt = 0
     flag = True
-    for occ in root.occurrences:
-        for brep in occ.bRepBodies:
-            beforeCnt += 1
-            if flag:
-                flag = False
-                continue
-            ToolBodies.add(brep)
-    if beforeCnt == 1:
-        ui.messageBox('Only 1 component, nothing to do.')
-        return
+    for k in range(1, component.bRepBodies.count):
+        ToolBodies.add(component.bRepBodies.item(k))
 
-    CombineInput = root.features.combineFeatures.createInput(TargetBody, ToolBodies)
+    CombineInput = component.features.combineFeatures.createInput(TargetBody, ToolBodies)
 
-    CombineFeats = root.features.combineFeatures
+    CombineFeats = component.features.combineFeatures
     CombineInput = CombineFeats.createInput(TargetBody, ToolBodies)
     CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
     CombineFeats.add(CombineInput)
-
-    afterCnt = 0
-    for occ in root.occurrences:
-        for brep in occ.bRepBodies:
-            afterCnt += 1
 
 
 def drawBase(design, dimensions, component, baseThickness=1.0):
