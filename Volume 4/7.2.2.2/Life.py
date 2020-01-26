@@ -344,6 +344,8 @@ class Life:
         assert isinstance(solution, LifeGameInstance)
         with open(self.fname + '/solution' + str(self.solutionCount) + '.bin', 'wb') as file:
             file.write(solution.toBytes())
+        with open(self.fname + '/solution' + str(self.solutionCount) + '.rle', 'w') as file:
+            file.write(solution.toRLE())
         self.solutionCount += 1
 
     def FillInSequence(self, boundaryCondition=BoundaryCondition.ALL_DEAD):
@@ -538,6 +540,13 @@ class LifeGameInstance:
             lstToBytes.extend(tiling.toBytes())
         return bytes(lstToBytes)
 
+    # https://copy.sh/life/
+    def toRLE(self):
+        lstToRLE = 'x = ' + str(self.width) + ', y = ' + str(self.height) + ', rule = B3/S23\n'
+        # for tiling in self.tilings:
+        lstToRLE += self.tilings[0].toRLE()
+        return lstToRLE
+
 
 
 class LifeTiling:
@@ -588,6 +597,34 @@ class LifeTiling:
                 lstToBytes.extend(self[row][col].toBytes())
         return lstToBytes
 
+    def toRLE(self):
+        rows = []
+        for row in range(self.height):
+            rowStr = ''
+            for col in range(self.width):
+                rowStr += self[row][col].toRLE()
+            rows.append(self.compressRuns(rowStr))
+        return '$'.join(rows) + '!'
+
+    def compressRuns(self, rowStr):
+        compressedStr = ''
+        lastChar = rowStr[0]
+        runCnt = 1
+        for currChar in rowStr[1:]:
+            # output the run
+            if lastChar != currChar:
+                if runCnt > 1:
+                    compressedStr += str(runCnt)
+                compressedStr += lastChar
+                runCnt = 1
+                lastChar = currChar
+            else:
+                runCnt += 1
+        else:
+            if runCnt > 1:
+                compressedStr += str(runCnt)
+            compressedStr += lastChar
+        return compressedStr
 
     def GetNextState(self, boundaryCondition=BoundaryCondition.TOROIDAL):
         newTiling = LifeTiling(height=self.height, width=self.width, time=self.time + 1)
@@ -693,29 +730,33 @@ class LifeTile:
         assert isinstance(self.state.value, int)
         return bytearray([self.state.value])
 
+    def toRLE(self):
+        assert isinstance(self.state, LifeState)
+        return 'o' if self.state == LifeState.ALIVE else 'b'
+
 if __name__ == "__main__":
-    names = \
-        [
-            'Tim',
-            'Ed',
-            'Hank',
-            'Julian',
-            'Kai',
-            'Keith',
-            'Kevin',
-            'Keyne',
-            'Mike',
-            'Ruben',
-            'Gordon',
-            'Bertie',
-            'Paula',
-            'Ike',
-            'Laura',
-            'Raj',
-            'Allen',
-            'Raymond',
-            'Jason'
-        ]
-    for name in names:
-        Testing().GenerateTextSolutions(name, start=3, stop=4, solutionCap=1)
+    # names = \
+    #     [
+    #         'Tim',
+    #         'Ed',
+    #         'Hank',
+    #         'Julian',
+    #         'Kai',
+    #         'Keith',
+    #         'Kevin',
+    #         'Keyne',
+    #         'Mike',
+    #         'Ruben',
+    #         'Gordon',
+    #         'Bertie',
+    #         'Paula',
+    #         'Ike',
+    #         'Laura',
+    #         'Raj',
+    #         'Allen',
+    #         'Raymond',
+    #         'Jason'
+    #     ]
+    # for name in names:
+    Testing().GenerateTextSolutions('Gabe', start=3, stop=4, solutionCap=1)
 

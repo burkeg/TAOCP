@@ -17,8 +17,8 @@ def main():
         design = product
 
         # Generates solid cubes according to LIFE board states
-        layerCnt, expansion = MakeSolid(app, ui, product, design)
-
+        lifeGame, expansion = MakeSolid(app, ui, product, design)
+        layerCnt = len(lifeGame.game.tilings)
         # Attempts to coalesce all solids into one object
         DoMerge(app, ui, product, design)
 
@@ -221,7 +221,7 @@ def MakeSolid(app, ui, product, design):
     lg.readSolution(path)
     drawBase(design, (lg.game.height, lg.game.width), component, baseThickness=0.5)
     LifeSTL(lg, render=False, des=design, component=component)
-    return len(lg.game.tilings), expansion
+    return lg, expansion
 
 
 def DoMerge(app, ui, product, design):
