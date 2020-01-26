@@ -27,6 +27,7 @@ def main():
 
         # Reorganizes bodies into separate components for each printable layer
         SeparateIntoLayers(app, ui, product, design, layerCnt, expansion)
+        # SeparateIntoLayers(app, ui, product, design, 4, 0.1)
 
         # Physically move each of the layers apart slightly
         TranslateApart(app, ui, product, design, expansion)
@@ -59,25 +60,18 @@ def TranslateApart(app, ui, product, design, expansion):
 
         # Create a move feature
         moveFeats = features.moveFeatures
-        TranslateBody(root, moveFeats, occ.component, transform)
+        TranslateBody(occ.component, transform)
 
 
-def TranslateBody(root, moveFeats, origComponent, transform):
-    for body in origComponent.bRepBodies:
-        # Cut/paste body from component to root
-        cutPasteBody = root.features.cutPasteBodies.add(body)
+def TranslateBody(origComponent, transform):
+    moveFeats = origComponent.features.moveFeatures
+    # Create a collection of entities for move
+    bodies = adsk.core.ObjectCollection.create()
+    for k in range(origComponent.bRepBodies.count):
+        bodies.add(origComponent.bRepBodies.item(k))
 
-        # Create a collection of entities for move
-        bodies = adsk.core.ObjectCollection.create()
-        for k in range(root.bRepBodies.count):
-            bodies.add(root.bRepBodies.item(k))
-
-        moveFeatureInput = moveFeats.createInput(bodies, transform)
-        moveFeats.add(moveFeatureInput)
-
-        for bodyRoot in root.bRepBodies:
-            # Cut/paste body from component to root
-            cutPasteBody = origComponent.features.cutPasteBodies.add(bodyRoot)
+    moveFeatureInput = moveFeats.createInput(bodies, transform)
+    moveFeats.add(moveFeatureInput)
 
 def SeparateIntoLayers(app, ui, product, design, layerCnt, expansion):
     # Get the root component of the active design
