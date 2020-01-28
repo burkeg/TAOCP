@@ -29,6 +29,9 @@ def main():
         SeparateIntoLayers(app, ui, product, design, layerCnt, expansion)
         # SeparateIntoLayers(app, ui, product, design, 4, 0.1)
 
+        # Cut away pegs from upper surface and extrude from lower surface
+        AddPegs(app, ui, product, design, lifeGame, expansion)
+
         # Physically move each of the layers apart slightly
         TranslateApart(app, ui, product, design, expansion)
 
@@ -38,6 +41,61 @@ def main():
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+def AddPegs(app, ui, product, design, lifeGame, expansion):
+    # list of tuples, each tuple is a pair of points on that layer.
+    pegPoints = GetGoodPegPoints(lifeGame)
+    for i, (pointA, pointB) in enumerate(pegPoints):
+        Ax, Ay = pointA
+        Bx, By = pointB
+        Acenter = getSurfaceCenter(Ax, Ay, i)
+        Bcenter = getSurfaceCenter(Bx, By, i)
+    pass
+
+
+def getSurfaceCenter(row, col, t):
+    x = row + 0.5
+    y = col + 0.5
+    z = (1 - expansion) + t
+    return (x, y, z)
+
+
+def GetGoodPegPoints(lifeGame):
+    assert isinstance(lifeGame, Life)
+    AllLayersPegPoints = []
+    for tiling in lifeGame.game.tilings:
+        print(tiling)
+    for i, tiling in enumerate(lifeGame.game.tilings[1:]):
+        layerPegPoints = []
+        for row in range(tiling.height):
+            for col in range(tiling.width):
+                if tiling[row][col].state == LifeState.ALIVE and lifeGame.game.tilings[i][row][
+                    col].state == LifeState.ALIVE:
+                    layerPegPoints.append((row, col))
+
+        bestDist = 0
+        bestPair = (0, 0)
+        # This list now contains all possible peg locations, find the two furthest away from eachother
+        for j in range(len(layerPegPoints)):
+            for k in range(j + 1, len(layerPegPoints)):
+                currDist = distanceSqrd(A=layerPegPoints[j], B=layerPegPoints[k])
+                if currDist > bestDist:
+                    bestPair = (j, k)
+                    bestDist = currDist
+        AllLayersPegPoints.append((layerPegPoints[bestPair[0]], layerPegPoints[bestPair[1]]))
+    # print(AllLayersPegPoints)
+    return AllLayersPegPoints
+
+
+def distanceSqrd(A, B):
+    ax, ay = A
+    bx, by = B
+    return (bx - ax) ** 2 + (by - ay) ** 2
+
+
+def PlacePeg(lifeGame, row, col, t):
+    pass
 
 
 def TranslateApart(app, ui, product, design, expansion):
@@ -54,13 +112,16 @@ def TranslateApart(app, ui, product, design, expansion):
             continue
         i = int(m.group(1))
         # Create a transform to do move
-        vector = adsk.core.Vector3D.create(0.0, 0.0, 3*float(i))
+        vector = adsk.core.Vector3D.create(0.0, 0.0, 3 * float(i))
         transform = adsk.core.Matrix3D.create()
         transform.translation = vector
 
         # Create a move feature
         moveFeats = features.moveFeatures
         TranslateBody(occ.component, transform)
+
+        # Call doEvents to give Fusion 360 a chance to react.
+        adsk.doEvents()
 
 
 def TranslateBody(origComponent, transform):
@@ -72,6 +133,7 @@ def TranslateBody(origComponent, transform):
 
     moveFeatureInput = moveFeats.createInput(bodies, transform)
     moveFeats.add(moveFeatureInput)
+
 
 def SeparateIntoLayers(app, ui, product, design, layerCnt, expansion):
     # Get the root component of the active design
@@ -95,6 +157,10 @@ def SeparateIntoLayers(app, ui, product, design, layerCnt, expansion):
             # Cut/paste body from sub component 1 to sub component 2
             cutPasteBody = layer.features.cutPasteBodies.add(body)
 
+            # Call doEvents to give Fusion 360 a chance to react.
+            adsk.doEvents()
+
+
 def zToLayer(z, expansion):
     adjZ = z - expansion
     i = math.floor(adjZ)
@@ -102,6 +168,7 @@ def zToLayer(z, expansion):
         return i - 1
     else:
         return i
+
 
 def makeLayer(i, design):
     # Create a new component
@@ -113,6 +180,7 @@ def makeLayer(i, design):
     else:
         component.name = "Base"
     return component
+
 
 def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
     # (numLayers, cancelled) = ui.inputBox('Enter number of layers in design', 'Number of Layers', '5')
@@ -180,12 +248,16 @@ def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
         splitBodyInput = splitBodyFeats.createInput(SplitBodies, planeOne, True)
         # Create split body feature
         splitBodyFeats.add(splitBodyInput)
+
+        # Call doEvents to give Fusion 360 a chance to react.
+        adsk.doEvents()
     afterCnt = 0
     for occ in root.occurrences:
         for brep in occ.bRepBodies:
             afterCnt += 1
 
     # ui.messageBox(str(beforeCnt) + ' to ' + str(afterCnt) + ' bodies.')
+
 
 def MakeSolid(app, ui, product, design):
     fileDialog = ui.createFileDialog()
@@ -245,6 +317,9 @@ def MergeComponent(app, ui, product, design, component):
     CombineInput = CombineFeats.createInput(TargetBody, ToolBodies)
     CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
     CombineFeats.add(CombineInput)
+
+    # Call doEvents to give Fusion 360 a chance to react.
+    adsk.doEvents()
 
 
 def drawBase(design, dimensions, component, baseThickness=1.0):
@@ -367,6 +442,9 @@ def drawCubes(design, argList, component):
 
         # Create extrusion
         extrudes.add(extInput)
+
+        # Call doEvents to give Fusion 360 a chance to react.
+        adsk.doEvents()
 
 
 #
@@ -511,7 +589,7 @@ class LifeTiling:
                 else:
                     raise Exception('Unknown tile state')
 
-            if i != self.width:
+            if i != self.height:
                 boardStr += '\n'
         return boardStr
 
