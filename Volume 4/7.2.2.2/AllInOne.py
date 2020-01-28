@@ -6,6 +6,7 @@ import math
 import re
 
 expansion = 0.1
+translateDist = 3
 
 
 def main():
@@ -29,11 +30,11 @@ def main():
         SeparateIntoLayers(app, ui, product, design, layerCnt, expansion)
         # SeparateIntoLayers(app, ui, product, design, 4, 0.1)
 
-        # Cut away pegs from upper surface and extrude from lower surface
-        AddPegs(app, ui, product, design, lifeGame, expansion)
-
         # Physically move each of the layers apart slightly
         TranslateApart(app, ui, product, design, expansion)
+
+        # Cut away pegs from upper surface and extrude from lower surface
+        AddPegs(app, ui, product, design, lifeGame, expansion)
 
         # Remerge so that pointless components that were split earlier go away
         DoMerge(app, ui, product, design)
@@ -44,21 +45,96 @@ def main():
 
 
 def AddPegs(app, ui, product, design, lifeGame, expansion):
+    root = design.rootComponent
     # list of tuples, each tuple is a pair of points on that layer.
     pegPoints = GetGoodPegPoints(lifeGame)
+
+    # iterate over all layers
     for i, (pointA, pointB) in enumerate(pegPoints):
         Ax, Ay = pointA
         Bx, By = pointB
-        Acenter = getSurfaceCenter(Ax, Ay, i)
-        Bcenter = getSurfaceCenter(Bx, By, i)
-    pass
+        # I need the coordinates of the top surface of the bottom layer
+        # and the bottom surface of the upper layer
+        Alower = getSurfaceTop(Ax, Ay, i)
+        Blower = getSurfaceTop(Bx, By, i)
+        Aupper = getSurfaceBottom(Ax, Ay, i + 1)
+        Bupper = getSurfaceBottom(Bx, By, i + 1)
+
+        # find the corresponding layer component
+        assert isinstance(root, adsk.fusion.Component)
+        layerCompBelow = None
+        layerCompAbove = None
+        for occ in root.occurrences:
+            assert isinstance(occ, adsk.fusion.Occurrence)
+            m = re.match(r'Layer (\d)+:\d+', occ.name)
+            if m and i == int(m.group(1)):
+                layerCompBelow = occ.component
+                break
+            m = re.match(r'Base:\d+', occ.name)
+            if m and i == 0:
+                layerCompBelow = occ.component
+                break
+        if layerCompBelow is None:
+            continue
+
+        for occ in root.occurrences:
+            assert isinstance(occ, adsk.fusion.Occurrence)
+            m = re.match(r'Layer (\d)+:\d+', occ.name)
+            if m:
+                print(int(m.group(1)))
+            if m and i + 1 == int(m.group(1)):
+                layerCompAbove = occ.component
+                break
+        if layerCompAbove is None:
+            continue
+
+        # Now we have the component corresponding to our layer if it exists
+        assert isinstance(layerCompBelow, adsk.fusion.Component)
+
+        addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=0.19)
+        addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=0.19)
+        addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=0.2)
+        addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=0.2)
 
 
-def getSurfaceCenter(row, col, t):
+def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
+    # Get extrude features
+    extrudes = comp.features.extrudeFeatures
+
+    # Create sketch
+    sketches = comp.sketches
+    sketch = sketches.add(comp.xYConstructionPlane)
+    sketchCircles = sketch.sketchCurves.sketchCircles
+    sketchCircles.addByCenterRadius(center, radius)
+
+    # Get the profile defined by the circle
+    prof = sketch.profiles.item(0)
+
+    # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
+    # Define a distance extent of 5 cm
+    distance = adsk.core.ValueInput.createByReal(height)
+    if isJoin:
+        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
+    else:
+        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
+
+
+def getSurfaceCenter(row, col):
     x = row + 0.5
     y = col + 0.5
-    z = (1 - expansion) + t
-    return (x, y, z)
+    return adsk.core.Point2D.create(x, y)
+
+
+def getSurfaceTop(row, col, t):
+    z = (1 - expansion) + (translateDist + 1) * t
+    xy = getSurfaceCenter(row, col)
+    return adsk.core.Point3D.create(xy.x, xy.y, z)
+
+
+def getSurfaceBottom(row, col, t):
+    z = - expansion + (translateDist + 1) * t
+    xy = getSurfaceCenter(row, col)
+    return adsk.core.Point3D.create(xy.x, xy.y, z)
 
 
 def GetGoodPegPoints(lifeGame):
@@ -94,10 +170,6 @@ def distanceSqrd(A, B):
     return (bx - ax) ** 2 + (by - ay) ** 2
 
 
-def PlacePeg(lifeGame, row, col, t):
-    pass
-
-
 def TranslateApart(app, ui, product, design, expansion):
     # Get the root component of the active design
     root = design.rootComponent
@@ -112,7 +184,7 @@ def TranslateApart(app, ui, product, design, expansion):
             continue
         i = int(m.group(1))
         # Create a transform to do move
-        vector = adsk.core.Vector3D.create(0.0, 0.0, 3 * float(i))
+        vector = adsk.core.Vector3D.create(0.0, 0.0, translateDist * float(i))
         transform = adsk.core.Matrix3D.create()
         transform.translation = vector
 
