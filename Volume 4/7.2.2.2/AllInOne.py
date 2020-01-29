@@ -6,9 +6,8 @@ import math
 import re
 
 expansion = 0.1
-translateDist = 3
-isSquarePegs = False
-
+translateDist = 4
+isSquarePegs = True
 
 def main():
     ui = None
@@ -93,8 +92,8 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
             # Now we have the component corresponding to our layer if it exists
             assert isinstance(layerCompBelow, adsk.fusion.Component)
 
-            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True, radius=0.14, height=expansion * 0.95)
-            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=expansion * 0.95)
+            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=expansion*0.95)
+            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=expansion*0.95)
             addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
             addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
 
@@ -165,16 +164,10 @@ def GetGoodPegPoints(lifeGame):
     AllLayersPegPoints = []
     for tiling in lifeGame.game.tilings:
         print(tiling)
-    for i, tiling in enumerate(lifeGame.game.tilings[1:]):
-        layerPegPoints = []
-        for row in range(tiling.height):
-            for col in range(tiling.width):
-                if lifeGame.game.tilings[i][row][col].state == LifeState.ALIVE:
-                    layerPegPoints.append((row, col))
+    for i in range(len(lifeGame.game.tilings) - 1):
 
-        # split into n connected groups
-        groups = [layerPegPoints]
-
+        groups = getClusters(lifeGame.game.tilings, i)
+        currLayerPegPoints = []
         for group in groups:
             bestDist = 0
             bestPair = (0, 0)
@@ -185,10 +178,52 @@ def GetGoodPegPoints(lifeGame):
                     if currDist > bestDist:
                         bestPair = (j, k)
                         bestDist = currDist
-            AllLayersPegPoints.append([(group[bestPair[0]], group[bestPair[1]])])
+            currLayerPegPoints.append((group[bestPair[0]], group[bestPair[1]]))
+        AllLayersPegPoints.append(currLayerPegPoints)
     # print(AllLayersPegPoints)
     return AllLayersPegPoints
 
+def getClusters(tilings, i):
+    # Get points
+    lowerLayerPegPoints = set()
+    upperLayerPegPoints = set()
+    for row in range(tilings[i].height):
+        for col in range(tilings[i].width):
+            if tilings[i][row][col].state == LifeState.ALIVE:
+                lowerLayerPegPoints.add((row, col))
+            if tilings[i + 1][row][col].state == LifeState.ALIVE:
+                upperLayerPegPoints.add((row, col))
+
+    # split into n connected groups
+    groups = []
+    currGroup = set()
+    seen = set()
+    allPts = lowerLayerPegPoints.union(upperLayerPegPoints)
+
+    def DFS(points):
+        seen.add(points)
+        currGroup.add(points)
+        filt = [-1, 0, 1]
+        for j in range(3):
+            for k in range(3):
+                if j == 1 and k == 1:
+                    continue
+                potentialPoints = (points[0] + filt[j], points[1] + filt[k])
+                if potentialPoints in allPts and potentialPoints not in seen:
+                    DFS(potentialPoints)
+
+    # Check for clusters of upper layer only, but allow clusters to be joined by lower layers
+    for currPoints in upperLayerPegPoints:
+        if currPoints not in seen:
+            DFS(currPoints)
+            groups.append(currGroup)
+            currGroup = set()
+
+    # Now remove all points that weren't in the lower layers
+    # otherwise we'd have no support to build on top of
+    groups = [tuple(x.intersection(lowerLayerPegPoints)) for x in groups]
+    # groups should now be a list lists, where each list is all connected sets of bottom layer cubes
+    return groups
 
 def distanceSqrd(A, B):
     ax, ay = A
@@ -517,7 +552,6 @@ def drawCubes(design, argList, component):
         # Call doEvents to give Fusion 360 a chance to react.
         adsk.doEvents()
 
-
 def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
     # Get reference to the sketchs and plane
     sketches = component.sketches
@@ -547,7 +581,6 @@ def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOper
 
     # Create extrusion
     extrudes.add(extInput)
-
 
 #
 
