@@ -6,8 +6,8 @@ import math
 import re
 
 expansion = 0.1
-translateDist = 3
-
+translateDist = 4
+isSquarePegs = True
 
 def main():
     ui = None
@@ -50,73 +50,95 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
     pegPoints = GetGoodPegPoints(lifeGame)
 
     # iterate over all layers
-    for i, (pointA, pointB) in enumerate(pegPoints):
-        Ax, Ay = pointA
-        Bx, By = pointB
-        # I need the coordinates of the top surface of the bottom layer
-        # and the bottom surface of the upper layer
-        Alower = getSurfaceTop(Ax, Ay, i)
-        Blower = getSurfaceTop(Bx, By, i)
-        Aupper = getSurfaceBottom(Ax, Ay, i + 1)
-        Bupper = getSurfaceBottom(Bx, By, i + 1)
+    for i, pairList in enumerate(pegPoints):
+        for (pointA, pointB) in pairList:
+            Ax, Ay = pointA
+            Bx, By = pointB
+            # I need the coordinates of the top surface of the bottom layer
+            # and the bottom surface of the upper layer
+            Alower = getSurfaceTop(Ax, Ay, i)
+            Blower = getSurfaceTop(Bx, By, i)
+            Aupper = getSurfaceBottom(Ax, Ay, i + 1)
+            Bupper = getSurfaceBottom(Bx, By, i + 1)
 
-        # find the corresponding layer component
-        assert isinstance(root, adsk.fusion.Component)
-        layerCompBelow = None
-        layerCompAbove = None
-        for occ in root.occurrences:
-            assert isinstance(occ, adsk.fusion.Occurrence)
-            m = re.match(r'Layer (\d)+:\d+', occ.name)
-            if m and i == int(m.group(1)):
-                layerCompBelow = occ.component
-                break
-            m = re.match(r'Base:\d+', occ.name)
-            if m and i == 0:
-                layerCompBelow = occ.component
-                break
-        if layerCompBelow is None:
-            continue
+            # find the corresponding layer component
+            assert isinstance(root, adsk.fusion.Component)
+            layerCompBelow = None
+            layerCompAbove = None
+            for occ in root.occurrences:
+                assert isinstance(occ, adsk.fusion.Occurrence)
+                m = re.match(r'Layer (\d)+:\d+', occ.name)
+                if m and i == int(m.group(1)):
+                    layerCompBelow = occ.component
+                    break
+                m = re.match(r'Base:\d+', occ.name)
+                if m and i == 0:
+                    layerCompBelow = occ.component
+                    break
+            if layerCompBelow is None:
+                continue
 
-        for occ in root.occurrences:
-            assert isinstance(occ, adsk.fusion.Occurrence)
-            m = re.match(r'Layer (\d)+:\d+', occ.name)
-            if m:
-                print(int(m.group(1)))
-            if m and i + 1 == int(m.group(1)):
-                layerCompAbove = occ.component
-                break
-        if layerCompAbove is None:
-            continue
+            for occ in root.occurrences:
+                assert isinstance(occ, adsk.fusion.Occurrence)
+                m = re.match(r'Layer (\d)+:\d+', occ.name)
+                if m:
+                    print(int(m.group(1)))
+                if m and i + 1 == int(m.group(1)):
+                    layerCompAbove = occ.component
+                    break
+            if layerCompAbove is None:
+                continue
 
-        # Now we have the component corresponding to our layer if it exists
-        assert isinstance(layerCompBelow, adsk.fusion.Component)
+            # Now we have the component corresponding to our layer if it exists
+            assert isinstance(layerCompBelow, adsk.fusion.Component)
 
-        addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=0.19)
-        addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=0.19)
-        addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=0.2)
-        addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=0.2)
+            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=expansion*0.95)
+            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=expansion*0.95)
+            addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
+            addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
 
 
 def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
-    # Get extrude features
-    extrudes = comp.features.extrudeFeatures
+    if isSquarePegs:
+        xm = center.x - radius
+        xp = center.x + radius
+        ym = center.y - radius
+        yp = center.y + radius
+        zm = center.z
+        coordinates = [
+            xm, ym, zm,
+            xp, ym, zm,
+            xp, yp, zm,
+            xm, yp, zm,
+            xm, ym, zm
+        ]
+        CreateCube(
+            coordinates=coordinates,
+            component=comp,
+            height=height,
+            operation=adsk.fusion.FeatureOperations.JoinFeatureOperation if isJoin else adsk.fusion.FeatureOperations.CutFeatureOperation)
 
-    # Create sketch
-    sketches = comp.sketches
-    sketch = sketches.add(comp.xYConstructionPlane)
-    sketchCircles = sketch.sketchCurves.sketchCircles
-    sketchCircles.addByCenterRadius(center, radius)
-
-    # Get the profile defined by the circle
-    prof = sketch.profiles.item(0)
-
-    # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
-    # Define a distance extent of 5 cm
-    distance = adsk.core.ValueInput.createByReal(height)
-    if isJoin:
-        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
     else:
-        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        # Get extrude features
+        extrudes = comp.features.extrudeFeatures
+
+        # Create sketch
+        sketches = comp.sketches
+        sketch = sketches.add(comp.xYConstructionPlane)
+        assert isinstance(sketch, adsk.fusion.Sketch)
+        sketchCircles = sketch.sketchCurves.sketchCircles
+        sketchCircles.addByCenterRadius(center, radius)
+
+        # Get the profile defined by the circle
+        prof = sketch.profiles.item(0)
+
+        # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
+        # Define a distance extent of 5 cm
+        distance = adsk.core.ValueInput.createByReal(height)
+        if isJoin:
+            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
+        else:
+            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
 
 def getSurfaceCenter(row, col):
@@ -142,27 +164,66 @@ def GetGoodPegPoints(lifeGame):
     AllLayersPegPoints = []
     for tiling in lifeGame.game.tilings:
         print(tiling)
-    for i, tiling in enumerate(lifeGame.game.tilings[1:]):
-        layerPegPoints = []
-        for row in range(tiling.height):
-            for col in range(tiling.width):
-                if tiling[row][col].state == LifeState.ALIVE and lifeGame.game.tilings[i][row][
-                    col].state == LifeState.ALIVE:
-                    layerPegPoints.append((row, col))
+    for i in range(len(lifeGame.game.tilings) - 1):
 
-        bestDist = 0
-        bestPair = (0, 0)
-        # This list now contains all possible peg locations, find the two furthest away from eachother
-        for j in range(len(layerPegPoints)):
-            for k in range(j + 1, len(layerPegPoints)):
-                currDist = distanceSqrd(A=layerPegPoints[j], B=layerPegPoints[k])
-                if currDist > bestDist:
-                    bestPair = (j, k)
-                    bestDist = currDist
-        AllLayersPegPoints.append((layerPegPoints[bestPair[0]], layerPegPoints[bestPair[1]]))
+        groups = getClusters(lifeGame.game.tilings, i)
+        currLayerPegPoints = []
+        for group in groups:
+            bestDist = 0
+            bestPair = (0, 0)
+            # This list now contains all possible peg locations, find the two furthest away from eachother
+            for j in range(len(group)):
+                for k in range(j + 1, len(group)):
+                    currDist = distanceSqrd(A=group[j], B=group[k])
+                    if currDist > bestDist:
+                        bestPair = (j, k)
+                        bestDist = currDist
+            currLayerPegPoints.append((group[bestPair[0]], group[bestPair[1]]))
+        AllLayersPegPoints.append(currLayerPegPoints)
     # print(AllLayersPegPoints)
     return AllLayersPegPoints
 
+def getClusters(tilings, i):
+    # Get points
+    lowerLayerPegPoints = set()
+    upperLayerPegPoints = set()
+    for row in range(tilings[i].height):
+        for col in range(tilings[i].width):
+            if tilings[i][row][col].state == LifeState.ALIVE:
+                lowerLayerPegPoints.add((row, col))
+            if tilings[i + 1][row][col].state == LifeState.ALIVE:
+                upperLayerPegPoints.add((row, col))
+
+    # split into n connected groups
+    groups = []
+    currGroup = set()
+    seen = set()
+    allPts = lowerLayerPegPoints.union(upperLayerPegPoints)
+
+    def DFS(points):
+        seen.add(points)
+        currGroup.add(points)
+        filt = [-1, 0, 1]
+        for j in range(3):
+            for k in range(3):
+                if j == 1 and k == 1:
+                    continue
+                potentialPoints = (points[0] + filt[j], points[1] + filt[k])
+                if potentialPoints in allPts and potentialPoints not in seen:
+                    DFS(potentialPoints)
+
+    # Check for clusters of upper layer only, but allow clusters to be joined by lower layers
+    for currPoints in upperLayerPegPoints:
+        if currPoints not in seen:
+            DFS(currPoints)
+            groups.append(currGroup)
+            currGroup = set()
+
+    # Now remove all points that weren't in the lower layers
+    # otherwise we'd have no support to build on top of
+    groups = [tuple(x.intersection(lowerLayerPegPoints)) for x in groups]
+    # groups should now be a list lists, where each list is all connected sets of bottom layer cubes
+    return groups
 
 def distanceSqrd(A, B):
     ax, ay = A
@@ -486,38 +547,40 @@ def drawCubes(design, argList, component):
             xm, ym, zm
         ]
 
-        # Get reference to the sketchs and plane
-        sketches = component.sketches
-        xyPlane = component.xYConstructionPlane
-
-        # Create a new sketch and get lines reference
-        sketch = sketches.add(xyPlane)
-        lines = sketch.sketchCurves.sketchLines
-        i = 0
-        while i < len(coordinates) - 3:
-            point1 = adsk.core.Point3D.create(coordinates[i], coordinates[i + 1], coordinates[i + 2])
-            point2 = adsk.core.Point3D.create(coordinates[i + 3], coordinates[i + 4], coordinates[i + 5])
-            # Create Line
-            lines.addByTwoPoints(point1, point2)
-            i += 3
-
-        # Get reference to the first profile of the sketch
-        profile = sketch.profiles.item(sketch.profiles.count - 1)
-
-        # Get extrude features reference
-        extrudes = component.features.extrudeFeatures
-
-        # Create input object for the extrude feature
-        extInput = extrudes.createInput(profile, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-        distance = adsk.core.ValueInput.createByReal(1 + 2 * expansion)
-        extInput.setDistanceExtent(False, distance)
-
-        # Create extrusion
-        extrudes.add(extInput)
+        CreateCube(coordinates, component, 1 + 2 * expansion)
 
         # Call doEvents to give Fusion 360 a chance to react.
         adsk.doEvents()
 
+def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
+    # Get reference to the sketchs and plane
+    sketches = component.sketches
+    xyPlane = component.xYConstructionPlane
+
+    # Create a new sketch and get lines reference
+    sketch = sketches.add(xyPlane)
+    lines = sketch.sketchCurves.sketchLines
+    i = 0
+    while i < len(coordinates) - 3:
+        point1 = adsk.core.Point3D.create(coordinates[i], coordinates[i + 1], coordinates[i + 2])
+        point2 = adsk.core.Point3D.create(coordinates[i + 3], coordinates[i + 4], coordinates[i + 5])
+        # Create Line
+        lines.addByTwoPoints(point1, point2)
+        i += 3
+
+    # Get reference to the first profile of the sketch
+    profile = sketch.profiles.item(sketch.profiles.count - 1)
+
+    # Get extrude features reference
+    extrudes = component.features.extrudeFeatures
+
+    # Create input object for the extrude feature
+    extInput = extrudes.createInput(profile, operation)
+    distance = adsk.core.ValueInput.createByReal(height)
+    extInput.setDistanceExtent(False, distance)
+
+    # Create extrusion
+    extrudes.add(extInput)
 
 #
 
