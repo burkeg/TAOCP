@@ -7,7 +7,7 @@ import re
 
 expansion = 0.1
 translateDist = 3
-
+isSquarePegs = False
 
 def main():
     ui = None
@@ -91,32 +91,53 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
         # Now we have the component corresponding to our layer if it exists
         assert isinstance(layerCompBelow, adsk.fusion.Component)
 
-        addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=0.19)
-        addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=0.19)
-        addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=0.2)
-        addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=0.2)
+        addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=expansion*0.95)
+        addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=expansion*0.95)
+        addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
+        addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
 
 
 def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
-    # Get extrude features
-    extrudes = comp.features.extrudeFeatures
+    if isSquarePegs:
+        xm = center.x - radius
+        xp = center.x + radius
+        ym = center.y - radius
+        yp = center.y + radius
+        zm = center.z
+        coordinates = [
+            xm, ym, zm,
+            xp, ym, zm,
+            xp, yp, zm,
+            xm, yp, zm,
+            xm, ym, zm
+        ]
+        CreateCube(
+            coordinates=coordinates,
+            component=comp,
+            height=height,
+            operation=adsk.fusion.FeatureOperations.JoinFeatureOperation if isJoin else adsk.fusion.FeatureOperations.CutFeatureOperation)
 
-    # Create sketch
-    sketches = comp.sketches
-    sketch = sketches.add(comp.xYConstructionPlane)
-    sketchCircles = sketch.sketchCurves.sketchCircles
-    sketchCircles.addByCenterRadius(center, radius)
-
-    # Get the profile defined by the circle
-    prof = sketch.profiles.item(0)
-
-    # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
-    # Define a distance extent of 5 cm
-    distance = adsk.core.ValueInput.createByReal(height)
-    if isJoin:
-        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
     else:
-        extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        # Get extrude features
+        extrudes = comp.features.extrudeFeatures
+
+        # Create sketch
+        sketches = comp.sketches
+        sketch = sketches.add(comp.xYConstructionPlane)
+        assert isinstance(sketch, adsk.fusion.Sketch)
+        sketchCircles = sketch.sketchCurves.sketchCircles
+        sketchCircles.addByCenterRadius(center, radius)
+
+        # Get the profile defined by the circle
+        prof = sketch.profiles.item(0)
+
+        # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
+        # Define a distance extent of 5 cm
+        distance = adsk.core.ValueInput.createByReal(height)
+        if isJoin:
+            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
+        else:
+            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
 
 def getSurfaceCenter(row, col):
@@ -486,38 +507,40 @@ def drawCubes(design, argList, component):
             xm, ym, zm
         ]
 
-        # Get reference to the sketchs and plane
-        sketches = component.sketches
-        xyPlane = component.xYConstructionPlane
-
-        # Create a new sketch and get lines reference
-        sketch = sketches.add(xyPlane)
-        lines = sketch.sketchCurves.sketchLines
-        i = 0
-        while i < len(coordinates) - 3:
-            point1 = adsk.core.Point3D.create(coordinates[i], coordinates[i + 1], coordinates[i + 2])
-            point2 = adsk.core.Point3D.create(coordinates[i + 3], coordinates[i + 4], coordinates[i + 5])
-            # Create Line
-            lines.addByTwoPoints(point1, point2)
-            i += 3
-
-        # Get reference to the first profile of the sketch
-        profile = sketch.profiles.item(sketch.profiles.count - 1)
-
-        # Get extrude features reference
-        extrudes = component.features.extrudeFeatures
-
-        # Create input object for the extrude feature
-        extInput = extrudes.createInput(profile, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-        distance = adsk.core.ValueInput.createByReal(1 + 2 * expansion)
-        extInput.setDistanceExtent(False, distance)
-
-        # Create extrusion
-        extrudes.add(extInput)
+        CreateCube(coordinates, component, 1 + 2 * expansion)
 
         # Call doEvents to give Fusion 360 a chance to react.
         adsk.doEvents()
 
+def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
+    # Get reference to the sketchs and plane
+    sketches = component.sketches
+    xyPlane = component.xYConstructionPlane
+
+    # Create a new sketch and get lines reference
+    sketch = sketches.add(xyPlane)
+    lines = sketch.sketchCurves.sketchLines
+    i = 0
+    while i < len(coordinates) - 3:
+        point1 = adsk.core.Point3D.create(coordinates[i], coordinates[i + 1], coordinates[i + 2])
+        point2 = adsk.core.Point3D.create(coordinates[i + 3], coordinates[i + 4], coordinates[i + 5])
+        # Create Line
+        lines.addByTwoPoints(point1, point2)
+        i += 3
+
+    # Get reference to the first profile of the sketch
+    profile = sketch.profiles.item(sketch.profiles.count - 1)
+
+    # Get extrude features reference
+    extrudes = component.features.extrudeFeatures
+
+    # Create input object for the extrude feature
+    extInput = extrudes.createInput(profile, operation)
+    distance = adsk.core.ValueInput.createByReal(height)
+    extInput.setDistanceExtent(False, distance)
+
+    # Create extrusion
+    extrudes.add(extInput)
 
 #
 
