@@ -15,3 +15,5 @@ curiosities/train-images.idx3-ubyte
 curiosities/train-labels.idx1-ubyte
 Volume 3/5/words_alpha.txt
 Volume 3/SortUtils/__pycache__/
+*.rle
+*.bin
