@@ -70,7 +70,7 @@ class Testing:
             life.findPreceding(i)
 
     def GenerateFrogSolutions(self):
-        for i in range(5, 10):
+        for i in range(5, 6):
             if DEBUG:
                 print('---------------------------')
                 print('Searching ' + str(i) + ' states into the past.')
@@ -733,6 +733,23 @@ class LifeTile:
     def toRLE(self):
         assert isinstance(self.state, LifeState)
         return 'o' if self.state == LifeState.ALIVE else 'b'
+
+def createRLE():
+    folder = '.'
+    extensions = ('.rle', '.bin')
+    files = [os.path.join(r, fn)
+            for r, ds, fs in os.walk(folder)
+            for fn in fs if fn.endswith(extensions)]
+    toConvert = []
+    for file in files:
+        rleVersion = file[:-3] + 'rle'
+        if file[-3:] == 'bin' and rleVersion not in files:
+            # Here's a binary that's missing a paired rle file. Fix that.
+            lg = Life()
+            lg.readSolution(file)
+            with open(rleVersion, 'w') as file:
+                file.write(lg.game.toRLE())
+
 
 if __name__ == "__main__":
     # names = \
