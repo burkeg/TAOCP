@@ -7,7 +7,8 @@ import re
 
 expansion = 0.1
 translateDist = 4
-isSquarePegs = False
+isSquarePegs = True
+
 
 def main():
     ui = None
@@ -17,31 +18,35 @@ def main():
         product = app.activeProduct
         design = product
 
-        # Generates solid cubes according to LIFE board states
-        lifeGame, expansion = MakeSolid(app, ui, product, design)
-        layerCnt = len(lifeGame.game.tilings)
-        # Attempts to coalesce all solids into one object
-        DoMerge(app, ui, product, design)
-
-        # Cuts apart the design into layers by slicing just under each overhang
-        SplitIntoLayers(app, ui, product, design, layerCnt, expansion)
-
-        # Reorganizes bodies into separate components for each printable layer
-        SeparateIntoLayers(app, ui, product, design, layerCnt, expansion)
-        # SeparateIntoLayers(app, ui, product, design, 4, 0.1)
-
-        # Physically move each of the layers apart slightly
-        TranslateApart(app, ui, product, design, expansion)
-
-        # Cut away pegs from upper surface and extrude from lower surface
-        AddPegs(app, ui, product, design, lifeGame, expansion)
-
-        # Remerge so that pointless components that were split earlier go away
-        DoMerge(app, ui, product, design)
+        TestPegs(app, ui, product, design)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+def TestPegs(app, ui, product, design):
+    root = design.rootComponent
+    xm = 0
+    ym = 0
+    zm = 0
+    xp = 10
+    yp = 10
+    zp = 0.1
+    coordinates = [
+        xm, ym, zm,
+        xp, ym, zm,
+        xp, yp, zm,
+        xm, yp, zm,
+        xm, ym, zm
+    ]
+    numPts = 9
+    CreateCube(coordinates, root, zp)
+    for i in range(numPts):
+        for j in range(numPts):
+            centerPt = adsk.core.Point3D.create(i + 0.5, j + 0.5, zp)
+            addPegToComp(comp=root, center=centerPt, isJoin=True, radius=0.5 + (0.5 * i / (numPts - 1)),
+                         height=expansion * 0.95)
 
 
 def AddPegs(app, ui, product, design, lifeGame, expansion):
@@ -92,8 +97,8 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
             # Now we have the component corresponding to our layer if it exists
             assert isinstance(layerCompBelow, adsk.fusion.Component)
 
-            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=expansion*0.95)
-            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=expansion*0.95)
+            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True, radius=0.14, height=expansion * 0.95)
+            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=expansion * 0.95)
             addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
             addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
 
@@ -183,6 +188,7 @@ def GetGoodPegPoints(lifeGame):
     # print(AllLayersPegPoints)
     return AllLayersPegPoints
 
+
 def getClusters(tilings, i):
     # Get points
     lowerLayerPegPoints = set()
@@ -224,6 +230,7 @@ def getClusters(tilings, i):
     groups = [tuple(x.intersection(lowerLayerPegPoints)) for x in groups]
     # groups should now be a list lists, where each list is all connected sets of bottom layer cubes
     return groups
+
 
 def distanceSqrd(A, B):
     ax, ay = A
@@ -552,6 +559,7 @@ def drawCubes(design, argList, component):
         # Call doEvents to give Fusion 360 a chance to react.
         adsk.doEvents()
 
+
 def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
     # Get reference to the sketchs and plane
     sketches = component.sketches
@@ -581,6 +589,7 @@ def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOper
 
     # Create extrusion
     extrudes.add(extInput)
+
 
 #
 

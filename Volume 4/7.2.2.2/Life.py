@@ -342,9 +342,9 @@ class Life:
 
     def addSolution(self, solution):
         assert isinstance(solution, LifeGameInstance)
-        with open(self.fname + '/solution' + str(self.solutionCount) + '.bin', 'wb') as file:
+        with open('Designs/' + str(self.fname) + '/solution' + str(self.solutionCount) + '.bin', 'wb') as file:
             file.write(solution.toBytes())
-        with open(self.fname + '/solution' + str(self.solutionCount) + '.rle', 'w') as file:
+        with open('Designs/' + str(self.fname) + '/solution' + str(self.solutionCount) + '.rle', 'w') as file:
             file.write(solution.toRLE())
         self.solutionCount += 1
 
@@ -775,6 +775,5 @@ if __name__ == "__main__":
     #         'Jason'
     #     ]
     # for name in names:
-        # Testing().GenerateTextSolutions(name, start=3, stop=4, solutionCap=1)
-    Testing().GenerateFrogSolutions()
-    # createRLE()
+    Testing().GenerateTextSolutions('Fish', start=3, stop=4, solutionCap=1)
+    # Testing().GenerateFlowerSolutions()
