@@ -4,10 +4,20 @@
 import adsk.core, adsk.fusion, traceback
 import math
 import re
+from enum import Enum
+
+
+class Peg(Enum):
+    Round = 0
+    Square = 1
+    Keyhole = 2
+
 
 expansion = 0.1
 translateDist = 4
-isSquarePegs = False
+pegType = Peg.Round
+baseThickness = 1
+
 
 def main():
     ui = None
@@ -92,53 +102,66 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
             # Now we have the component corresponding to our layer if it exists
             assert isinstance(layerCompBelow, adsk.fusion.Component)
 
-            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True,  radius=0.14, height=expansion*0.95)
-            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True,  radius=0.14, height=expansion*0.95)
+            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True, radius=0.14, height=expansion * 0.95)
+            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=expansion * 0.95)
             addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
             addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
 
 
 def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
-    if isSquarePegs:
-        xm = center.x - radius
-        xp = center.x + radius
-        ym = center.y - radius
-        yp = center.y + radius
-        zm = center.z
-        coordinates = [
-            xm, ym, zm,
-            xp, ym, zm,
-            xp, yp, zm,
-            xm, yp, zm,
-            xm, ym, zm
-        ]
+    if pegType == Peg.Square:
+        origin = adsk.core.Point3D.create(center.x - radius, center.y - radius, center.z)
+        dimensions = adsk.core.Point3D.create(radius * 2, radius * 2, height)
         CreateCube(
-            coordinates=coordinates,
+            origin=origin,
+            dim=dimensions,
             component=comp,
-            height=height,
+            expand=False,
             operation=adsk.fusion.FeatureOperations.JoinFeatureOperation if isJoin else adsk.fusion.FeatureOperations.CutFeatureOperation)
+    elif pegType == Peg.Round:
+        cylinderDims = adsk.core.Point3D.create(radius, 0, height)
+        CreateCylinder(
+            origin=center,
+            dim=cylinderDims,
+            component=comp,
+            operation=adsk.fusion.FeatureOperations.JoinFeatureOperation if isJoin else adsk.fusion.FeatureOperations.CutFeatureOperation)
+    elif pegType == Peg.Keyhole:
+        pass
 
-    else:
-        # Get extrude features
-        extrudes = comp.features.extrudeFeatures
 
-        # Create sketch
-        sketches = comp.sketches
-        sketch = sketches.add(comp.xYConstructionPlane)
-        assert isinstance(sketch, adsk.fusion.Sketch)
-        sketchCircles = sketch.sketchCurves.sketchCircles
-        sketchCircles.addByCenterRadius(center, radius)
+# https://www.tinkeringmonkey.com/wp-content/uploads/2014/10/keyhole-slot.jpg
+# params: tuple of 5 values that define the shape of the keyhole
+# a, b, c, d, e = params
+# a = distance between major and minor circle
+# b = radius of major circle
+# c = radius of minor circle
+# d = thickness of overhang above cavity
+# e = depth of cavity
+def createKeyhole(origin, params, comp):
+    # Clear hole for major circle with depth e
 
-        # Get the profile defined by the circle
-        prof = sketch.profiles.item(0)
+    # Clear out rectangle centered at origin with length a and width c to depth d
 
-        # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
-        # Define a distance extent of 5 cm
-        distance = adsk.core.ValueInput.createByReal(height)
-        if isJoin:
-            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.JoinFeatureOperation)
-        else:
-            extrudes.addSimple(prof, distance, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    # Clear hole for minor circle with depth d
+
+    # Clear out rectangle centered at origin with length a and width 2*b with from depth e to d
+
+    # Clear out circle centered under minor circle with radius b from depth e to d
+    pass
+
+
+# https://www.tinkeringmonkey.com/wp-content/uploads/2014/10/keyhole-slot.jpg
+# params: tuple of 4 values that define the shape of the key
+# a, b, c, d, e = params
+# a = radius of minor circle
+# b = radius of major circle
+# c = height of key
+# d = thickness of top
+def createKey(origin, params, comp):
+    # Create cylinder centered at origin with radius a and height c
+
+    # Create cylinder centered at origin with radius b from height (a-d) to a
+    pass
 
 
 def getSurfaceCenter(row, col):
@@ -180,8 +203,8 @@ def GetGoodPegPoints(lifeGame):
                         bestDist = currDist
             currLayerPegPoints.append((group[bestPair[0]], group[bestPair[1]]))
         AllLayersPegPoints.append(currLayerPegPoints)
-    # print(AllLayersPegPoints)
     return AllLayersPegPoints
+
 
 def getClusters(tilings, i):
     # Get points
@@ -224,6 +247,7 @@ def getClusters(tilings, i):
     groups = [tuple(x.intersection(lowerLayerPegPoints)) for x in groups]
     # groups should now be a list lists, where each list is all connected sets of bottom layer cubes
     return groups
+
 
 def distanceSqrd(A, B):
     ax, ay = A
@@ -316,19 +340,7 @@ def makeLayer(i, design):
 
 
 def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
-    # (numLayers, cancelled) = ui.inputBox('Enter number of layers in design', 'Number of Layers', '5')
-    # if cancelled:
-    #     return
-    # else:
-    #     numLayers = int(numLayers)
     numLayers = layerCnt
-    # (expansion, cancelled) = ui.inputBox('Enter expansion factor', 'expansion factor', '0.1')
-    # if cancelled:
-    #     return
-    # else:
-    #     expansion = float(expansion)
-
-    # Get the root component of the active design
     root = design.rootComponent
     rootComp = root
     beforeCnt = 0
@@ -347,9 +359,6 @@ def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
                 if flag:
                     flag = False
                 SplitBodies.add(brep)
-        # if beforeCnt == 1:
-        #     ui.messageBox('Only 1 component, nothing to do.')
-        #     return
 
         # Create sketch
         sketches = rootComp.sketches
@@ -370,13 +379,7 @@ def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
         health = planeOne.healthState
         if health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState or health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState:
             message = planeOne.errorOrWarningMessage
-            # splitBodies, splittingTool, isSplittingToolExtended
-        # SplitInput = root.features.splitBodyFeatures.createInput(SplitBodies, planeOne, True)
 
-        # # CombineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-        # SplitInput.operation = adsk.fusion.FeatureOperations.SplitBodies
-        # root.features.splitBodyFeatures.add(SplitInput)
-        # -----
         splitBodyFeats = rootComp.features.splitBodyFeatures
         splitBodyInput = splitBodyFeats.createInput(SplitBodies, planeOne, True)
         # Create split body feature
@@ -389,12 +392,9 @@ def SplitIntoLayers(app, ui, product, design, layerCnt, expansion):
         for brep in occ.bRepBodies:
             afterCnt += 1
 
-    # ui.messageBox(str(beforeCnt) + ' to ' + str(afterCnt) + ' bodies.')
-
 
 def MakeSolid(app, ui, product, design):
     fileDialog = ui.createFileDialog()
-    fileDialog.initialDirectory = r"C:\Users\Gabri\Documents\gitRepos\TAOCP\Volume 4\7.2.2.2"
     fileDialog.isMultiSelectEnabled = False
     fileDialog.title = "Select Game of Life binary to construct"
     fileDialog.filter = 'Binary files (*.bin)'
@@ -418,7 +418,9 @@ def MakeSolid(app, ui, product, design):
     component.name = "Life"
     lg = Life()
     lg.readSolution(path)
-    drawBase(design, (lg.game.height, lg.game.width), component, baseThickness=0.5)
+    origin = adsk.core.Point3D.create(-1, -1, -expansion - baseThickness)
+    dimensions = adsk.core.Point3D.create(lg.game.height + 2, lg.game.width + 2, baseThickness)
+    CreateCube(origin, dimensions, component, expand=False)
     LifeSTL(lg, render=False, des=design, component=component)
     return lg, expansion
 
@@ -458,14 +460,6 @@ def MergeComponent(app, ui, product, design, component):
 def drawBase(design, dimensions, component, baseThickness=1.0):
     # Get reference to the root component
     rootComp = design.rootComponent
-
-    # coordinates = [
-    #     0,0,0,
-    #     2,0,0,
-    #     1,1,0,
-    #     0,1,0,
-    #     0,0,0
-    # ]
     x = -1
     y = -1
     z = -expansion - baseThickness
@@ -515,44 +509,18 @@ def drawBase(design, dimensions, component, baseThickness=1.0):
 def drawCubes(design, argList, component):
     # Get reference to the root component
     rootComp = design.rootComponent
-
-    # # Create a new component
-    # occurrence = rootComp.occurrences.addNewComponent(adsk.core.Matrix3D.create())
-    # component = occurrence.component
-    # # Name the component
-    # component.name = "Layer"
-
-    # coordinates = [
-    #     0,0,0,
-    #     2,0,0,
-    #     1,1,0,
-    #     0,1,0,
-    #     0,0,0
-    # ]
     for flCorner, expansion in argList:
-        x = flCorner[0]
-        y = flCorner[1]
-        z = flCorner[2]
-        xm = x - expansion
-        ym = y - expansion
-        zm = z - expansion
-        xp = x + expansion + 1
-        yp = y + expansion + 1
-        zp = z + expansion + 1
-        coordinates = [
-            xm, ym, zm,
-            xp, ym, zm,
-            xp, yp, zm,
-            xm, yp, zm,
-            xm, ym, zm
-        ]
+        origin = adsk.core.Point3D.create(flCorner[0], flCorner[1], flCorner[2])
+        dimensions = adsk.core.Point3D.create(1, 1, 1)
 
-        CreateCube(coordinates, component, 1 + 2 * expansion)
+        CreateCube(origin, dimensions, component)
 
         # Call doEvents to give Fusion 360 a chance to react.
         adsk.doEvents()
 
-def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
+
+def CreateCube(origin, dim, component, expand=True, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
+    height, width, depth = (dim.x, dim.y, dim.z)
     # Get reference to the sketchs and plane
     sketches = component.sketches
     xyPlane = component.xYConstructionPlane
@@ -560,6 +528,27 @@ def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOper
     # Create a new sketch and get lines reference
     sketch = sketches.add(xyPlane)
     lines = sketch.sketchCurves.sketchLines
+
+    xm = origin.x
+    ym = origin.y
+    zm = origin.z
+    xp = origin.x + height
+    yp = origin.y + width
+    zp = origin.z + depth
+    if expand:
+        xm -= expansion
+        ym -= expansion
+        zm -= expansion
+        xp += expansion
+        yp += expansion
+        zp += expansion
+    coordinates = [
+        xm, ym, zm,
+        xp, ym, zm,
+        xp, yp, zm,
+        xm, yp, zm,
+        xm, ym, zm
+    ]
     i = 0
     while i < len(coordinates) - 3:
         point1 = adsk.core.Point3D.create(coordinates[i], coordinates[i + 1], coordinates[i + 2])
@@ -576,11 +565,42 @@ def CreateCube(coordinates, component, height, operation=adsk.fusion.FeatureOper
 
     # Create input object for the extrude feature
     extInput = extrudes.createInput(profile, operation)
-    distance = adsk.core.ValueInput.createByReal(height)
+    distance = adsk.core.ValueInput.createByReal(zp - zm)
     extInput.setDistanceExtent(False, distance)
 
     # Create extrusion
     extrudes.add(extInput)
+
+
+def CreateCylinder(origin, dim, component, operation=adsk.fusion.FeatureOperations.NewBodyFeatureOperation):
+    x, y, height = (dim.x, dim.y, dim.z)
+    radius = math.sqrt(x ** 2 + y ** 2)
+    # Get reference to the sketchs and plane
+    sketches = component.sketches
+    xyPlane = component.xYConstructionPlane
+
+    # Create a new sketch and get lines reference
+    sketch = sketches.add(xyPlane)
+    lines = sketch.sketchCurves.sketchLines
+
+    # Get extrude features
+    extrudes = component.features.extrudeFeatures
+
+    # Create sketch
+    sketches = component.sketches
+    sketch = sketches.add(component.xYConstructionPlane)
+    assert isinstance(sketch, adsk.fusion.Sketch)
+    sketchCircles = sketch.sketchCurves.sketchCircles
+    sketchCircles.addByCenterRadius(origin, radius)
+
+    # Get the profile defined by the circle
+    prof = sketch.profiles.item(0)
+
+    # Extrude Sample 1: A simple way of creating typical extrusions (extrusion that goes from the profile plane the specified distance).
+    # Define a distance extent of 5 cm
+    distance = adsk.core.ValueInput.createByReal(height)
+    extrudes.addSimple(prof, distance, operation)
+
 
 #
 
