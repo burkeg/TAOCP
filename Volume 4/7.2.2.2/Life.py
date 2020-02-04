@@ -333,7 +333,7 @@ class Life:
 
     def createSolutionDir(self):
         try:
-            os.mkdir(self.fname)
+            os.mkdir('Designs/' + self.fname)
         except OSError:
             print("Creation of the directory %s failed" % self.fname)
         else:
@@ -775,5 +775,5 @@ if __name__ == "__main__":
     #         'Jason'
     #     ]
     # for name in names:
-    Testing().GenerateTextSolutions('Fish', start=3, stop=4, solutionCap=1)
+    Testing().GenerateTextSolutions('.', start=1, stop=2, solutionCap=1)
     # Testing().GenerateFlowerSolutions()

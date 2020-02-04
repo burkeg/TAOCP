@@ -15,8 +15,25 @@ class Peg(Enum):
 
 expansion = 0.1
 translateDist = 4
-pegType = Peg.Round
+pegType = Peg.Keyhole
 baseThickness = 1
+
+keyholeParams = (0.4, 0.2, 0.1, 0.075, 0.15)
+# params: tuple of 5 values that define the shape of the keyhole
+# a = distance between major and minor circle
+# b = radius of major circle
+# c = radius of minor circle
+# d = thickness of overhang above cavity
+# e = depth of cavity
+
+keyParams = (0.1, 0.2, 0.15, 0.075)
+
+
+# params: tuple of 4 values that define the shape of the key
+# a = radius of minor circle
+# b = radius of major circle
+# c = height of key
+# d = thickness of top
 
 
 def main():
@@ -126,7 +143,18 @@ def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
             component=comp,
             operation=adsk.fusion.FeatureOperations.JoinFeatureOperation if isJoin else adsk.fusion.FeatureOperations.CutFeatureOperation)
     elif pegType == Peg.Keyhole:
-        pass
+        if isJoin:
+            a = keyholeParams[0]
+            createKey(
+                origin=adsk.core.Point3D.create(center.x + a / 2, center.y, center.z),
+                params=keyParams,
+                comp=comp
+            )
+        else:
+            createKeyhole(
+                origin=center,
+                params=keyholeParams,
+                comp=comp)
 
 
 # https://www.tinkeringmonkey.com/wp-content/uploads/2014/10/keyhole-slot.jpg
@@ -138,30 +166,81 @@ def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
 # d = thickness of overhang above cavity
 # e = depth of cavity
 def createKeyhole(origin, params, comp):
+    a, b, c, d, e = params
     # Clear hole for major circle with depth e
+    majCenter = adsk.core.Point3D.create(origin.x - a / 2, origin.y, origin.z)
+    majDims = adsk.core.Point3D.create(b, 0, e)
+    CreateCylinder(
+        origin=majCenter,
+        dim=majDims,
+        component=comp,
+        operation=adsk.fusion.FeatureOperations.CutFeatureOperation)
 
     # Clear out rectangle centered at origin with length a and width c to depth d
+    minSlotCenter = adsk.core.Point3D.create(origin.x - a / 2, origin.y - c, origin.z)
+    minSlotDims = adsk.core.Point3D.create(a, 2 * c, d)
+    CreateCube(
+        origin=minSlotCenter,
+        dim=minSlotDims,
+        component=comp,
+        expand=False,
+        operation=adsk.fusion.FeatureOperations.CutFeatureOperation)
 
     # Clear hole for minor circle with depth d
+    minCenter = adsk.core.Point3D.create(origin.x + a / 2, origin.y, origin.z)
+    minDims = adsk.core.Point3D.create(c, 0, d)
+    CreateCylinder(
+        origin=minCenter,
+        dim=minDims,
+        component=comp,
+        operation=adsk.fusion.FeatureOperations.CutFeatureOperation)
 
     # Clear out rectangle centered at origin with length a and width 2*b with from depth e to d
+    majSlotCenter = adsk.core.Point3D.create(origin.x - a / 2, origin.y - b, origin.z + d)
+    majSlotDims = adsk.core.Point3D.create(a, 2 * b, e - d)
+    CreateCube(
+        origin=majSlotCenter,
+        dim=majSlotDims,
+        component=comp,
+        expand=False,
+        operation=adsk.fusion.FeatureOperations.CutFeatureOperation)
 
     # Clear out circle centered under minor circle with radius b from depth e to d
-    pass
+    restingCenter = adsk.core.Point3D.create(origin.x + a / 2, origin.y, origin.z + d)
+    restingDims = adsk.core.Point3D.create(b, 0, e - d)
+    CreateCylinder(
+        origin=restingCenter,
+        dim=restingDims,
+        component=comp,
+        operation=adsk.fusion.FeatureOperations.CutFeatureOperation)
 
 
 # https://www.tinkeringmonkey.com/wp-content/uploads/2014/10/keyhole-slot.jpg
 # params: tuple of 4 values that define the shape of the key
-# a, b, c, d, e = params
+# a, b, c, d = params
 # a = radius of minor circle
 # b = radius of major circle
 # c = height of key
 # d = thickness of top
 def createKey(origin, params, comp):
-    # Create cylinder centered at origin with radius a and height c
+    a, b, c, d = params
+    # Create cylinder centered at origin with radius a and height (c-d)
+    minCenter = origin
+    minDims = adsk.core.Point3D.create(a, 0, c - d)
+    CreateCylinder(
+        origin=minCenter,
+        dim=minDims,
+        component=comp,
+        operation=adsk.fusion.FeatureOperations.JoinFeatureOperation)
 
-    # Create cylinder centered at origin with radius b from height (a-d) to a
-    pass
+    # Create cylinder centered at origin with radius b from height (c-d) to a
+    majCenter = adsk.core.Point3D.create(origin.x, origin.y, origin.z + (c - d))
+    majDims = adsk.core.Point3D.create(b, 0, d)
+    CreateCylinder(
+        origin=majCenter,
+        dim=majDims,
+        component=comp,
+        operation=adsk.fusion.FeatureOperations.JoinFeatureOperation)
 
 
 def getSurfaceCenter(row, col):
@@ -578,10 +657,6 @@ def CreateCylinder(origin, dim, component, operation=adsk.fusion.FeatureOperatio
     # Get reference to the sketchs and plane
     sketches = component.sketches
     xyPlane = component.xYConstructionPlane
-
-    # Create a new sketch and get lines reference
-    sketch = sketches.add(xyPlane)
-    lines = sketch.sketchCurves.sketchLines
 
     # Get extrude features
     extrudes = component.features.extrudeFeatures
