@@ -16,7 +16,7 @@ class Peg(Enum):
 expansion = 0.1
 translateDist = 4
 pegType = Peg.Keyhole
-baseThickness = 1
+baseThickness = 0.2
 
 keyholeParams = (0.4, 0.2, 0.1, 0.075, 0.15)
 # params: tuple of 5 values that define the shape of the keyhole
@@ -26,7 +26,7 @@ keyholeParams = (0.4, 0.2, 0.1, 0.075, 0.15)
 # d = thickness of overhang above cavity
 # e = depth of cavity
 
-keyParams = (0.1, 0.2, 0.15, 0.075)
+keyParams = (0.09, 0.15, 0.14, 0.05)
 
 
 # params: tuple of 4 values that define the shape of the key
@@ -123,6 +123,9 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
             addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=expansion * 0.95)
             addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
             addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
+
+            # Call doEvents to give Fusion 360 a chance to react.
+            adsk.doEvents()
 
 
 def addPegToComp(comp, center, isJoin, radius=0.15, height=0.2):
