@@ -6,6 +6,7 @@ import pycosat
 # import collections
 # import re
 import time
+import re
 import os
 
 from SATUtils import SATUtils, CNF, Clause, Literal, DSAT, Tseytin
@@ -46,7 +47,7 @@ class Testing:
             lifeGenerator = GenLife()
             life = lifeGenerator.textToLife(text)
             life.solutionCap = solutionCap
-            life.fname = text + str(i)
+            life.fname = re.sub('[^A-Za-z0-9]+', '', text) + str(i)
             life.findPreceding(i)
 
     def GenerateFlowerSolutions(self):
@@ -775,5 +776,5 @@ if __name__ == "__main__":
     #         'Jason'
     #     ]
     # for name in names:
-    Testing().GenerateTextSolutions('Jackson', start=1, stop=4, solutionCap=1)
+    Testing().GenerateTextSolutions("Where's the Gabeman?", start=1, stop=4, solutionCap=1)
     # Testing().GenerateFlowerSolutions()
