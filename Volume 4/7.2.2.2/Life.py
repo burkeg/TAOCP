@@ -775,5 +775,5 @@ if __name__ == "__main__":
     #         'Jason'
     #     ]
     # for name in names:
-    Testing().GenerateTextSolutions('Jackson', start=1, stop=4, solutionCap=1)
+    Testing().GenerateTextSolutions('Jackson', start=4, stop=8, solutionCap=1)
     # Testing().GenerateFlowerSolutions()

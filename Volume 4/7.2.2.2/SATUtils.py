@@ -9,7 +9,9 @@ import itertools
 sign = lambda x: x and (1, -1)[x < 0]
 
 class CNF:
-    def __init__(self, clauses=[]):
+    def __init__(self, clauses=None):
+        if clauses is None:
+            clauses = []
         # Make sure the incoming clauses are all Clause objects. If a list of integers
         # is passed in, this should create a list of Clause objects with the same values
         # and empty comments
@@ -122,6 +124,19 @@ class DSAT:
             DSAT(cnf).printCNF()
         else:
             DSAT(cnf).printCNF()
+
+class LiteralAllocator:
+    def __init__(self, startLiteral=1):
+        self._currLiteral = startLiteral
+
+    def getLiterals(self, numLiterals):
+        retval = [x for x in range(self._currLiteral, self._currLiteral + numLiterals)]
+        self._currLiteral += numLiterals
+        return retval
+
+    def getCurrLiteral(self):
+        return self._currLiteral
+
 
 
 class SATUtils:
