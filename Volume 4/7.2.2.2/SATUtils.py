@@ -46,6 +46,9 @@ class CNF:
                 varSet.add(abs(literal))
         return varSet
 
+    def __str__(self):
+        return '\n'.join([' '.join([str(x) for x in clause.literals]) for clause in self.clauses])
+
 
 class Clause:
     def __init__(self, literals=[], comment = '_', groupComment = '_'):
@@ -61,9 +64,15 @@ class Clause:
 
 
 class Literal:
-    def __init__(self, literal, comment = '_'):
+    def __init__(self, literal, comment= '_', shortName=None):
         self.value = literal
         self.comment = comment
+        self.shortName = shortName
+
+    def __str__(self):
+        if self.shortName != None:
+            return self.shortName if self.value > 0 else '-' + self.shortName
+        return str(self.value)
 
 # class for debugging SAT problems
 class DSAT:
@@ -130,6 +139,7 @@ class LiteralAllocator:
         self._currLiteral = startLiteral
 
     def getLiterals(self, numLiterals):
+        assert numLiterals >= 0
         retval = [x for x in range(self._currLiteral, self._currLiteral + numLiterals)]
         self._currLiteral += numLiterals
         return retval
@@ -229,7 +239,7 @@ class SATUtils:
     # only SAT when one or less literals are true. Auxiliary literals start at
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
-    def oneOrLess(inLiterals, startLiteral = None):
+    def oneOrLess(inLiterals, startLiteral = None, forceInefficient=False):
         clauses = []
         if startLiteral == None:
             startLiteral = max([abs(x) for x in inLiterals]) + 1
@@ -237,7 +247,7 @@ class SATUtils:
             # A set of one literals always has 1 or less true literals
             # so an empty set of clauses is returned (Always SAT)
             return ([], inLiterals[0])
-        if len(inLiterals) <= 4:
+        if len(inLiterals) <= 4 or forceInefficient:
             # for each pair of inLiterals, ensure no two are True
             for k in range(2, len(inLiterals)+1):
                 for j in range(1, k):
