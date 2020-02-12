@@ -23,6 +23,17 @@ class Mutex(ABC):
         self.stateShapes = None
         self.literalMapping = dict()
 
+    def GenClauses(self):
+        self.ConfigureStateShape()
+        self.ConfigureStateLiterals()
+        self.CreateVariables()
+        self.GenSTLClauses()
+        self.DecorateSTLClauses()
+        self.GenStateExclusionClauses()
+        self.AssertInitState()
+        self.AssertCriticalSectionsOverlap()
+        self.RecordLiteralMappings()
+
     def RecordLiteralMappings(self):
         # traverse state variables
         # example A4_8
@@ -47,29 +58,20 @@ class Mutex(ABC):
                 literal.shortName = self.literalMapping[abs(literal.value)]
 
     def Solve(self):
-        for solution in pycosat.itersolve(self.cnf.rawCNF()):
-            print(solution)
+        if pycosat.solve(self.cnf.rawCNF()) != 'UNSAT':
+            print('Critical section hit by both threads after ' + str(self.r) + ' or less time steps.')
+        else:
+            print('Impossible for both threads to enter critical section after ' + str(self.r) + ' time steps.')
 
     def SetStateLiterals(self, stateNums):
         for stateName, stateAmt in stateNums:
             self.stateLiterals[stateName] = self.la.getLiterals(stateAmt)
 
-    def GenClauses(self):
-        self.ConfigureStateShape()
-        self.ConfigureStateLiterals()
-        self.CreateVariables()
-        self.GenSTLClauses()
-        self.DecorateSTLClauses()
-        self.GenStateExclusionClauses()
-        self.AssertInitState()
-        self.AssertCriticalSectionsOverlap()
-        self.RecordLiteralMappings()
-
     def AssertInitState(self):
         # all variables start at 0
         for variableName, literalsAtTimet in self.variables.items():
             self.cnf.addClause(Clause(
-                literals=[literalsAtTimet[0]],
+                literals=[-literalsAtTimet[0]],
                 comment='Assert variable ' + variableName + ' is initialized to false.'))
 
         # All states at t=0 are off except for each program's state 0.
@@ -90,13 +92,15 @@ class Mutex(ABC):
             for i, clauses in enumerate(timestepClauses):
                 for clause in clauses:
                     newClause = Clause(
-                        literals=[self.bumpers[i]*self.bumperMapping[stateName]] + clause,
+                        literals=[self.bumpers[i]*-self.bumperMapping[stateName]] + clause,
                         comment='Logic for progressing [' + stateName + '] at time ' + str(i) + '.')
                     self.cnf.addClause(newClause)
 
     def GenStateExclusionClauses(self):
         for stateName, literalsAtTimet in self.stateLiterals.items():
-            for t, literals in enumerate(literalsAtTimet[:-1]):
+            for t, literals in enumerate(literalsAtTimet):
+                if t == 0:
+                    continue
                 clauses, _ = SATUtils.oneOrLess(inLiterals=literals, startLiteral=self.la.getCurrLiteral(), forceInefficient=True)
                 for clause in clauses:
                     self.cnf.addClause(Clause(clause, comment='State [' + stateName + '] binary exclusion clause for time ' + str(t) + '.'))
@@ -177,7 +181,7 @@ class Protocol40(Mutex):
             for stateName, numStates in self.stateShapes:
                 for stateNum in range(numStates):
                     # When a thread isn't bumped it better be in the same state at t+1
-                    self.stlClauses['B' if stateName == 'A' else 'B'][t].append(
+                    self.stlClauses['B' if stateName == 'A' else 'A'][t].append(
                         [-self.stateLiterals[stateName][t][stateNum],
                          self.stateLiterals[stateName][t+1][stateNum]])
 
@@ -283,7 +287,7 @@ class Protocol40(Mutex):
             raise Exception('Expected ' + str(11 + self.r * 12 + 1) + ' literals, generated ' + str(self.la.getCurrLiteral()))
 
 if __name__ == '__main__':
-    m = Protocol40(1)
-    print(m.cnf)
+    m = Protocol40(5)
+    # print(m.cnf)
     # pp.pprint(m.literalMapping)
-    # m.Solve()
+    m.Solve()

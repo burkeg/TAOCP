@@ -47,7 +47,7 @@ class CNF:
         return varSet
 
     def __str__(self):
-        return '\n'.join([' '.join([str(x) for x in clause.literals]) for clause in self.clauses])
+        return '\n'.join(sorted([' '.join([str(x) for x in clause.literals]) for clause in self.clauses]))
 
 
 class Clause:
