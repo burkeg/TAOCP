@@ -157,85 +157,85 @@ class Protocol40(Mutex):
                 [self.variables['l'][t],
                  self.stateLiterals['A'][t][2],
                  self.stateLiterals['A'][t][4],
-                 -self.variables['l'][t+1]])
+                 -self.variables['l'][t + 1]])
             # if l is false outside of A2 or A4, it better stay false at t+1
             self.stlClauses['A'][t].append(
                 [-self.variables['l'][t],
                  self.stateLiterals['A'][t][2],
                  self.stateLiterals['A'][t][4],
-                 self.variables['l'][t+1]])
+                 self.variables['l'][t + 1]])
 
             # if l is true outside of B2 or B4, it better stay true at t+1
             self.stlClauses['B'][t].append(
                 [self.variables['l'][t],
                  self.stateLiterals['B'][t][2],
                  self.stateLiterals['B'][t][4],
-                 -self.variables['l'][t+1]])
+                 -self.variables['l'][t + 1]])
             # if l is false outside of B2 or B4, it better stay false at t+1
             self.stlClauses['B'][t].append(
                 [-self.variables['l'][t],
                  self.stateLiterals['B'][t][2],
                  self.stateLiterals['B'][t][4],
-                 self.variables['l'][t+1]])
+                 self.variables['l'][t + 1]])
 
             for stateName, numStates in self.stateShapes:
                 for stateNum in range(numStates):
                     # When a thread isn't bumped it better be in the same state at t+1
                     self.stlClauses['B' if stateName == 'A' else 'A'][t].append(
                         [-self.stateLiterals[stateName][t][stateNum],
-                         self.stateLiterals[stateName][t+1][stateNum]])
+                         self.stateLiterals[stateName][t + 1][stateNum]])
 
                     if stateName == 'A':
                         if stateNum == 0:
                             # A0. Maybe go to A1.
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][0],
-                                 self.stateLiterals['A'][t+1][0],
-                                 self.stateLiterals['A'][t+1][1]])
+                                 self.stateLiterals['A'][t + 1][0],
+                                 self.stateLiterals['A'][t + 1][1]])
                         elif stateNum == 1:
                             # A1. If l go to A1, else to A2.
                             # go to A1
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][1],
                                  -self.variables['l'][t],
-                                 self.stateLiterals['A'][t+1][1]])
+                                 self.stateLiterals['A'][t + 1][1]])
                             # else go to A2
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][1],
                                  self.variables['l'][t],
-                                 self.stateLiterals['A'][t+1][2]])
+                                 self.stateLiterals['A'][t + 1][2]])
                         elif stateNum == 2:
                             # A2. Set l <- 1 , go to A3.
                             # go to A3
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][2],
-                                 self.stateLiterals['A'][t+1][3]])
+                                 self.stateLiterals['A'][t + 1][3]])
                             # Set l <- 1
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][2],
-                                 self.variables['l'][t+1]])
+                                 self.variables['l'][t + 1]])
                         elif stateNum == 3:
                             # A3. Critical, go to A4.
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][3],
-                                 self.stateLiterals['A'][t+1][4]])
+                                 self.stateLiterals['A'][t + 1][4]])
                         elif stateNum == 4:
                             # A4. Set l <- 0, go to A0.
                             # go to A0
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][4],
-                                 self.stateLiterals['A'][t+1][0]])
+                                 self.stateLiterals['A'][t + 1][0]])
                             # Set l <- 0
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['A'][t][4],
-                                 -self.variables['l'][t+1]])
+                                 -self.variables['l'][t + 1]])
                     elif stateName == 'B':
                         if stateNum == 0:
                             # B0. Maybe go to B1.
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][0],
-                                 self.stateLiterals['B'][t+1][0],
-                                 self.stateLiterals['B'][t+1][1]])
+                                 self.stateLiterals['B'][t + 1][0],
+                                 self.stateLiterals['B'][t + 1][1]])
                         elif stateNum == 1:
                             # B1. If l go to B1, else to B2.
 
@@ -243,37 +243,37 @@ class Protocol40(Mutex):
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][1],
                                  -self.variables['l'][t],
-                                 self.stateLiterals['B'][t+1][1]])
+                                 self.stateLiterals['B'][t + 1][1]])
                             # else go to B2
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][1],
                                  self.variables['l'][t],
-                                 self.stateLiterals['B'][t+1][2]])
+                                 self.stateLiterals['B'][t + 1][2]])
                         elif stateNum == 2:
                             # B2. Set l <- 1, go to B3.
                             # go to B3
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][2],
-                                 self.stateLiterals['B'][t+1][3]])
+                                 self.stateLiterals['B'][t + 1][3]])
                             # Set l <- 1
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][2],
-                                 self.variables['l'][t+1]])
+                                 self.variables['l'][t + 1]])
                         elif stateNum == 3:
                             # B3. Critical, go to B4.
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][3],
-                                 self.stateLiterals['B'][t+1][4]])
+                                 self.stateLiterals['B'][t + 1][4]])
                         elif stateNum == 4:
                             # B4. Set l <- 0, go to B0.
                             # go to B0
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][4],
-                                 self.stateLiterals['B'][t+1][0]])
+                                 self.stateLiterals['B'][t + 1][0]])
                             # Set l <- 0
                             self.stlClauses[stateName][t].append(
                                 [-self.stateLiterals['B'][t][4],
-                                 -self.variables['l'][t+1]])
+                                 -self.variables['l'][t + 1]])
 
     def ConfigureStateShape(self):
         self.stateShapes = (('A', 5), ('B', 5))
@@ -282,12 +282,142 @@ class Protocol40(Mutex):
 
     def Check(self):
         if len(self.cnf.clauses) != 13 + self.r * 50:
-            raise Exception('Expected ' + str(13 + self.r*50) + ' clauses, generated ' + str(len(self.cnf.clauses)))
+            raise Exception('Expected ' + str(13 + self.r * 50) + ' clauses, generated ' + str(len(self.cnf.clauses)))
         if self.la.getCurrLiteral() != 11 + self.r * 12 + 1:
-            raise Exception('Expected ' + str(11 + self.r * 12 + 1) + ' literals, generated ' + str(self.la.getCurrLiteral()))
+            raise Exception(
+                'Expected ' + str(11 + self.r * 12 + 1) + ' literals, generated ' + str(self.la.getCurrLiteral()))
+
+
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. If l go to A2, else to A1.    B1. If l go to B1 else, to B2.
+# A2. Critical, go to A3.           B2. Critical, go to B3.
+# A3. Set l <- 0, go to A0.         B3. Set l <- 1, go to B0.
+class Protocol43(Mutex):
+    def __init__(self, r=5):
+        super().__init__(r)
+        super().GenClauses()
+        # self.Check()
+
+    def CreateVariables(self):
+        # only 1 variable, l
+        self.variables['l'] = self.la.getLiterals(self.r + 1)
+
+    def AssertCriticalSectionsOverlap(self):
+        # assert A is in the critical section at the same time as B
+        self.cnf.addClause(Clause(literals=[self.stateLiterals['A'][self.r][2]]))
+        self.cnf.addClause(Clause(literals=[self.stateLiterals['B'][self.r][2]]))
+
+    def GenSTLClauses(self):
+        self.stlClauses['A'] = [[] for t in range(self.r)]
+        self.stlClauses['B'] = [[] for t in range(self.r)]
+        for t in range(self.r):
+            # if l is true outside of A3, it better stay true at t+1
+            self.stlClauses['A'][t].append(
+                [self.variables['l'][t],
+                 self.stateLiterals['A'][t][3],
+                 -self.variables['l'][t + 1]])
+            # if l is false outside of A3, it better stay false at t+1
+            self.stlClauses['A'][t].append(
+                [-self.variables['l'][t],
+                 self.stateLiterals['A'][t][3],
+                 self.variables['l'][t + 1]])
+
+            # if l is true outside of B3, it better stay true at t+1
+            self.stlClauses['B'][t].append(
+                [self.variables['l'][t],
+                 self.stateLiterals['B'][t][3],
+                 -self.variables['l'][t + 1]])
+            # if l is false outside of B3, it better stay false at t+1
+            self.stlClauses['B'][t].append(
+                [-self.variables['l'][t],
+                 self.stateLiterals['B'][t][3],
+                 self.variables['l'][t + 1]])
+
+            for stateName, numStates in self.stateShapes:
+                for stateNum in range(numStates):
+                    # When a thread isn't bumped it better be in the same state at t+1
+                    self.stlClauses['B' if stateName == 'A' else 'A'][t].append(
+                        [-self.stateLiterals[stateName][t][stateNum],
+                         self.stateLiterals[stateName][t + 1][stateNum]])
+
+                    if stateName == 'A':
+                        if stateNum == 0:
+                            # A0. Maybe go to A1.
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][0],
+                                 self.stateLiterals['A'][t + 1][0],
+                                 self.stateLiterals['A'][t + 1][1]])
+                        elif stateNum == 1:
+                            # A1. If l go to A2, else to A1.
+                            # go to A2
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][1],
+                                 -self.variables['l'][t],
+                                 self.stateLiterals['A'][t + 1][2]])
+                            # else go to A1
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][1],
+                                 self.variables['l'][t],
+                                 self.stateLiterals['A'][t + 1][1]])
+                        elif stateNum == 2:
+                            # A2. Critical, go to A3.
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][2],
+                                 self.stateLiterals['A'][t + 1][3]])
+                        elif stateNum == 3:
+                            # A3. Set l <- 0, go to A0.
+                            # go to A0
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][3],
+                                 self.stateLiterals['A'][t + 1][0]])
+                            # Set l <- 0
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['A'][t][3],
+                                 -self.variables['l'][t + 1]])
+                    elif stateName == 'B':
+                        if stateNum == 0:
+                            # B0. Maybe go to B1.
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][0],
+                                 self.stateLiterals['B'][t + 1][0],
+                                 self.stateLiterals['B'][t + 1][1]])
+                        elif stateNum == 1:
+                            # B1. If l go to B1, else to B2.
+
+                            # go to B1
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][1],
+                                 -self.variables['l'][t],
+                                 self.stateLiterals['B'][t + 1][1]])
+                            # else go to B2
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][1],
+                                 self.variables['l'][t],
+                                 self.stateLiterals['B'][t + 1][2]])
+                        elif stateNum == 2:
+                            # B2. Critical, go to B3.
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][2],
+                                 self.stateLiterals['B'][t + 1][3]])
+                        elif stateNum == 3:
+                            # B3. Set l <- 1, go to B0.
+                            # go to B0
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][3],
+                                 self.stateLiterals['B'][t + 1][0]])
+                            # Set l <- 0
+                            self.stlClauses[stateName][t].append(
+                                [-self.stateLiterals['B'][t][3],
+                                 self.variables['l'][t + 1]])
+
+    def ConfigureStateShape(self):
+        self.stateShapes = (('A', 4), ('B', 4))
+        self.bumperMapping['A'] = 1
+        self.bumperMapping['B'] = -1
+
 
 if __name__ == '__main__':
-    m = Protocol40(5)
+    m = Protocol43(100)
     # print(m.cnf)
     # pp.pprint(m.literalMapping)
     m.Solve()
