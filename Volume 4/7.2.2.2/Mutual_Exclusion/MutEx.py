@@ -105,7 +105,8 @@ class Mutex(ABC):
             t, states = stateInfo
             t, variables = variableInfo
             state1, state2 = sorted(states)
-            print(state1[0] + state1[1] + '\t' + state2[0] + state2[1] + '\t' +
+            print('t' + t + ':\t' +
+                state1[0] + state1[1] + '\t' + state2[0] + state2[1] + '\t' +
                   '\t'.join([('' if truthVal else '-') + variable for variable, truthVal in sorted(variables)]))
 
 
@@ -1070,7 +1071,7 @@ class Protocol45(Mutex):
 def DoStuff():
     # m = Protocol45_shorter(5)
     # m.Solve()
-    m = Protocol45_shorter(6)
+    m = Protocol40_shorter(6)
     m.Solve()
     # m = Protocol45_shorter(100)
     # m.Solve()
