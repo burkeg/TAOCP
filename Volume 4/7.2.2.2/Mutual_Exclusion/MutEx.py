@@ -4,6 +4,7 @@ import pprint as pp
 import pycosat
 from enum import Enum
 import collections
+import re
 
 Operation = collections.namedtuple('Operation', 'stateName stateNum optype fields')
 
@@ -32,6 +33,7 @@ class Mutex(ABC):
         self.stlClauses = dict()
         self.stateShapes = None
         self.literalMapping = dict()
+        self.counterExample = None
 
     def GenClauses(self):
         self.ConfigureStateShape()
@@ -68,10 +70,45 @@ class Mutex(ABC):
                 literal.shortName = self.literalMapping[abs(literal.value)]
 
     def Solve(self):
-        if pycosat.solve(self.cnf.rawCNF()) != 'UNSAT':
+        solution = pycosat.solve(self.cnf.rawCNF())
+        if solution != 'UNSAT':
+            self.ShowCounterExample()
             print('Critical section hit by both threads after ' + str(self.r) + ' or less time steps.')
         else:
             print('Impossible for both threads to enter critical section after ' + str(self.r) + ' time steps.')
+
+    def ShowCounterExample(self):
+        solution = pycosat.solve(self.cnf.rawCNF())
+        if solution == 'UNSAT':
+            print('Impossible for both threads to enter critical section after ' + str(self.r) + ' time steps.')
+            return
+
+        trueStates = dict()
+        variableStates = dict()
+        for literal in solution:
+            literalStr = self.literalMapping[abs(literal)]
+            m = re.search('([a-z]+)_(\d+)', literalStr)
+            if m is not None:
+                variableName = m.group(1)
+                t = m.group(2)
+                variableStates.setdefault(t, []).append((variableName, literal > 0))
+            if literal > 0:
+                literalStr = self.literalMapping[literal]
+                m = re.search('([A-Z]+)(\d+)_(\d+)', literalStr)
+                if m is not None:
+                    stateName = m.group(1)
+                    stateNum = m.group(2)
+                    t = m.group(3)
+                    trueStates.setdefault(t, []).append((stateName, stateNum))
+        print('State transitions:')
+        for stateInfo, variableInfo in zip(trueStates.items(), variableStates.items()):
+            t, states = stateInfo
+            t, variables = variableInfo
+            state1, state2 = sorted(states)
+            print(state1[0] + state1[1] + '\t' + state2[0] + state2[1] + '\t' +
+                  '\t'.join([('' if truthVal else '-') + variable for variable, truthVal in sorted(variables)]))
+
+
 
     def SetStateLiterals(self, stateNums):
         for stateName, stateAmt in stateNums:
@@ -296,6 +333,11 @@ class Protocol(Mutex):
                     #     [-self.stateLiterals['A'][t][3],
                     #      self.stateLiterals['A'][t + 1][4]])
 
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. If l go to A1, else to A2.    B1. If l go to B1, else to B2.
+# A2. Set l <- 1 , go to A3.        B2. Set l <- 1, go to B3.
+# A3. Critical, go to A4.           B3. Critical, go to B4.
+# A4. Set l <- 0, go to A0.         B4. Set l <- 0, go to B0.
 class Protocol40_shorter(Protocol):
     def __init__(self, r=5):
         ops = [
@@ -313,7 +355,7 @@ class Protocol40_shorter(Protocol):
         super().__init__(ops, r)
 
 # A0. Maybe go to A1.               B0. Maybe go to B1.
-# A1. If l go to A1, else to A2.    B1. If l go to B1 else, to B2.
+# A1. If l go to A1, else to A2.    B1. If l go to B1, else to B2.
 # A2. Set l <- 1 , go to A3.        B2. Set l <- 1, go to B3.
 # A3. Critical, go to A4.           B3. Critical, go to B4.
 # A4. Set l <- 0, go to A0.         B4. Set l <- 0, go to B0.
@@ -473,7 +515,25 @@ class Protocol40(Mutex):
 
 
 # A0. Maybe go to A1.               B0. Maybe go to B1.
-# A1. If l go to A2, else to A1.    B1. If l go to B1 else, to B2.
+# A1. If l go to A2, else to A1.    B1. If l go to B1, else to B2.
+# A2. Critical, go to A3.           B2. Critical, go to B3.
+# A3. Set l <- 0, go to A0.         B3. Set l <- 1, go to B0.
+class Protocol43_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.IFGOELSE, fields=('l', 'A2', 'A1',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.CRITICAL, fields=('A3',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.SETGO, fields=('l', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.IFGOELSE, fields=('l', 'B1', 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.CRITICAL, fields=('B3',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.SETGO, fields=('l', True, 'B0',)),
+        ]
+        super().__init__(ops, r)
+        
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. If l go to A2, else to A1.    B1. If l go to B1, else to B2.
 # A2. Critical, go to A3.           B2. Critical, go to B3.
 # A3. Set l <- 0, go to A0.         B3. Set l <- 1, go to B0.
 class Protocol43(Mutex):
@@ -599,6 +659,27 @@ class Protocol43(Mutex):
         self.bumperMapping['A'] = 1
         self.bumperMapping['B'] = -1
 
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. If b go to A1, else to A2.    B1. If a go to B1, else to B2.
+# A2. Set a <- 1 , go to A3.        B2. Set b <- 1, go to B3.
+# A3. Critical, go to A4.           B3. Critical, go to B4.
+# A4. Set a <- 0, go to A0.         B4. Set b <- 0, go to B0.
+class Protocol44_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.IFGOELSE, fields=('b', 'A1', 'A2',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.SETGO, fields=('a', True, 'A3',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.CRITICAL, fields=('A4',)),
+            Operation(stateName='A', stateNum=4, optype=OperationType.SETGO, fields=('a', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.IFGOELSE, fields=('a', 'B1', 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.SETGO, fields=('b', True, 'B3',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.CRITICAL, fields=('B4',)),
+            Operation(stateName='B', stateNum=4, optype=OperationType.SETGO, fields=('b', False, 'B0',)),
+        ]
+        super().__init__(ops, r)
+        
 # A0. Maybe go to A1.               B0. Maybe go to B1.
 # A1. If b go to A1, else to A2.    B1. If a go to B1, else to B2.
 # A2. Set a <- 1 , go to A3.        B2. Set b <- 1, go to B3.
@@ -787,6 +868,27 @@ class Protocol44(Mutex):
 # A2. If b go to A2, else to A3.    B2. If a go to B2, else to B3.
 # A3. Critical, go to A4.           B3. Critical, go to B4.
 # A4. Set a <- 0, go to A0.         B4. Set b <- 0, go to B0.
+class Protocol45_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.SETGO, fields=('a', True, 'A2',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.IFGOELSE, fields=('b', 'A2', 'A3',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.CRITICAL, fields=('A4',)),
+            Operation(stateName='A', stateNum=4, optype=OperationType.SETGO, fields=('a', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.SETGO, fields=('b', True, 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.IFGOELSE, fields=('a', 'B2', 'B3',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.CRITICAL, fields=('B4',)),
+            Operation(stateName='B', stateNum=4, optype=OperationType.SETGO, fields=('b', False, 'B0',)),
+        ]
+        super().__init__(ops, r)
+        
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. Set a <- 1 , go to A2.        B1. Set b <- 1, go to B2.
+# A2. If b go to A2, else to A3.    B2. If a go to B2, else to B3.
+# A3. Critical, go to A4.           B3. Critical, go to B4.
+# A4. Set a <- 0, go to A0.         B4. Set b <- 0, go to B0.
 class Protocol45(Mutex):
     def __init__(self, r=5):
         super().__init__(r)
@@ -966,10 +1068,12 @@ class Protocol45(Mutex):
         self.bumperMapping['B'] = -1
 
 def DoStuff():
-    m = Protocol40_shorter(5)
+    # m = Protocol45_shorter(5)
+    # m.Solve()
+    m = Protocol45_shorter(6)
     m.Solve()
-    m = Protocol40_shorter(6)
-    m.Solve()
+    # m = Protocol45_shorter(100)
+    # m.Solve()
     # for i in range(10):
     #     m = Protocol45(i)
     #     # print(m.cnf)
