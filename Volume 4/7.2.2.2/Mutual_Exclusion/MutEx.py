@@ -2,6 +2,16 @@ from abc import ABC, abstractmethod
 from SATUtils import SATUtils, Clause, CNF, LiteralAllocator
 import pprint as pp
 import pycosat
+from enum import Enum
+import collections
+
+Operation = collections.namedtuple('Operation', 'stateName stateNum optype fields')
+
+class OperationType(Enum):
+    MAYBE = 0
+    CRITICAL = 1
+    SETGO = 2
+    IFGOELSE = 3
 
 class Mutex(ABC):
     def __init__(self, r=1):
@@ -127,6 +137,180 @@ class Mutex(ABC):
     def AssertCriticalSectionsOverlap(self):
         raise NotImplemented("Implement me please.")
 
+class Protocol(Mutex):
+    def __init__(self, procedure, r=5):
+        assert len(procedure) != 0
+        for op in procedure:
+            assert isinstance(op, Operation)
+        super().__init__(r)
+        self.procedure = procedure
+        super().GenClauses()
+
+    def CreateVariables(self):
+        foundVariables = set()
+        for operation in self.procedure:
+            if operation.optype == OperationType.IFGOELSE or operation.optype == OperationType.SETGO:
+                foundVariables.add(operation.fields[0])
+
+        for variable in foundVariables:
+            self.variables[variable] = self.la.getLiterals(self.r + 1)
+
+    def AssertCriticalSectionsOverlap(self):
+        for operation in self.procedure:
+            if operation.optype == OperationType.CRITICAL:
+                stateName = operation.stateName
+                stateNum = operation.stateNum
+                self.cnf.addClause(Clause(literals=[self.stateLiterals[stateName][self.r][stateNum]]))
+
+    def ConfigureStateShape(self):
+        stateCount = dict()
+        for op in self.procedure:
+            stateCount.setdefault(op.stateName, [0])[0] += 1
+        self.stateShapes = []
+        for stateName, stateCnts in stateCount.items():
+            self.stateShapes.append((stateName, stateCnts[0]))
+        self.bumperMapping[self.stateShapes[0][0]] = 1
+        self.bumperMapping[self.stateShapes[1][0]] = -1
+
+    def GenSTLClauses(self):
+        self.stlClauses[self.stateShapes[0][0]] = [[] for t in range(self.r)]
+        self.stlClauses[self.stateShapes[1][0]] = [[] for t in range(self.r)]
+        # self.stlClauses['A'] = [[] for t in range(self.r)]
+        # self.stlClauses['B'] = [[] for t in range(self.r)]
+        for t in range(self.r):
+            variableChangingStates = dict()
+            for op in self.procedure:
+                if op.optype == OperationType.SETGO:
+                    variableChangingStates.setdefault((op.fields[0], op.stateName), []).append(op.stateNum)
+
+            for key, stateNums in variableChangingStates.items():
+                variable, stateName = key
+                clauseTrue = [self.variables[variable][t],
+                    -self.variables[variable][t + 1]]
+                clauseFalse = [-self.variables[variable][t],
+                    self.variables[variable][t + 1]]
+                clauseState = []
+                for stateNum in stateNums:
+                    clauseState.append(self.stateLiterals[stateName][t][stateNum])
+                # if variable is true outside of changing states, it better stay true at t+1
+                self.stlClauses[stateName][t].append(clauseTrue + clauseState)
+                # if variable is false outside of changing states, it better stay true at t+1
+                self.stlClauses[stateName][t].append(clauseFalse + clauseState)
+
+
+
+            # if variable is true outside of changing states, it better stay true at t+1
+            # self.stlClauses['A'][t].append(
+            #     [self.variables['l'][t],
+            #      self.stateLiterals['A'][t][2],
+            #      self.stateLiterals['A'][t][4],
+            #      -self.variables['l'][t + 1]])
+
+            for op in self.procedure:
+                currState = op.stateName
+                otherState = self.stateShapes[0][0] if currState != self.stateShapes[0][0] else self.stateShapes[1][0]
+                # When a thread isn't bumped it better be in the same state at t+1
+                self.stlClauses[otherState][t].append(
+                    [-self.stateLiterals[op.stateName][t][op.stateNum],
+                     self.stateLiterals[op.stateName][t + 1][op.stateNum]])
+
+                if op.optype == OperationType.MAYBE:
+                    (nextState,) = op.fields
+                    nextStateName = nextState[0]
+                    nextStateNum = int(nextState[1])
+                    # CurrentState. Maybe go to state.
+                    self.stlClauses[op.stateName][t].append(
+                        [-self.stateLiterals[op.stateName][t][op.stateNum],
+                         self.stateLiterals[op.stateName][t + 1][op.stateNum],
+                         self.stateLiterals[nextStateName][t + 1][nextStateNum]])
+                    # A0. Maybe go to A1.
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][0],
+                    #      self.stateLiterals['A'][t + 1][0],
+                    #      self.stateLiterals['A'][t + 1][1]])
+                elif op.optype == OperationType.IFGOELSE:
+                    (variable, ifState, elseState) = op.fields
+                    ifStateName = ifState[0]
+                    ifStateNum = int(ifState[1])
+                    elseStateName = elseState[0]
+                    elseStateNum = int(elseState[1])
+                    # CurrentState. If variable go to state, else to other state.
+                    # go to state
+                    self.stlClauses[op.stateName][t].append(
+                        [-self.stateLiterals[op.stateName][t][op.stateNum],
+                         -self.variables[variable][t],
+                         self.stateLiterals[ifStateName][t + 1][ifStateNum]])
+                    # else go to other state
+                    self.stlClauses[op.stateName][t].append(
+                        [-self.stateLiterals[op.stateName][t][op.stateNum],
+                         self.variables[variable][t],
+                         self.stateLiterals[elseStateName][t + 1][elseStateNum]])
+                    # # A1. If l go to A1, else to A2.
+                    # # go to A1
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][1],
+                    #      -self.variables['l'][t],
+                    #      self.stateLiterals['A'][t + 1][1]])
+                    # # else go to A2
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][1],
+                    #      self.variables['l'][t],
+                    #      self.stateLiterals['A'][t + 1][2]])
+                elif op.optype == OperationType.SETGO:
+                    (variable, truthVal, goState) = op.fields
+                    goStateName = goState[0]
+                    goStateNum = int(goState[1])
+                    # CurrentState. Set variable <- truthVal , go to goState.
+                    # go to goState
+                    self.stlClauses[op.stateName][t].append(
+                        [-self.stateLiterals[op.stateName][t][op.stateNum],
+                         self.stateLiterals[goStateName][t + 1][goStateNum]])
+                    # Set variable <- truthVal
+                    if truthVal:
+                        self.stlClauses[stateName][t].append(
+                            [-self.stateLiterals[op.stateName][t][op.stateNum],
+                             self.variables[variable][t + 1]])
+                    else:
+                        self.stlClauses[stateName][t].append(
+                            [-self.stateLiterals[op.stateName][t][op.stateNum],
+                             -self.variables[variable][t + 1]])
+                    # # A2. Set l <- 1 , go to A3.
+                    # # go to A3
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][2],
+                    #      self.stateLiterals['A'][t + 1][3]])
+                    # # Set l <- 1
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][2],
+                    #      self.variables['l'][t + 1]])
+                elif op.optype == OperationType.CRITICAL:
+                    (goState,) = op.fields
+                    nextStateName = goState[0]
+                    nextStateNum = int(goState[1])
+                    # A3. Critical, go to A4.
+                    self.stlClauses[op.stateName][t].append(
+                        [-self.stateLiterals[op.stateName][t][op.stateNum],
+                         self.stateLiterals[nextStateName][t + 1][nextStateNum]])
+                    # # A3. Critical, go to A4.
+                    # self.stlClauses[stateName][t].append(
+                    #     [-self.stateLiterals['A'][t][3],
+                    #      self.stateLiterals['A'][t + 1][4]])
+
+class Protocol40_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.IFGOELSE, fields=('l', 'A1', 'A2',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.SETGO, fields=('l', True, 'A3',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.CRITICAL, fields=('A4',)),
+            Operation(stateName='A', stateNum=4, optype=OperationType.SETGO, fields=('l', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.IFGOELSE, fields=('l', 'B1', 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.SETGO, fields=('l', True, 'B3',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.CRITICAL, fields=('B4',)),
+            Operation(stateName='B', stateNum=4, optype=OperationType.SETGO, fields=('l', False, 'B0',)),
+        ]
+        super().__init__(ops, r)
 
 # A0. Maybe go to A1.               B0. Maybe go to B1.
 # A1. If l go to A1, else to A2.    B1. If l go to B1 else, to B2.
@@ -782,11 +966,15 @@ class Protocol45(Mutex):
         self.bumperMapping['B'] = -1
 
 def DoStuff():
-    for i in range(10):
-        m = Protocol45(i)
-        # print(m.cnf)
-        # pp.pprint(m.literalMapping)
-        m.Solve()
+    m = Protocol40_shorter(5)
+    m.Solve()
+    m = Protocol40_shorter(6)
+    m.Solve()
+    # for i in range(10):
+    #     m = Protocol45(i)
+    #     # print(m.cnf)
+    #     # pp.pprint(m.literalMapping)
+    #     m.Solve()
 
 
 if __name__ == '__main__':
