@@ -1102,10 +1102,63 @@ class Protocol45(Mutex):
         self.bumperMapping['A'] = 1
         self.bumperMapping['B'] = -1
 
+
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. Set a <- 1 , go to A2.        B1. Set b <- 1, go to B2.
+# A2. If b go to A3, else to A4.    B2. If a go to B3, else to B4.
+# A3. Set a <- 0 , go to A1.        B1. Set b <- 0, go to B1.
+# A4. Critical, go to A5.           B3. Critical, go to B5.
+# A5. Set a <- 0, go to A0.         B4. Set b <- 0, go to B0.
+class Protocol46_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.SETGO, fields=('a', True, 'A2',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.IFGOELSE, fields=('b', 'A3', 'A4',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.SETGO, fields=('a', False, 'A1',)),
+            Operation(stateName='A', stateNum=4, optype=OperationType.CRITICAL, fields=('A5',)),
+            Operation(stateName='A', stateNum=5, optype=OperationType.SETGO, fields=('a', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.SETGO, fields=('b', True, 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.IFGOELSE, fields=('a', 'B3', 'B4',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.SETGO, fields=('b', False, 'B1',)),
+            Operation(stateName='B', stateNum=4, optype=OperationType.CRITICAL, fields=('B5',)),
+            Operation(stateName='B', stateNum=5, optype=OperationType.SETGO, fields=('b', False, 'B0',)),
+        ]
+        super().__init__(ops, r)
+
+
+# A0. Maybe go to A1.               B0. Maybe go to B1.
+# A1. Set a <- 1 , go to A2.        B1. Set b <- 1, go to B2.
+# A2. Set l <- 0 , go to A3.        B1. Set l <- 1, go to B3.
+# A3. If b go to A4, else to A5.    B2. If a go to B4, else to B5.
+# A4. If l go to A5, else to A3.    B2. If l go to B3, else to B5.
+# A5. Critical, go to A6.           B3. Critical, go to B6.
+# A6. Set a <- 0, go to A0.         B4. Set b <- 0, go to B0.
+class Protocol49_shorter(Protocol):
+    def __init__(self, r=5):
+        ops = [
+            Operation(stateName='A', stateNum=0, optype=OperationType.MAYBE, fields=('A1',)),
+            Operation(stateName='A', stateNum=1, optype=OperationType.SETGO, fields=('a', True, 'A2',)),
+            Operation(stateName='A', stateNum=2, optype=OperationType.SETGO, fields=('l', False, 'A3',)),
+            Operation(stateName='A', stateNum=3, optype=OperationType.IFGOELSE, fields=('b', 'A4', 'A5',)),
+            Operation(stateName='A', stateNum=4, optype=OperationType.IFGOELSE, fields=('l', 'A5', 'A3',)),
+            Operation(stateName='A', stateNum=5, optype=OperationType.CRITICAL, fields=('A6',)),
+            Operation(stateName='A', stateNum=6, optype=OperationType.SETGO, fields=('a', False, 'A0',)),
+            Operation(stateName='B', stateNum=0, optype=OperationType.MAYBE, fields=('B1',)),
+            Operation(stateName='B', stateNum=1, optype=OperationType.SETGO, fields=('b', True, 'B2',)),
+            Operation(stateName='B', stateNum=2, optype=OperationType.SETGO, fields=('l', True, 'B3',)),
+            Operation(stateName='B', stateNum=3, optype=OperationType.IFGOELSE, fields=('a', 'B4', 'B5',)),
+            Operation(stateName='B', stateNum=4, optype=OperationType.IFGOELSE, fields=('l', 'B3', 'B5',)),
+            Operation(stateName='B', stateNum=5, optype=OperationType.CRITICAL, fields=('B6',)),
+            Operation(stateName='B', stateNum=6, optype=OperationType.SETGO, fields=('b', False, 'B0',)),
+        ]
+        super().__init__(ops, r)
+
 def DoStuff():
     # m = Protocol45_shorter(5)
     # m.Solve()
-    m = Protocol44_shorter(6)
+    m = Protocol49_shorter(20)
     m.Solve()
     # m.ShowClauses()
     # m.ShowLiterals()
