@@ -13,9 +13,10 @@ class Peg(Enum):
     Keyhole = 2
 
 
+finalScale = 0.5
 expansion = 0.1
 translateDist = 4
-pegType = Peg.Keyhole
+pegType = Peg.Round
 baseThickness = 0.2
 
 keyholeParams = (0.4, 0.2, 0.1, 0.075, 0.15)
@@ -66,9 +67,34 @@ def main():
         # Remerge so that pointless components that were split earlier go away
         DoMerge(app, ui, product, design)
 
+        ScaleDesign(app, ui, product, design)
+
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+def ScaleDesign(app, ui, product, design):
+    root = design.rootComponent
+    origin = adsk.core.Point3D.create(0, 0, 0)
+
+    for occ in root.occurrences:
+        component = occ.component
+        assert isinstance(component, adsk.fusion.Component)
+        inputColl = adsk.core.ObjectCollection.create()
+        if occ.component.bRepBodies.count < 1:
+            continue
+        for body in occ.component.bRepBodies:
+            print(body)
+            inputColl.add(body)
+        sketches = component.sketches
+        basePt = sketches.item(0).sketchPoints.item(0)
+        scaleFactor = adsk.core.ValueInput.createByReal(finalScale)
+
+        scales = component.features.scaleFeatures
+        scaleInput = scales.createInput(inputColl, basePt, scaleFactor)
+
+        scales.add(scaleInput)
 
 
 def AddPegs(app, ui, product, design, lifeGame, expansion):
