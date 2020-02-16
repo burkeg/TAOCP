@@ -69,6 +69,12 @@ class Mutex(ABC):
             for literal in clause.literals:
                 literal.shortName = self.literalMapping[abs(literal.value)]
 
+    def ShowClauses(self):
+        print(self.cnf)
+
+    def ShowLiterals(self):
+        pp.pprint(self.literalMapping)
+
     def Solve(self):
         solution = pycosat.solve(self.cnf.rawCNF())
         if solution != 'UNSAT':
@@ -108,6 +114,31 @@ class Mutex(ABC):
             print('t' + t + ':\t' +
                 state1[0] + state1[1] + '\t' + state2[0] + state2[1] + '\t' +
                   '\t'.join([('' if truthVal else '-') + variable for variable, truthVal in sorted(variables)]))
+
+    def ShowAllCounterExample(self):
+        solution = pycosat.solve(self.cnf.rawCNF())
+        if solution == 'UNSAT':
+            print('Impossible for both threads to enter critical section after ' + str(self.r) + ' time steps.')
+            return
+
+        states = dict()
+        for literal in solution:
+            literalStr = self.literalMapping[abs(literal)]
+            m = re.search('.*_(\d+)', literalStr)
+            if m is not None:
+                t = m.group(1)
+                states.setdefault(t, []).append((literalStr, literal > 0))
+        print('State transitions:')
+        for t, stateInfo in states.items():
+            printStr = 't' + t + ':\t\t'
+            lst = []
+            for variable, truthVal in sorted(stateInfo):
+                beforePadding = ('' if truthVal else '-') + variable
+                lst.append(beforePadding + ' '*(10-len(beforePadding)))
+                  # '\t'.join([('' if truthVal else '-') + variable for variable, truthVal in sorted(stateInfo)]))
+            printStr += ''.join(lst)
+            print(printStr)
+
 
 
 
@@ -217,9 +248,12 @@ class Protocol(Mutex):
         # self.stlClauses['B'] = [[] for t in range(self.r)]
         for t in range(self.r):
             variableChangingStates = dict()
+            for variable in self.variables.keys():
+                for state in [self.stateShapes[0][0], self.stateShapes[1][0]]:
+                    variableChangingStates[(variable, state)] = []
             for op in self.procedure:
                 if op.optype == OperationType.SETGO:
-                    variableChangingStates.setdefault((op.fields[0], op.stateName), []).append(op.stateNum)
+                    variableChangingStates[(op.fields[0], op.stateName)].append(op.stateNum)
 
             for key, stateNums in variableChangingStates.items():
                 variable, stateName = key
@@ -232,7 +266,7 @@ class Protocol(Mutex):
                     clauseState.append(self.stateLiterals[stateName][t][stateNum])
                 # if variable is true outside of changing states, it better stay true at t+1
                 self.stlClauses[stateName][t].append(clauseTrue + clauseState)
-                # if variable is false outside of changing states, it better stay true at t+1
+                # if variable is false outside of changing states, it better stay false at t+1
                 self.stlClauses[stateName][t].append(clauseFalse + clauseState)
 
 
@@ -305,11 +339,11 @@ class Protocol(Mutex):
                          self.stateLiterals[goStateName][t + 1][goStateNum]])
                     # Set variable <- truthVal
                     if truthVal:
-                        self.stlClauses[stateName][t].append(
+                        self.stlClauses[op.stateName][t].append(
                             [-self.stateLiterals[op.stateName][t][op.stateNum],
                              self.variables[variable][t + 1]])
                     else:
-                        self.stlClauses[stateName][t].append(
+                        self.stlClauses[op.stateName][t].append(
                             [-self.stateLiterals[op.stateName][t][op.stateNum],
                              -self.variables[variable][t + 1]])
                     # # A2. Set l <- 1 , go to A3.
@@ -1071,8 +1105,10 @@ class Protocol45(Mutex):
 def DoStuff():
     # m = Protocol45_shorter(5)
     # m.Solve()
-    m = Protocol40_shorter(6)
+    m = Protocol44_shorter(6)
     m.Solve()
+    # m.ShowClauses()
+    # m.ShowLiterals()
     # m = Protocol45_shorter(100)
     # m.Solve()
     # for i in range(10):
