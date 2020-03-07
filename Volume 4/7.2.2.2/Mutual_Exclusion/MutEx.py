@@ -75,10 +75,13 @@ class Mutex(ABC):
     def ShowLiterals(self):
         pp.pprint(self.literalMapping)
 
-    def Solve(self):
+    def Solve(self, verbose=False):
         solution = pycosat.solve(self.cnf.rawCNF())
         if solution != 'UNSAT':
-            self.ShowCounterExample()
+            if verbose:
+                self.ShowAllCounterExample()
+            else:
+                self.ShowCounterExample()
             print('Critical section hit by both threads after ' + str(self.r) + ' or less time steps.')
         else:
             print('Impossible for both threads to enter critical section after ' + str(self.r) + ' time steps.')
@@ -130,7 +133,8 @@ class Mutex(ABC):
                 states.setdefault(t, []).append((literalStr, literal > 0))
         print('State transitions:')
         for t, stateInfo in states.items():
-            printStr = 't' + t + ':\t\t'
+            printStr = 't' + t
+            printStr += ' ' * (10 - len(printStr))
             lst = []
             for variable, truthVal in sorted(stateInfo):
                 beforePadding = ('' if truthVal else '-') + variable
@@ -1158,10 +1162,10 @@ class Protocol49_shorter(Protocol):
 def DoStuff():
     # m = Protocol45_shorter(5)
     # m.Solve()
-    m = Protocol49_shorter(20)
-    m.Solve()
-    # m.ShowClauses()
-    # m.ShowLiterals()
+    m = Protocol40_shorter(6)
+    m.Solve(verbose=True)
+    m.ShowClauses()
+    m.ShowLiterals()
     # m = Protocol45_shorter(100)
     # m.Solve()
     # for i in range(10):
