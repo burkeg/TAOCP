@@ -18,6 +18,7 @@ expansion = 0.1
 translateDist = 4
 pegType = Peg.Round
 baseThickness = 0.2
+throughHole = True
 
 keyholeParams = (0.4, 0.2, 0.1, 0.075, 0.15)
 # params: tuple of 5 values that define the shape of the keyhole
@@ -144,11 +145,12 @@ def AddPegs(app, ui, product, design, lifeGame, expansion):
 
             # Now we have the component corresponding to our layer if it exists
             assert isinstance(layerCompBelow, adsk.fusion.Component)
-
-            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True, radius=0.14, height=expansion * 0.95)
-            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=expansion * 0.95)
-            addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=expansion)
-            addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=expansion)
+            pegHeight = expansion * 0.95 if not throughHole else expansion * 2
+            holeHeight = expansion if not throughHole else expansion * 2
+            addPegToComp(comp=layerCompBelow, center=Alower, isJoin=True, radius=0.14, height=pegHeight)
+            addPegToComp(comp=layerCompBelow, center=Blower, isJoin=True, radius=0.14, height=pegHeight)
+            addPegToComp(comp=layerCompAbove, center=Aupper, isJoin=False, radius=0.15, height=holeHeight)
+            addPegToComp(comp=layerCompAbove, center=Bupper, isJoin=False, radius=0.15, height=holeHeight)
 
             # Call doEvents to give Fusion 360 a chance to react.
             adsk.doEvents()
