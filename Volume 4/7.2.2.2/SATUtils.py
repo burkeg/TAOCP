@@ -144,6 +144,10 @@ class LiteralAllocator:
         self._currLiteral += numLiterals
         return retval
 
+    def getLiteral(self):
+        self._currLiteral += 1
+        return self._currLiteral - 1
+
     def getCurrLiteral(self):
         return self._currLiteral
 
@@ -277,7 +281,7 @@ class SATUtils:
         clauses = geResult[0]
         ltResult = SATUtils.atMost(inLiterals, r, geResult[1] + 1)
         clauses = clauses + ltResult[0]
-        return (clauses, ltResult[1])
+        return (clauses, max(ltResult[1], geResult[1]))
 
     # Given a set of literals and r, this produces a set of clauses that is
     # only SAT when at least r terms are true. Auxiliary literals start at
