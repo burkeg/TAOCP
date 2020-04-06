@@ -18,6 +18,24 @@ class PegSolitaire:
         self.literalAllocator = LiteralAllocator()
         self.cnf = CNF()
 
+    def Test1D(self):
+        self.height = 1
+        self.width = 7
+        numGen = 3
+        self.game = PegGameInstance(height=self.height, width=self.width)
+        self.game.boards = [PegBoardState(height=self.height, width=self.width,time=t) for t in range(numGen)]
+        self.literalAllocator = LiteralAllocator()
+        # Start state
+        for i in range(self.width):
+            if i != 3:
+                self.game[0][0][i].state = PegState.ALIVE
+            else:
+                self.game[0][0][i].state = PegState.DEAD
+        # Intermediate states
+        for t in range(1,numGen):
+            for i in range(self.width):
+                self.game[t][0][i].state = PegState.DONTCARE
+
     def DefaultGame(self):
         self.height = 7
         self.width = 7
@@ -286,5 +304,5 @@ class Testing:
 
 if __name__ == '__main__':
     ps = PegSolitaire()
-    ps.BasicTest()
+    ps.Test1D()
     ps.FillInSequence()

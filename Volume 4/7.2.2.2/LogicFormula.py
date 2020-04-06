@@ -1,7 +1,9 @@
 import time
+import pprint as pp
 from enum import Enum
 from collections import deque
 from SATUtils import CNF, Tseytin
+import pycosat
 class LogicStructure(Enum):
     AND = 0
     NAND = 1
@@ -260,6 +262,25 @@ class LogicFormula:
         y = gate8
         return [x1, x2, x3], [y]
 
+    @staticmethod
+    def Peg1DExample():
+        x = [Wire() for _ in range(5)]
+        y = [Wire() for _ in range(5)]
+        offsets = [i for i in range(-2,3)]
+        for i in range(5):
+            inputs = []
+            for j in offsets:
+                if i + j not in range(5):
+                    inputs.append(None)
+                else:
+                    inputs.append(x[i + j])
+            for j in offsets:
+                if i + j not in range(5):
+                    inputs.append(None)
+                else:
+                    inputs.append(y[i + j])
+            GateCustom().PegSolitaireFlatNextState(inputs, Wire())
+        return x + y, []
 
 class Gate:
     def __init__(self, gateType, inputs, outputs):
@@ -305,7 +326,8 @@ class GateCustom(Gate):
         if len(inputs) == 0:
             raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
         elif len(inputs) == 1:
-            output = inputs[0]
+            self.inputs = inputs
+            self.outputs = [inputs[0]]
             return
         elif len(inputs) == 2:
             # What're you doing? Just use a regular AND gate you dummy!
@@ -324,7 +346,8 @@ class GateCustom(Gate):
         if len(inputs) == 0:
             raise Exception("0 input AND gate? Don't bother encoding! It's always True.")
         elif len(inputs) == 1:
-            output = inputs[0]
+            self.inputs = inputs
+            self.outputs = [inputs[0]]
             return
         elif len(inputs) == 2:
             # What're you doing? Just use a regular OR gate you dummy!
@@ -528,6 +551,66 @@ class GateCustom(Gate):
         self.inputs = prev9tiles
         self.outputs = [output]
 
+    def PegSolitaire_nextState(self, prevPegs, outPegs):
+        pass
+
+    # a b c d e
+    #    \/
+    # f g h i j
+    def PegSolitaireFlatNextState(self, inputPegs, output):
+        a = inputPegs[0]
+        b = inputPegs[1]
+        c = inputPegs[2]
+        d = inputPegs[3]
+        e = inputPegs[4]
+        f = inputPegs[5]
+        g = inputPegs[6]
+        h = inputPegs[7]
+        i = inputPegs[8]
+        j = inputPegs[9]
+
+        sides = []
+        # Figure out if the surrounding tiles were able to jump onto the current space
+        if a is not None and b is not None:
+            nf = Wire()
+            Gate1(LogicStructure.NOT, f, nf)
+            ng = Wire()
+            Gate1(LogicStructure.NOT, g, ng)
+            leftSide = Wire()
+            GateCustom().ANDwide([a, b, nf, ng], leftSide)
+            sides.append(leftSide)
+        if d is not None and e is not None:
+            ni = Wire()
+            Gate1(LogicStructure.NOT, i, ni)
+            nj = Wire()
+            Gate1(LogicStructure.NOT, j, nj)
+            rightSide = Wire()
+            GateCustom().ANDwide([d, e, ni, nj], rightSide)
+            sides.append(rightSide)
+
+        assert len(sides) >= 1
+        validCause = Wire()
+        GateCustom().ORwide(sides, validCause)
+
+        # Figure out if the current tile came to life
+        nc = Wire()
+        Gate1(LogicStructure.NOT, c, nc)
+        tileRevived = Wire()
+        Gate2(LogicStructure.AND, nc, h, tileRevived)
+
+        # If the current tile came to life, it better have had a valid cause.
+        Gate2(LogicStructure.IMPLIES, tileRevived, validCause, output)
+        output.constant = True
+
+        self.inputs = inputPegs
+        self.outputs = [output]
+
+
+
+
+
+
+
 
     def EqualsExpected(self, inputsActual, inputsExpected, output):
         if len(inputsActual) != len(inputsExpected):
@@ -574,7 +657,7 @@ class Gate1(Gate):
             self.inputA=Wire(gatesIn=self)
         else:
             self.inputA=inputA
-            inputA.gatesIn.add(self)
+            inputA.gatesIn.append(self)
 
         if output is None:
             self.output=Wire(gateOut=self)
@@ -630,7 +713,16 @@ class Wire:
 
 
 if __name__ == '__main__':
-    theInputs, theOutputs = LogicFormula.WikipediaExample()
+    theInputs, theOutputs = LogicFormula.Peg1DExample()
     formula = LogicFormula(theInputs, 1, overwriteLiterals=True)
     formula.getTseytinCNF()
+    cnt = 0
+    unique = set()
+    pp.pprint(formula.cnfForm.rawCNF())
+    for solution in pycosat.itersolve(formula.cnfForm.rawCNF()):
+        unique.add(tuple(solution[:10]))
+        # print(solution)
+        cnt += 1
+    pp.pprint(sorted(unique))
+    print(len(unique))
     test = 0

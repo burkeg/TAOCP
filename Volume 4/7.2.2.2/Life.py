@@ -753,28 +753,10 @@ def createRLE():
 
 
 if __name__ == "__main__":
-    # names = \
-    #     [
-    #         'Tim',
-    #         'Ed',
-    #         'Hank',
-    #         'Julian',
-    #         'Kai',
-    #         'Keith',
-    #         'Kevin',
-    #         'Keyne',
-    #         'Mike',
-    #         'Ruben',
-    #         'Gordon',
-    #         'Bertie',
-    #         'Paula',
-    #         'Ike',
-    #         'Laura',
-    #         'Raj',
-    #         'Allen',
-    #         'Raymond',
-    #         'Jason'
-    #     ]
-    # for name in names:
-    Testing().GenerateTextSolutions('Jackson', start=4, stop=8, solutionCap=1)
+    names = \
+        [
+            'Keysight'
+        ]
+    for name in names:
+        Testing().GenerateTextSolutions(name, start=1, stop=6, solutionCap=1)
     # Testing().GenerateFlowerSolutions()
