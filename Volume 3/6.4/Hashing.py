@@ -160,7 +160,10 @@ class LinearListCollision(CollisionBase):
                 last = curr
                 curr = curr.next
 
-
+class CompareHashing:
+    def __init__(self, algoA, algoB):
+        self.algoA = algoA
+        self.algoB = algoB
 
 if __name__ == '__main__':
     HB = HashBase.GenAlgorithm(OverwriteOnCollision, ModuloHashFunc)
