@@ -2,6 +2,9 @@ import pprint as pp
 from SortUtils import SortUtils
 import math
 import abc
+import time
+import random as rand
+import pprint as pp
 
 class Node:
     def __init__(self, data):
@@ -42,6 +45,9 @@ class CollisionBase(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def RemovePair(self, element, hashedElement):
         pass
+
+    def Visualize(self):
+        pp.pprint(self.HashStructure)
 
 class HashBase(HashFuncBase, CollisionBase):
     @staticmethod
@@ -160,15 +166,61 @@ class LinearListCollision(CollisionBase):
                 last = curr
                 curr = curr.next
 
+    def Visualize(self):
+        allStr = '['
+        for i, elem in enumerate(self.HashStructure):
+            if elem is not None:
+                assert isinstance(elem, Node)
+                entryStr = '\n\t'
+                curr = elem
+                while curr is not None:
+                    if curr.next is not None:
+                        entryStr += str(curr.data) + ' -> '
+                    else:
+                        entryStr += str(curr.data)
+                    curr = curr.next
+                allStr += entryStr + ','
+        allStr += '\n]'
+        print(allStr)
+
+
 class CompareHashing:
-    def __init__(self, algoA, algoB):
-        self.algoA = algoA
-        self.algoB = algoB
+    def testAlgo(self, algo, newElementFunc, initInfo, numElements=1000, verbose=False):
+        assert isinstance(algo, HashBase)
+        t0 = time.perf_counter()
+        algo.Initialize([], initInfo)
+        if verbose:
+            algo.Visualize()
+        print('Init time: ' + str(time.perf_counter() - t0))
+        elems = []
+        t0 = time.perf_counter()
+        for _ in range(numElements):
+            newElem = newElementFunc()
+            algo.Add(newElem)
+            elems.append(newElem)
+        print('Add ' + str(numElements) + ' elements: ' + str(time.perf_counter() - t0))
+        if verbose:
+            algo.Visualize()
+        rand.shuffle(elems)
+        t0 = time.perf_counter()
+        for elem in elems:
+            algo.Get(elem)
+        print('Query those ' + str(numElements) + ' elements in random order: ' + str(time.perf_counter() - t0))
+        rand.shuffle(elems)
+        t0 = time.perf_counter()
+        for elem in elems:
+            algo.Remove(elem)
+        print('Remove those ' + str(numElements) + ' elements in random order: ' + str(time.perf_counter() - t0))
+        if verbose:
+            algo.Visualize()
 
 if __name__ == '__main__':
-    HB = HashBase.GenAlgorithm(OverwriteOnCollision, ModuloHashFunc)
-    HB.Initialize([1, 4, 14, 24, 7, 17, 27, 3, 13, 23], {'M': 10})
-    HB.Remove(4)
-    HB.Remove(17)
-    HB.Remove(23)
-    print(HB.HashStructure)
+    # https://en.wikipedia.org/wiki/Birthday_problem
+    # 23 is the smallest number of elements where a collision happens 50% of the time
+    overwriteModulo = HashBase.GenAlgorithm(LinearListCollision, ModuloHashFunc)
+    CompareHashing().testAlgo(
+        algo=overwriteModulo,
+        newElementFunc=lambda: rand.randint(0, 364),
+        initInfo={'M': 365},
+        numElements=50,
+        verbose=True)
