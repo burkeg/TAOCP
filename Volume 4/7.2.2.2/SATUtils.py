@@ -21,7 +21,10 @@ class CNF:
         return [[literal.value for literal in clause.literals] for clause in self.clauses]
 
     def addClause(self, clause):
-        self.clauses.append(clause)
+        if isinstance(clause, Clause):
+            self.clauses.append(clause)
+        else:
+            self.clauses.append(Clause(literals=clause))
 
     def mergeWithRaw(self, newCNF, allowDuplicates=True):
         if allowDuplicates:
@@ -233,9 +236,9 @@ class SATUtils:
     # only SAT when exactly one literal is true. Auxiliary literals start at
     # 1+max(map(abs,literals)) or at the specified startLiteral
     @staticmethod
-    def exactlyOne(inLiterals, startLiteral = None):
+    def exactlyOne(inLiterals, startLiteral = None, forceInefficient=False):
         # S=1(y_1,...y_p) = S<=1(y_1,...y_p) /\ (y_1 \/ y_2) \/ ... \/ y_p)
-        leOne = SATUtils.oneOrLess(inLiterals, startLiteral)
+        leOne = SATUtils.oneOrLess(inLiterals, startLiteral, forceInefficient)
         leOne[0].append(inLiterals)
         return leOne
 
