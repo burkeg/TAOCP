@@ -17,3 +17,4 @@ Volume 3/5/words_alpha.txt
 Volume 3/SortUtils/__pycache__/
 *.rle
 *.bin
+*.spec
