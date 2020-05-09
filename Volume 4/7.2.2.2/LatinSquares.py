@@ -59,6 +59,21 @@ class LatinSquare:
                 for col in range(self.n):
                     self.cnf.mergeWithRaw(SATUtils.exactlyOne(self.board[row][col][symbol], forceInefficient=True)[0])
 
+
+        # For each pair of symbols, they never appear twice
+        for symbolA, symbolB in itertools.combinations(range(self.symbols), 2):
+            impliedLiterals = []
+            for symbolValA in range(self.n):
+                for symbolValB in range(self.n):
+                    for row in range(self.n):
+                        for col in range(self.n):
+                            for i in range(self.n):
+                                for j in range(self.n):
+                                    if row != i and col != j:
+                                        self.board[row][col][symbolA]
+                                        # get pairs of literals and AND them together. That value must be
+                                        # true exactly 1 time for each pairing of symbol types.
+                                        pass
         # pp.pprint(sorted(self.cnf.rawCNF(), key=lambda x: [abs(_) for _ in x]))
 
     def Solve(self):
@@ -81,7 +96,7 @@ class LatinSquare:
 
 
 def Solve():
-    LatinSquare(15, 1).Solve()
+    LatinSquare(4, 2).Solve()
 
 if __name__ == '__main__':
     Solve()
