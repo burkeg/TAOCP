@@ -62,18 +62,21 @@ class LatinSquare:
 
         # For each pair of symbols, they never appear twice
         for symbolA, symbolB in itertools.combinations(range(self.symbols), 2):
-            impliedLiterals = []
             for symbolValA in range(self.n):
                 for symbolValB in range(self.n):
+                    # get pairs of literals and AND them together. That value must be
+                    # true exactly 1 time for each pairing of symbol types.
+                    impliedLiterals = []
                     for row in range(self.n):
                         for col in range(self.n):
-                            for i in range(self.n):
-                                for j in range(self.n):
-                                    if row != i and col != j:
-                                        self.board[row][col][symbolA]
-                                        # get pairs of literals and AND them together. That value must be
-                                        # true exactly 1 time for each pairing of symbol types.
-                                        pass
+                            clauses, C = Tseytin.AND(self.board[row][col][symbolA][symbolValA],
+                                        self.board[row][col][symbolB][symbolValB],
+                                        self.la.getLiteral())
+                            impliedLiterals.append(C)
+                            self.cnf.mergeWithRaw(clauses)
+                    self.cnf.mergeWithRaw(SATUtils.atLeast(impliedLiterals, 1)[0])
+
+
         # pp.pprint(sorted(self.cnf.rawCNF(), key=lambda x: [abs(_) for _ in x]))
 
     def Solve(self):
