@@ -334,18 +334,18 @@ class Life:
 
     def createSolutionDir(self):
         try:
-            os.mkdir('Designs/' + self.fname)
-        except OSError:
-            print("Creation of the directory %s failed" % self.fname)
+            os.makedirs(os.path.join('Designs', self.fname))
+        except OSError as osErr:
+            print(f"{osErr}\nCreation of the directory %s failed" % self.fname)
         else:
             print("Successfully created the directory %s " % self.fname)
             self.solutionCount = 0
 
     def addSolution(self, solution):
         assert isinstance(solution, LifeGameInstance)
-        with open('Designs/' + str(self.fname) + '/solution' + str(self.solutionCount) + '.bin', 'wb') as file:
+        with open(os.path.join('Designs', str(self.fname), 'solution' + str(self.solutionCount) + '.bin'), 'wb') as file:
             file.write(solution.toBytes())
-        with open('Designs/' + str(self.fname) + '/solution' + str(self.solutionCount) + '.rle', 'w') as file:
+        with open(os.path.join('Designs', str(self.fname), 'solution' + str(self.solutionCount) + '.rle'), 'w') as file:
             file.write(solution.toRLE())
         self.solutionCount += 1
 
@@ -755,7 +755,7 @@ def createRLE():
 if __name__ == "__main__":
     names = \
         [
-            'Keysight'
+            'Hi'
         ]
     for name in names:
         Testing().GenerateTextSolutions(name, start=1, stop=6, solutionCap=1)
